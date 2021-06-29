@@ -1,0 +1,1 @@
+*/20 * * * * cd counterstake-bridge; node check_daemon.js 1>>~/.config/counterstake-bridge/check_daemon.log 2>>~/.config/counterstake-bridge/check_daemon.err

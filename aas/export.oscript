@@ -1,0 +1,354 @@
+{
+	doc_url: "https://counterstake.org/bridge-export.json",
+	getters: `{
+
+		// ratio of the initial stake to the amount claimed
+		$get_ratio = () => var['ratio'] OTHERWISE params.ratio OTHERWISE 1;
+		$get_min_stake = () => var['min_stake'] OTHERWISE params.min_stake OTHERWISE 0;
+		$get_required_stake = ($amount) => max(ceil($amount * $get_ratio()), $get_min_stake());
+
+		// the counterstake must be that larger than the current stake
+		$get_counterstake_coef = () => var['counterstake_coef'] OTHERWISE params.counterstake_coef OTHERWISE 1.5;
+
+		// the claimed tx must be at least that old
+		$get_min_tx_age = () => {
+			$min_tx_age = var['min_tx_age'];
+			if (exists($min_tx_age))
+				return $min_tx_age;
+			exists(params.min_tx_age) ? params.min_tx_age : 0
+		};
+
+		// which transfers are deemed large and trigger a different schedule of challenging periods
+		$get_large_threshold = () => var['large_threshold'] OTHERWISE params.large_threshold OTHERWISE 0;
+		$is_stake_large = ($stake) => {
+			$large_threshold = $get_large_threshold();
+			$large_threshold AND $stake >= $large_threshold
+		};
+
+		// challenging periods in hours
+		$get_challenging_periods = () => var['challenging_periods'] OTHERWISE params.challenging_periods OTHERWISE [3*24, 7*24, 30*24, 60*24];
+		$get_large_challenging_periods = () => var['large_challenging_periods'] OTHERWISE params.large_challenging_periods OTHERWISE [7*24, 30*24, 60*24, 90*24];
+
+		// returns the challenging period in seconds
+		$get_challenging_period = ($period_number, $bLarge) => {
+			$periods = $bLarge ? $get_large_challenging_periods() : $get_challenging_periods();
+			$last_number = length($periods) - 1;
+			round($periods[min($period_number, $last_number)] * 3600)
+		};
+
+	}`,
+	init: "{
+		
+		if (!is_integer(params.asset_decimals) OR params.asset_decimals < 0 OR params.asset_decimals > 15)
+			bounce("bad asset_decimals" || params.asset_decimals);
+
+		if (!params.foreign_network)
+			bounce("no foreign network");
+		if (!params.foreign_asset)
+			bounce("no foreign asset");
+
+		$asset = params.asset OTHERWISE 'base';
+		if (!asset[$asset].exists)
+			bounce("no such asset: " || $asset);
+		$counterstake_coef = $get_counterstake_coef();
+
+		$fee = 2000;
+		$asset_fee = ($asset == 'base') ? $fee : 0;
+
+		if (trigger.data.address AND !is_valid_address(trigger.data.address))
+			bounce("invalid address: " || trigger.data.address);
+		
+		$governance_base_aa = 'HLNWXGGHGXWMZN27W2722MNJCHH2IVAO';
+	}",
+	messages: {
+		cases: [
+
+			// define the governance AA
+			{
+				if: `{ trigger.data.define }`,
+				messages: [
+					{ // define governance AA
+						app: 'definition',
+						payload: {
+							definition: [
+								'autonomous agent',
+								{
+									base_aa: `{$governance_base_aa}`,
+									params: {
+										export_aa: `{this_address}`,
+										challenging_period: `{params.governance_challenging_period OTHERWISE ''}`,
+										freeze_period: `{params.freeze_period OTHERWISE ''}`,
+									}
+								}
+							]
+						}
+					},
+					{
+						app: 'state',
+						state: `{
+							var['governance_aa'] = unit[response_unit].messages[[.app='definition']].payload.address;
+						}`
+					}
+				]
+			},
+
+			{ // accept variable changes from the governance AA
+				if: `{ trigger.address == var['governance_aa'] AND trigger.data.name }`, // trigger.data.value can be falsy
+				init: `{
+					$name = trigger.data.name;
+				}`,
+				messages: [
+					{
+						app: 'state',
+						state: `{
+							var[$name] = trigger.data.value;
+						}`
+					}
+				]
+			},
+
+			// claim a transfer repatriated from the foreign chain
+			// The claim parameters must be simple enough to make sure users don't misinterpret them and don't mistakenly vote for the wrong outcome (likely crafted on purpose to be misinterpreted).
+			// The transaction timestamp (txts) parameter is necessary to make sure the claimed tx already exists in the source network. Otherwise an attacker could create a tx, not publish it, claim, wait for challenges, then publish it and successfully defend the claim. txts is when the tx was processed (MC unit timestamp or block timestamp), not when it was created.
+			{
+				if: "{ trigger.data.txid AND trigger.data.amount AND trigger.data.txts AND trigger.data.sender_address AND trigger.output[[asset=$asset]] > $asset_fee }",
+				init: "{
+					if (trigger.output[[asset=base]] < $fee)
+						bounce("should send at least " || $fee || " bytes");
+					
+					$reward = trigger.data.reward OTHERWISE 0;
+					if ($reward >= trigger.data.amount)
+						bounce("reward too large");
+					
+					// can claim and stake for somebody else by immediately paying their claimed amount minus the reward
+					$address = trigger.data.address OTHERWISE trigger.address;
+					if ($address != trigger.address AND $reward < 0)
+						bounce("the sender disallowed third-party claiming by setting a negative reward");
+					$paid_amount = ($address != trigger.address) ? trigger.data.amount - $reward : 0;
+					$stake = trigger.output[[asset=$asset]] - $asset_fee - $paid_amount;
+
+					$required_stake = $get_required_stake(trigger.data.amount);
+					if ($stake < $required_stake)
+						bounce("received stake " || $stake || " is less than the required stake " || $required_stake);
+					
+					if (timestamp < trigger.data.txts + $get_min_tx_age())
+						bounce("the tx timestamp is not old enough");
+					
+					// data=0 and data='' are interpreted as no data
+					$str_data = trigger.data.data ? json_stringify(trigger.data.data) : '';
+
+					$claim_hash = sha256(trigger.data.sender_address || '_' || $address || '_' || trigger.data.txid || '_' || trigger.data.txts || '_' || trigger.data.amount || '_' || $reward || '_' || $str_data);
+					if (var['num_' || $claim_hash])
+						bounce("this transfer has already been claimed");
+
+					$is_large = $is_stake_large($stake);
+					$claim_num = var['claim_num'] + 1;
+				}",
+				messages: [
+					{
+						if: `{$paid_amount > 0}`,
+						app: 'payment',
+						payload: {
+							asset: `{$asset}`,
+							outputs: [{address: "{$address}", amount: "{$paid_amount}"}]
+						}
+					},
+					{
+						if: `{$paid_amount > 0}`,
+						app: "data",
+						payload: {
+							claim_num: "{$claim_num}",
+							sender_address: "{trigger.data.sender_address}",
+							address: "{$address}",
+							amount: "{trigger.data.amount}",
+							data: "{trigger.data.data OTHERWISE ''}",
+						}
+					},
+					{
+						app: "state",
+						state: "{
+							var['claim_num'] = $claim_num;
+							var['num_' || $claim_hash] = $claim_num;
+							$claim = {
+								claim_hash: $claim_hash,
+								amount: trigger.data.amount,
+								reward: $reward,
+								sender_address: trigger.data.sender_address,
+								address: $address, // might be a third party
+								claimant_address: trigger.address,
+								txid: trigger.data.txid,
+								txts: trigger.data.txts,
+								stakes: {
+									yes: $stake,
+									no: 0,
+								},
+								current_outcome: 'yes',
+								is_large: $is_large,
+								period_number: 0,
+								ts: timestamp,
+								expiry_ts: timestamp + $get_challenging_period(0, $is_large),
+								challenging_target: ceil($stake * $counterstake_coef),
+							};
+							if (trigger.data.data)
+								$claim.data = trigger.data.data;
+							// o_ stands for ongoing, f_ stands for finished.
+							var['o_' || $claim_num] = $claim;
+							var[$claim_num || '_yes_by_' || trigger.address] += $stake; // not by $address!
+							var['address_' || $address || '_' || $claim_num] = trigger.data.amount;
+							response['message'] = "challenging period expires in " || ($claim.expiry_ts-timestamp)/3600 || " hours";
+							response['new_claim_num'] = $claim_num;
+						}"
+					}
+				]
+			},
+
+			// challenge the current outcome
+			{
+				if: "{ trigger.data.stake_on AND trigger.data.claim_num AND trigger.output[[asset=$asset]] > $asset_fee }",
+				init: "{
+					if (trigger.output[[asset=base]] < $fee)
+						bounce("should send at least " || $fee || " bytes");
+					$claim_num = trigger.data.claim_num;
+					$stake_on = trigger.data.stake_on;
+					if ($stake_on != 'yes' AND $stake_on != 'no')
+						bounce("bad stake_on: " || $stake_on);
+					$claim = var['o_' || $claim_num];
+					if (!$claim)
+						bounce("no such claim: " || $claim_num);
+					if (timestamp > $claim.expiry_ts)
+						bounce("the challenging period has expired");
+					if ($stake_on == $claim.current_outcome)
+						bounce("the outcome " || $stake_on || " is already current");
+
+					$stake = trigger.output[[asset=$asset]] - $asset_fee;
+					$stake_on_proposed_outcome = $claim.stakes[$stake_on] + $stake;
+					$excess = $stake_on_proposed_outcome - $claim.challenging_target;
+					$would_override_current_outcome = $excess >= 0;
+					$accepted_stake = $stake - ($excess >= 0 ? $excess : 0);
+				}",
+				messages: [
+					{
+						if: "{$excess > 0}",
+						app: "payment",
+						payload: {
+							asset: "{$asset}",
+							outputs: [
+								{
+									address: "{trigger.address}",
+									amount: "{$excess}"
+								}
+							]
+						}
+					},
+					{
+						app: "state",
+						state: "{
+							$claim.stakes[$stake_on] = $claim.stakes[$stake_on] + $accepted_stake;
+							if ($would_override_current_outcome) {
+								$claim.period_number = $claim.period_number + 1;
+								$claim.current_outcome = $stake_on;
+								$claim.expiry_ts = timestamp + $get_challenging_period($claim.period_number, $claim.is_large);
+								$claim.challenging_target = ceil($claim.challenging_target * $counterstake_coef);
+							}
+							var['o_' || $claim_num] = $claim;
+							var[$claim_num || '_' || $stake_on || '_by_' || trigger.address] += $accepted_stake;
+
+							response['accepted_stake'] = $accepted_stake;
+							response['message'] = "current outcome " || ($would_override_current_outcome ? "became " : "stays ") || $claim.current_outcome || ". Total staked " || $claim.stakes.yes || " on yes, " || $claim.stakes.no || " on no. Expires in " || ($claim.expiry_ts-timestamp)/3600 || " hours.";
+						}"
+					}
+				]
+			},
+
+			// withdraw the stakes and the requested amount
+			{
+				if: "{trigger.data.withdraw AND trigger.data.claim_num}",
+				init: "{
+					$claim_num = trigger.data.claim_num;
+					$ongoing_claim = var['o_' || $claim_num];
+					if ($ongoing_claim) {
+						$claim = $ongoing_claim;
+						if (timestamp < $claim.expiry_ts)
+							bounce("challenging period is still ongoing");
+					}
+					else {
+						$claim = var['f_' || $claim_num];
+						if (!$claim)
+							bounce("no such claim: " || $claim_num);
+					}
+					
+					// withdrawal can be triggered by anybody
+					$address = trigger.data.address OTHERWISE trigger.address; 
+
+					$outcome = $claim.current_outcome;
+					$is_winning_claimant = ($address == $claim.claimant_address AND $outcome == 'yes');
+					if ($is_winning_claimant AND $claim.withdrawn)
+						bounce("already withdrawn");
+					$my_stake = var[$claim_num || '_' || $outcome || '_by_' || $address];
+					if (!$my_stake AND !$is_winning_claimant)
+						bounce("you are not the recipient and you didn't stake on the winning outcome or you have already withdrawn");
+					$total = ($my_stake ? floor($my_stake / $claim.stakes[$outcome] * ($claim.stakes.yes + $claim.stakes.no)) : 0) + ($is_winning_claimant ? $claim.amount : 0);
+				}",
+				messages: [
+					{
+						app: "payment",
+						payload: {
+							asset: "{$asset}",
+							outputs: [
+								{ address: "{$address}", amount: "{$total}"},
+							]
+						}
+					},
+					{
+					//	if: "{$is_winning_claimant}",
+						app: "data",
+						payload: {
+							claim_num: "{$claim_num}",
+							sender_address: "{$claim.sender_address}",
+							address: "{$claim.address}",
+							amount: "{$claim.amount}",
+							data: "{$claim.data OTHERWISE ''}",
+						}
+					},
+					{
+						app: "state",
+						state: "{
+							if ($is_winning_claimant)
+								$claim.withdrawn = true;
+							if ($ongoing_claim) {
+								var['o_' || $claim_num] = false;
+								response['message'] = "finished claim " || $claim_num;
+							}
+							if ($is_winning_claimant OR $ongoing_claim)
+								var['f_' || $claim_num] = $claim;
+							var[$claim_num || '_' || $outcome || '_by_' || $address] = false;
+						}"
+					}
+				]
+			},
+
+			// send the asset to the foreign chain.
+			{
+				if: "{trigger.data.foreign_address AND trigger.output[[asset=$asset]] > 0}",
+				messages: [
+					{
+						app: 'state',
+						state: `{
+							$amount = trigger.output[[asset=$asset]];
+							if (trigger.data.reward AND trigger.data.reward >= $amount)
+								bounce("the claim reward is bigger than your transfer");
+							response['foreign_address'] = trigger.data.foreign_address;
+							response['amount'] = $amount;
+							response['reward'] = trigger.data.reward OTHERWISE 0;
+							response['timestamp'] = timestamp; // MC unit timestamp, to be used as txts in claims
+							if (trigger.data.data) // 0 and '' are taken as no data
+								response['data'] = json_stringify(trigger.data.data);
+							response['message'] = "started expatriation";
+						}`
+					}
+				]
+			},
+
+		]
+	}
+}

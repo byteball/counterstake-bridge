@@ -1,0 +1,515 @@
+{
+	doc_url: "https://counterstake.org/bridge-export-assistant.json",
+	getters: `{
+
+		$get_param = ($name, $default) => {
+			$value = var[$name];
+			if (exists($value))
+				return $value;
+			exists(params[$name]) ? params[$name] : $default
+		};
+
+		$get_manager = () => var['manager'] OTHERWISE params.manager;
+
+	}`,
+	init: "{
+
+		// exponent = 1 is the standard proportional shares, earlier and later investors pay the same price per share
+		// exponent > 1 causes later shares to be more expensive than earlier ones. We issue fewer shares for the same amount of contributed assets
+		$exponent = params.exponent OTHERWISE 1;
+		if ($exponent <= 0)
+			bounce("invalid exponent");
+
+		$get_shares = ($stake_balance) => $stake_balance^(1/$exponent);
+
+		$bridge_aa = params.bridge_aa;
+		$bridge_params = definition[$bridge_aa][1].params;
+		$stake_asset = $bridge_params.asset OTHERWISE 'base';
+
+		// ratio of the initial stake to the amount claimed
+		$get_ratio = () => var[$bridge_aa]['ratio'] OTHERWISE $bridge_params.ratio OTHERWISE 1;
+		$get_min_stake = () => var[$bridge_aa]['min_stake'] OTHERWISE $bridge_params.min_stake OTHERWISE 0;
+
+		$get_required_stake = ($amount) => max(ceil($amount * $get_ratio()), $get_min_stake());
+
+		$get_my_losing_stake = ($claim_num) => {
+			$claim = var[$bridge_aa]['f_' || $claim_num];
+			if (!$claim)
+				bounce("no such claim or it is not finished yet");
+			
+			$my_winning_stake = var[$bridge_aa][$claim_num || '_' || $claim.current_outcome || '_by_' || this_address];
+			if ($my_winning_stake)
+				bounce("winning stake is " || $my_winning_stake);
+			
+			$losing_outcome = $claim.current_outcome == 'yes' ? 'no' : 'yes';
+			$my_losing_stake = var[$bridge_aa][$claim_num || '_' || $losing_outcome || '_by_' || this_address];
+			$my_losing_stake
+		};
+
+
+		$shares_asset = var['shares_asset'];
+
+		$received_stake_amount = trigger.output[[asset=$stake_asset]];
+		$received_shares_amount = $shares_asset ? trigger.output[[asset=$shares_asset]] : 0;
+
+		$balance_in_work = var['balance_in_work'];
+
+		// gross balance including management and success fees
+		$gross_balance = balance[$stake_asset] + $balance_in_work - $received_stake_amount;
+
+		// management fee
+		$old_mf = var['mf'];
+		$scaled_mf = (timestamp - var['ts'])/(360*24*3600) * params.management_fee;
+		$delta_mf = $gross_balance * $scaled_mf;
+		
+		$mf = $old_mf + $delta_mf;
+
+		// success fee
+		$sf = max(floor(var['profit'] * params.success_fee), 0);
+
+		// net balance
+		$balance = $gross_balance - $mf - $sf;
+
+		// risk free balance
+		$risk_free_balance = $balance - $balance_in_work;
+
+		$shares_supply = var['shares_supply'] OTHERWISE 0;
+
+		$check_balance = () => {
+			if ($balance < 0)
+				bounce("balance = " || $balance);
+			if ($shares_supply > 0 AND $balance == 0)
+				bounce("shares_supply = " || $shares_supply || " AND balance == 0");
+		};
+
+		$update_mf = () => {
+			var['mf'] += $delta_mf;
+			var['ts'] = timestamp;
+		};
+
+		$init_mf = () => {
+			var['mf'] = 0;
+			var['ts'] = timestamp;
+		};
+
+		$get_sf = () => max(floor(var['profit'] * params.success_fee), 0);
+
+		$fee = 2000;
+		$asset_fee = ($stake_asset == 'base') ? $fee : 0;
+		$min_stake_asset_amount = ($stake_asset == 'base') ? 10000 : 0; // bounce fee
+
+		$manager = $get_manager();
+		if (!params.manager)
+			bounce("no initial manager");
+
+	//	$governance_base_aa = 'VIKQXIULRJF7WATTAID2BB6YD6FRMZCF';
+	}",
+	messages: {
+		cases: [
+
+			// define the governance AA and shares asset
+			{
+				if: `{ !$shares_asset AND trigger.data.define }`,
+				messages: [
+				/*	{ // define governance AA
+						app: 'definition',
+						payload: {
+							definition: [
+								'autonomous agent',
+								{
+									base_aa: `{$governance_base_aa}`,
+									params: {
+										assistant_aa: `{this_address}`,
+										challenging_period: `{params.governance_challenging_period OTHERWISE ''}`,
+										freeze_period: `{params.governance_freeze_period OTHERWISE ''}`,
+									}
+								}
+							]
+						}
+					},*/
+					{
+						app: 'asset',
+						payload: {
+							// without cap
+							is_private: false,
+							is_transferrable: true,
+							auto_destroy: false,
+							fixed_denominations: false,
+							issued_by_definer_only: true,
+							cosigned_by_definer: false,
+							spender_attested: false,
+						}
+					},
+					{ // call back to the factory to let it know our shares asset
+						if: `{trigger.data.factory}`,
+						app: 'payment',
+						payload: {
+							asset: 'base',
+							outputs: [
+								{address: '{trigger.data.factory}', amount: 1000}, // send all
+							]
+						}
+					},
+					{
+						app: 'state',
+						state: `{
+						//	var['governance_aa'] = unit[response_unit].messages[[.app='definition']].payload.address;
+							$init_mf();
+							var['profit'] = 0;
+							var['shares_asset'] = response_unit;
+							response['shares_asset'] = response_unit;
+						}`
+					}
+				]
+			},
+			/*
+			{ // accept variable changes from the governance AA
+				if: `{ trigger.address == var['governance_aa'] AND trigger.data.name }`, // trigger.data.value can be falsy
+				init: `{
+					$name = trigger.data.name;
+				}`,
+				messages: [
+					{
+						app: 'state',
+						state: `{
+							var[$name] = trigger.data.value;
+						}`
+					}
+				]
+			},*/
+
+
+			// claim a transfer repatriated from the foreign chain
+			{
+				if: "{trigger.data.txid AND trigger.data.amount AND exists(trigger.data.reward) AND trigger.data.txts AND trigger.data.sender_address AND trigger.data.address AND trigger.address == $manager }",
+				init: "{
+					$required_stake = $get_required_stake(trigger.data.amount);
+
+					// what the user receives
+					$paid_amount = trigger.data.amount - trigger.data.reward;
+
+					$total = $required_stake + $paid_amount;
+					if ($total > $risk_free_balance)
+						bounce("not enough balance");
+
+					$claim_num = var[$bridge_aa]['claim_num'] + 1; // next num
+				}",
+				messages: [
+					{
+						if: `{$stake_asset != 'base'}`,
+						app: 'payment',
+						payload: {
+							asset: `base`,
+							outputs: [
+								{address: `{$bridge_aa}`, amount: `{$fee}`},
+							]
+						}
+					},
+					{
+						app: 'payment',
+						payload: {
+							asset: `{$stake_asset}`,
+							outputs: [
+								{address: `{$bridge_aa}`, amount: `{$total + $asset_fee}`},
+							]
+						}
+					},
+					{
+						app: 'data',
+						payload: {
+							txid: `{trigger.data.txid}`,
+							txts: `{trigger.data.txts}`,
+							amount: `{trigger.data.amount}`,
+							reward: `{trigger.data.reward}`,
+							address: `{trigger.data.address}`,
+							sender_address: `{trigger.data.sender_address}`,
+							data: "{trigger.data.data OTHERWISE ''}",
+						}
+					},
+					{
+						app: "state",
+						state: "{
+							var['balance_in_work'] += $total;
+							var['claim_' || $claim_num] = $total; // how much invested
+							response['sent_amount'] = $total;
+							response['message'] = "will claim for " || trigger.data.address;
+							$update_mf();
+						}"
+					}
+				]
+			},
+
+			// watchdog function: challenge the current outcome of a claim
+			{
+				if: "{trigger.data.stake_on AND trigger.data.claim_num AND trigger.address == $manager}",
+				init: `{
+					$claim = var[$bridge_aa]['o_' || trigger.data.claim_num];
+					if (!$claim)
+						bounce("no such claim");
+					$required_stake = $claim.challenging_target - $claim.stakes[trigger.data.stake_on];
+
+					// don't send excess amount as we are not able to accept it
+					$stake = (!trigger.data.stake OR trigger.data.stake > $required_stake) ? $required_stake : trigger.data.stake;
+
+					if ($stake + $asset_fee >= $risk_free_balance)
+						bounce("not enough balance");
+				}`,
+				messages: [
+					{
+						if: `{$stake_asset != 'base'}`,
+						app: 'payment',
+						payload: {
+							asset: `base`,
+							outputs: [
+								{address: `{$bridge_aa}`, amount: `{$fee}`},
+							]
+						}
+					},
+					{
+						app: 'payment',
+						payload: {
+							asset: `{$stake_asset}`,
+							outputs: [
+								{address: `{$bridge_aa}`, amount: `{$stake + $asset_fee}`},
+							]
+						}
+					},
+					{
+						app: 'data',
+						payload: {
+							claim_num: `{trigger.data.claim_num}`,
+							stake_on: `{trigger.data.stake_on}`,
+						}
+					},
+					{
+						app: "state",
+						state: "{
+							var['balance_in_work'] += $stake;
+							// we can challenge it several times (and even on different sides), that's why +=
+							var['claim_' || trigger.data.claim_num] += $stake;
+
+							response['sent_amount'] = $stake;
+							response['message'] = "will challenge " || trigger.data.claim_num || " with " || trigger.data.stake_on;
+							$update_mf();
+						}"
+					}
+				]
+			},
+
+			// receive asset from bridge AA
+			{
+				if: `{ trigger.address == $bridge_aa }`,
+				messages: [
+					{
+						app: 'state',
+						state: `{
+							$claim_num = trigger.data.claim_num;
+							if (!$claim_num)
+								bounce("no claim_num in received from bridge");
+							// it gets added to our balance
+							response['received_amount'] = $received_stake_amount;
+
+							// check if we also staked on the losing outcome in this claim
+							$my_losing_stake = $get_my_losing_stake($claim_num);
+							if ($my_losing_stake)
+								response['lost_stake_amount'] = $my_losing_stake;
+
+							// var['claim_' || $claim_num] includes stakes on both sides
+							$balance_in_work_on_this_claim = var['claim_' || $claim_num];
+							if (!$balance_in_work_on_this_claim)
+								bounce("BUG: I didn't stake in this claim?");
+							var['profit'] += $received_stake_amount - $balance_in_work_on_this_claim;
+							var['balance_in_work'] -= $balance_in_work_on_this_claim;
+							if (var['balance_in_work'] < 0)
+								bounce("BUG: after received from bridge, balance in work would become negative");
+							var['claim_' || $claim_num] = false;
+
+							$update_mf();
+						}`
+					}
+				]
+			},
+
+			// Record a loss, called by anybody.
+			// Should be called only if I staked on the losing side only.
+			// If I staked on the winning side too, the above dendrite should be called.
+			{
+				if: `{ trigger.data.loss AND trigger.data.claim_num }`,
+				messages: [
+					{
+						app: 'state',
+						state: `{
+							$claim_num = trigger.data.claim_num;
+							$my_stake = var['claim_' || $claim_num];
+							if (!$my_stake)
+								bounce("this claim is already accounted for");
+							
+							// this is the loss from staking only, it does not include the money sent to the user.
+							// calling this function is necessary because it also checks that we didn't have a winning stake
+							$my_losing_stake = $get_my_losing_stake($claim_num);
+							if (!$my_losing_stake)
+								bounce("I didn't have a losing stake in this claim");
+							
+							if ($my_stake < $my_losing_stake)
+								bounce("BUG: losing stake mismatch: staked on bridge " || $my_losing_stake || ", assistant total " || $my_stake);
+							
+							var['balance_in_work'] -= $my_stake;
+							if (var['balance_in_work'] < 0)
+								bounce("BUG: balance in work would become negative");
+							
+							var['profit'] -= $my_stake;
+							var['claim_' || $claim_num] = false;
+							$update_mf();
+
+							response['lost_amount'] = $my_stake;
+							response['message'] = "recorded a loss in claim " || $claim_num;
+						}`
+					}
+				]
+			},
+
+			// buy shares from the AA
+			{
+				if: `{ $shares_asset AND $received_stake_amount > $min_stake_asset_amount AND $received_shares_amount == 0 }`,
+				init: `{
+					$check_balance();
+					$coef = $shares_supply ? $shares_supply / $get_shares($balance) : 1;
+					$new_shares_supply = floor($coef * $get_shares($balance + $received_stake_amount));
+					$shares_amount = $new_shares_supply - $shares_supply;
+				}`,
+				messages: [
+					{
+						app: 'payment',
+						payload: {
+							asset: '{$shares_asset}',
+							outputs: [
+								{address: "{trigger.address}", amount: "{$shares_amount}"}
+							]
+						}
+					},
+					{
+						app: 'state',
+						state: `{
+							var['shares_supply'] += $shares_amount;
+							$update_mf();
+						}`
+					}
+				]
+			},
+
+			// redeem shares
+			{
+				if: `{ $shares_asset AND $received_shares_amount > 0 AND $received_stake_amount <= $min_stake_asset_amount }`,
+				init: `{
+					$check_balance();
+					$share_of_shares = $received_shares_amount / $shares_supply;
+					$remaining_share_of_shares = 1 - $share_of_shares;
+					$remaining_share_of_assets = $remaining_share_of_shares^$exponent;
+					$share_of_assets = 1 - $remaining_share_of_assets;
+					$amount = floor($share_of_assets * $risk_free_balance);
+				}`,
+				messages: [
+					{
+						app: 'payment',
+						payload: {
+							asset: '{$stake_asset}',
+							outputs: [
+								{address: "{trigger.address}", amount: "{$amount}"}
+							]
+						}
+					},
+					{
+						app: 'state',
+						state: `{
+							var['shares_supply'] -= $received_shares_amount;
+							$update_mf();
+						}`
+					}
+				]
+			},
+
+			// withdraw the management fee accrued since the previous withdrawal
+			{
+				if: `{ $shares_asset AND trigger.data.withdraw_management_fee AND trigger.address == $manager }`,
+				messages: [
+					{
+						app: 'payment',
+						payload: {
+							asset: '{$stake_asset}',
+							outputs: [
+								{address: "{trigger.address}", amount: "{floor($mf)}"}
+							]
+						}
+					},
+					{
+						app: 'state',
+						state: `{
+							// reset it and start accumulating again
+							$init_mf();
+						}`
+					}
+				]
+			},
+
+			// withdraw the success fee accrued since the previous withdrawal
+			// We pay in stake asset from the pool
+			{
+				if: `{ $shares_asset AND trigger.data.withdraw_success_fee AND trigger.address == $manager }`,
+				init: `{
+					if ($sf <= 0)
+						bounce("there is no profit since the last withdrawal");
+				}`,
+				messages: [
+					{
+						app: 'payment',
+						payload: {
+							asset: '{$stake_asset}',
+							outputs: [
+								{address: "{trigger.address}", amount: "{$sf}"}
+							]
+						}
+					},
+					{
+						app: 'state',
+						state: `{
+							var['profit'] = 0; // reset
+							$update_mf();
+						}`
+					}
+				]
+			},
+
+			// withdraw bytes accumulated through bounce fees
+			{
+				if: `{ $shares_asset AND trigger.data.withdraw_bytes AND trigger.data.amount AND $stake_asset != 'base' AND trigger.address == $manager }`,
+				messages: [
+					{
+						app: 'payment',
+						payload: {
+							asset: 'base',
+							outputs: [
+								{address: "{trigger.address}", amount: "{trigger.data.amount}"}
+							]
+						}
+					},
+				]
+			},
+
+			// assign a new manager address
+			{
+				if: `{ trigger.data.manager_address AND trigger.address == $manager }`,
+				messages: [
+					{
+						app: 'state',
+						state: `{
+							if (!is_valid_address(trigger.data.manager_address))
+								bounce("new manager address is invalid");
+							var['manager'] = trigger.data.manager_address;
+						}`
+					},
+				]
+			},
+
+		]
+	}
+}

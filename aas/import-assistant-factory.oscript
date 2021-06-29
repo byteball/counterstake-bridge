@@ -1,0 +1,125 @@
+{
+	doc_url: "https://counterstake.org/bridge-import-assistant-factory.json",
+	init: `{
+		$assistant_base_aa = 'HLSRAK6LGDXLNGXUCB5Z43NCZMVLYTJU';
+	}`,
+	messages: {
+		cases: [
+
+			// accept a callback from a newly created assistant AA to record its newly defined shares asset
+			{
+				if: `{ var['creating'] }`,
+				messages: [
+					{
+						app: 'state',
+						state: `{
+							$params = var['assistant_' || trigger.address];
+							$params.shares_asset = trigger.unit;
+							var['assistant_' || trigger.address] = $params;
+							var['creating'] = false;
+						}`
+					}
+				]
+			},
+
+			// create a new assistant AA
+			{
+				init: `{
+					if (!is_aa(trigger.data.bridge_aa))
+						bounce("bridge_aa must be an AA");
+					if (!is_valid_address(trigger.data.manager))
+						bounce("manager must be valid address");
+					if (typeof(trigger.data.management_fee) != 'number' OR trigger.data.management_fee < 0 OR trigger.data.management_fee >= 1)
+						bounce("bad management_fee");
+					if (typeof(trigger.data.success_fee) != 'number' OR trigger.data.success_fee < 0 OR trigger.data.success_fee >= 1)
+						bounce("bad success_fee");
+					
+					$bridge_params = definition[trigger.data.bridge_aa][1].params;
+					$stake_asset = $bridge_params.stake_asset OTHERWISE 'base';
+					$asset = var[trigger.data.bridge_aa]['asset'];
+					
+					$params = {
+						bridge_aa: trigger.data.bridge_aa,
+						manager: trigger.data.manager,
+						management_fee: trigger.data.management_fee,
+						success_fee: trigger.data.success_fee,
+					};
+
+					if (trigger.data.exponent){
+						if (typeof(trigger.data.exponent) != 'number' OR trigger.data.exponent <= 0)
+							bounce("invalid exponent");
+						$params.exponent = trigger.data.exponent;
+					}
+
+					if (trigger.data.stake_share){
+						if (typeof(trigger.data.stake_share) != 'number' OR trigger.data.stake_share <= 0 OR trigger.data.stake_share >= 1)
+							bounce("invalid stake_share");
+						$params.stake_share = trigger.data.stake_share;
+					}
+
+					if (trigger.data.swap_fee){
+						if (typeof(trigger.data.swap_fee) != 'number' OR trigger.data.swap_fee < 0 OR trigger.data.swap_fee >= 1)
+							bounce("invalid swap_fee");
+						$params.swap_fee = trigger.data.swap_fee;
+					}
+
+					if (exists(trigger.data.governance_challenging_period)){
+						if (!is_integer(trigger.data.governance_challenging_period) OR trigger.data.governance_challenging_period < 0)
+							bounce("invalid governance_challenging_period");
+						$params.governance_challenging_period = trigger.data.governance_challenging_period;
+					}
+
+					if (exists(trigger.data.governance_freeze_period)){
+						if (!is_integer(trigger.data.governance_freeze_period) OR trigger.data.governance_freeze_period < 0)
+							bounce("invalid governance_freeze_period");
+						$params.governance_freeze_period = trigger.data.governance_freeze_period;
+					}
+
+					$assistant_aa = [
+						'autonomous agent',
+						{
+							base_aa: $assistant_base_aa,
+							params: $params,
+						}
+					];
+					$assistant_aa_address = chash160($assistant_aa);
+				}`,
+				messages: [
+					{
+						app: 'payment',
+						payload: {
+							asset: 'base',
+							outputs: [
+								{ address: "{ $assistant_aa_address }", amount: 4000 }, // I'll get all this money back (minus fees)
+							]
+						}
+					},
+					{
+						app: 'data',
+						payload: {
+							define: 1,
+							factory: `{this_address}`
+						}
+					},
+					{
+						app: 'definition',
+						payload: {
+							definition: `{$assistant_aa}`
+						}
+					},
+					{
+						app: 'state',
+						state: `{
+							$params.stake_asset = $stake_asset;
+							$params.asset = $asset;
+							var['assistant_' || $assistant_aa_address] = $params;
+							var['creating'] = 1;
+							response['address'] = $assistant_aa_address;
+						}`
+					}
+				]
+
+			}
+		]
+	}
+}

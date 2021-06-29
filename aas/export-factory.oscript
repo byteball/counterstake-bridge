@@ -1,0 +1,135 @@
+{
+	doc_url: "https://counterstake.org/bridge-export-factory.json",
+	init: `{
+		$export_base_aa = 'DAN6VZNKNZBKJP7GYJST5FMONZOY4FNT';
+		$governance_base_aa = 'HLNWXGGHGXWMZN27W2722MNJCHH2IVAO';
+	}`,
+	messages: {
+		cases: [
+
+			// create a new export AA
+			{
+				init: `{
+					if (!trigger.data.asset)
+						bounce("no asset");
+					if (!asset[trigger.data.asset].exists)
+						bounce("no such asset: " || trigger.data.asset);
+					
+					if (!is_integer(trigger.data.asset_decimals) OR trigger.data.asset_decimals < 0 OR trigger.data.asset_decimals > 15)
+						bounce("bad asset_decimals" || trigger.data.asset_decimals);
+
+					if (!trigger.data.foreign_network)
+						bounce("no foreign network");
+					if (!trigger.data.foreign_asset)
+						bounce("no foreign asset");
+					
+					// if we deploy a new factory in the future, it should check the old factory's registry too
+					if (var['aa_' || trigger.data.foreign_network || '_' || trigger.data.foreign_asset])
+						bounce('export AA already exists for this foreign network and asset');
+
+					$params = {
+						asset: trigger.data.asset,
+						asset_decimals: trigger.data.asset_decimals,
+						foreign_network: trigger.data.foreign_network,
+						foreign_asset: trigger.data.foreign_asset,
+					};
+
+					// ratio of the initial stake to the amount claimed
+					if (trigger.data.ratio){
+						if (typeof(trigger.data.ratio) != 'number' OR trigger.data.ratio <= 0)
+							bounce("bad ratio: " || trigger.data.ratio);
+						$params.ratio = trigger.data.ratio;
+					}
+
+					// challenging periods in hours
+					foreach(['challenging_periods', 'large_challenging_periods'], 2, $p => {
+						$value = trigger.data[$p];
+						if (exists($value)) {
+							$params[$p] = $governance_base_aa.$get_challenging_periods($value);
+						}
+					});
+
+					// the counterstake must be that larger than the current stake
+					if (trigger.data.counterstake_coef){
+						if (typeof(trigger.data.counterstake_coef) != 'number' OR trigger.data.counterstake_coef <= 1)
+							bounce("bad counterstake_coef: " || trigger.data.counterstake_coef);
+						$params.counterstake_coef = trigger.data.counterstake_coef;
+					}
+
+					// minimum amount of stake - to make sure that even small claims are properly monitored and challenged if necessary
+					if (trigger.data.min_stake){
+						if (!is_integer(trigger.data.min_stake) OR trigger.data.min_stake < 0)
+							bounce("bad min_stake: " || trigger.data.min_stake);
+						$params.min_stake = trigger.data.min_stake;
+					}
+
+					// the repatriated tx must be old enough before it is allowed to claim it
+					if (trigger.data.min_tx_age){
+						if (!is_integer(trigger.data.min_tx_age) OR trigger.data.min_tx_age < 0)
+							bounce("bad min_tx_age: " || trigger.data.min_tx_age);
+						$params.min_tx_age = trigger.data.min_tx_age;
+					}
+
+					// transfers that are deemed large and trigger a different schedule of challenging periods
+					if (trigger.data.large_threshold){
+						if (!is_integer(trigger.data.large_threshold) OR trigger.data.large_threshold <= 0)
+							bounce("bad large_threshold: " || trigger.data.large_threshold);
+						$params.large_threshold = trigger.data.large_threshold;
+					}
+
+					// governance AA params
+					foreach(['governance_challenging_period', 'freeze_period'], 2, $p => {
+						$value = trigger.data[$p];
+						if (exists($value)) {
+							if (!is_integer($value) OR $value <= 0)
+								bounce("bad " || $p);
+							$params[$p] = $value;
+						}
+					});
+
+					$export_aa = [
+						'autonomous agent',
+						{
+							base_aa: $export_base_aa,
+							params: $params
+						}
+					];
+					$export_aa_address = chash160($export_aa);
+				}`,
+				messages: [
+					{
+						app: 'payment',
+						payload: {
+							asset: 'base',
+							outputs: [
+								{ address: "{ $export_aa_address }", amount: 4000 },
+							]
+						}
+					},
+					{
+						app: 'data',
+						payload: {
+							define: 1,
+							factory: `{this_address}`
+						}
+					},
+					{
+						app: 'definition',
+						payload: {
+							definition: `{$export_aa}`
+						}
+					},
+					{
+						app: 'state',
+						state: `{
+							var['export_' || $export_aa_address] = $params;
+							var['aa_' || trigger.data.foreign_network || '_' || trigger.data.foreign_asset] = $export_aa_address;
+							response['address'] = $export_aa_address;
+						}`
+					}
+				]
+
+			}
+		]
+	}
+}
