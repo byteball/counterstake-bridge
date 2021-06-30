@@ -6,14 +6,23 @@ The bot also serves as watchdog. It monitors the ongoing transfers and if it see
 
 Currently, the bot supports transfers between Obyte, Ethereum, and BSC.
 
+The are no guarantees of the correct operation of the software. There might be bugs which can lead to losing money. Use at your own risk.
+
 ## Requirements
 nodejs 12+
 
 ## Install
+Get the repo:
 ```bash
 git clone https://github.com/byteball/counterstake-bridge
 cd counterstake-bridge
 yarn
+```
+Compile the Ethereum contracts:
+```bash
+cd evm
+npm install -g truffle
+truffle compile
 ```
 
 ## Run
@@ -81,6 +90,15 @@ There is no UI for contributing to the pools yet, so this is not a real option a
 
 ## Adding new bridges
 See `setup_bridges.js` and edit `setupAdditionalBridge()` as appropriate.
+
+## Adding new chains
+To add a new EVM-based chain, see the source code of `ethereum.js` and `bsc.js`, add a similar class, and use it in `transfers.js`. Edit and run `emv/deploy-contracts.js` to deploy the contracts.
+
+To add a new Obyte-based chain, see `obyte.js` and define a descendant class, then use it in `transfers.js`. Edit and run `deploy-aas.js` to deploy the autonomous agents.
+
+To add a chain that is neither EVM-based nor Obyte-based, develop its programmable agents (such as autonomous agents on Obyte, smart contracts on Ethereum, chaincode on Hyperledger Fabric) that implement the Counterstake protocol, write a class similar to `obyte.js` and `evm-chain.js`, use it in `transfers.js`, and deploy the agents.
+
+In all cases, you are welcome to submit PRs to add your work to this repo.
 
 ## Running automated tests on autonomous agents
 ```bash
