@@ -480,7 +480,7 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 			const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome);
 			console.log(`my stake on claim ${claim_num} was ${my_stake}`); // duplicates are harmless
 			if (my_stake && !BigNumber.from(my_stake).isZero()) {
-				const txid = await api.sendWithdrawalRequest(bridge_aa, claim_num, assistant_aa);
+				const txid = await sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa);
 				if (txid)
 					await finishClaim(claim_info);
 			}
@@ -563,6 +563,36 @@ async function sendChallenge(network, bridge_aa, assistant_aa, { claim_num, brid
 	}
 }
 
+async function addressHasStakesInClaim({ claim_num, bridge_id, type }, address) {
+	const rows = await db.query(
+		`SELECT 1 FROM claims WHERE bridge_id=? AND claim_num=? AND type=? AND claimant_address=?
+		UNION
+		SELECT 1 FROM challenges WHERE bridge_id=? AND claim_num=? AND type=? AND address=?`,
+		[bridge_id, claim_num, type, address, bridge_id, claim_num, type, address]
+	);
+	return rows.length > 0;
+}
+
+async function sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa) {
+	const api = networkApi[network];
+	if (!assistant_aa)
+		return await api.sendWithdrawalRequest(bridge_aa, claim_num);
+	let txid;
+	if (await addressHasStakesInClaim({ claim_num, bridge_id, type }, assistant_aa)) {
+		console.log(`sending withdrawal request on claim ${claim_num} for assistant`);
+		txid = await api.sendWithdrawalRequest(bridge_aa, claim_num, assistant_aa);
+		if (!txid)
+			return null;
+	}
+	const my_address = api.getMyAddress();
+	if (await addressHasStakesInClaim({ claim_num, bridge_id, type }, my_address)) {
+		console.log(`sending withdrawal request on claim ${claim_num} for myself`);
+		txid = await api.sendWithdrawalRequest(bridge_aa, claim_num);
+		if (!txid)
+			return null;
+	}
+	return txid;
+}
 
 async function finishClaim({ claim_num, bridge_id, type }) {
 	await db.query("UPDATE claims SET is_finished=1 WHERE claim_num=? AND bridge_id=? AND type=?", [claim_num, bridge_id, type]);
@@ -592,7 +622,7 @@ async function checkUnfinishedClaims() {
 			const valid_outcome = await getValidOutcome(claim_info, true);
 			if (claim.current_outcome === valid_outcome) {
 				console.log(`checkUnfinishedClaims: claim ${claim_num} finished as expected`);
-				const txid = await api.sendWithdrawalRequest(bridge_aa, claim_num, assistant_aa);
+				const txid = await sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa);
 				if (txid)
 					await finishClaim(claim_info);
 			}

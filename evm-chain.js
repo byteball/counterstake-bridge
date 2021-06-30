@@ -132,6 +132,10 @@ class EvmChain {
 		return fee / rate;
 	}
 
+	getMyAddress() {
+		return this.#wallet.address;
+	}
+
 	isMyAddress(address) {
 		return address === this.#wallet.address;
 	}

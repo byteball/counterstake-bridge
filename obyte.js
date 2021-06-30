@@ -47,6 +47,10 @@ class Obyte {
 		return 0;
 	}
 
+	getMyAddress() {
+		return operator.getAddress();
+	}
+
 	isMyAddress(address) {
 		return address === operator.getAddress();
 	}
