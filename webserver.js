@@ -57,7 +57,7 @@ router.get('/transfer/:txid*', async (ctx) => {
 	const txid = decodeURIComponent(ctx.params.txid);
 	const [transfer] = await db.query("SELECT * FROM transfers WHERE txid=? AND is_confirmed=1", [txid]);
 	if (!transfer)
-		return setError(ctx, 'no such transfer');
+		return setError(ctx, 'no such transfer ' + txid);
 	delete transfer.is_confirmed;
 	const [claim] = await db.query("SELECT is_stable, unit, claim_txid, is_finished FROM claims LEFT JOIN units ON claim_txid=unit WHERE transfer_id=?", [transfer.transfer_id]);
 	if (claim) {
