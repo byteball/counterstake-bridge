@@ -279,7 +279,7 @@ async function attackClaim(bridge, type, claim_num, claim_txid) {
 	const asset = type === 'expatriation' ? stake_asset : home_asset;
 	if (!asset)
 		throw Error(`null asset in claim ${claim_num}`);
-	const counterstake = await getCounterstakeAmount(network, required_counterstake, asset);
+	const counterstake = await getCounterstakeAmount(network, assistant_aa, required_counterstake, asset);
 	if (counterstake.isZero())
 		return notifications.notifyAdmin(`0 balance available to counterstake claim ${claim_num} received in tx ${claim_txid}`);
 	if (counterstake.lt(required_counterstake))
@@ -438,7 +438,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 		const required_counterstake = BigNumber.from(claim.challenging_target).sub(claim.stakes[valid_outcome]);
 		if (required_counterstake.lte(0))
 			throw Error(`required counterstake is ${required_counterstake} after challenge ${challenge_txid} on claim ${claim_num}`)
-		const counterstake = await getCounterstakeAmount(network, required_counterstake, asset);
+		const counterstake = await getCounterstakeAmount(network, assistant_aa, required_counterstake, asset);
 		if (counterstake.isZero()) {
 			notifications.notifyAdmin(`0 balance available to counterstake claim ${claim_num} challenged in tx ${challenge_txid}`);
 			return unlock(`0 balance available to counterstake claim ${claim_num} challenged in tx ${challenge_txid}`);
@@ -515,10 +515,15 @@ function getDestAmount(src_amount, src_asset_decimals, dst_asset_decimals) {
 	return src_asset_decimals > dst_asset_decimals ? src_amount.div(factor) : src_amount.mul(factor);
 }
 
-async function getCounterstakeAmount(network, required_counterstake, asset) {
+async function getCounterstakeAmount(network, assistant_aa, required_counterstake, asset) {
 	const api = networkApi[network];
-	const balance = BigNumber.from(await api.getMyBalance(asset));
-	console.log(`my balance available for counterstaking: ${balance}`);
+	let balance = BigNumber.from(0);
+	if (assistant_aa)
+		balance = BigNumber.from(await api.getBalance(assistant_aa, asset));
+	const bFromAssistant = assistant_aa && !balance.isZero();
+	if (balance.isZero()) // use own balance only is assistant balance is 0
+		balance = BigNumber.from(await api.getMyBalance(asset));
+	console.log(`${bFromAssistant ? 'assistant' : 'my'} balance available for counterstaking: ${balance}`);
 	const fBalance = parseFloat(utils.formatEther(balance));
 	const max_stake = utils.parseEther((conf.max_exposure * fBalance).toFixed(18));
 	return required_counterstake.lt(max_stake) ? required_counterstake : max_stake;
@@ -538,7 +543,17 @@ async function getValidOutcome({ claim_num, bridge_id, type }, bThrowIfNotFound)
 
 async function sendChallenge(network, bridge_aa, assistant_aa, { claim_num, bridge_id, type }, stake_on, asset, counterstake) {
 	const api = networkApi[network];
-	const txid = assistant_aa
+	let bClaimFromPooledAssistant = !!assistant_aa;
+	if (bClaimFromPooledAssistant) {
+		const bAssistantHasEnoughBalance = counterstake.lte(await api.getBalance(assistant_aa, asset));
+		if (bAssistantHasEnoughBalance)
+			console.log(`will challenge claim ${claim_num} with ${stake_on} from assistant AA ${assistant_aa}`);
+		else {
+			console.log(`assistant AA ${assistant_aa} has insufficient balance to challenge claim ${claim_num} with ${stake_on}, will try to challenge myself`);
+			bClaimFromPooledAssistant = false;
+		}
+	}
+	const txid = bClaimFromPooledAssistant
 		? await api.sendChallengeFromPooledAssistant(assistant_aa, claim_num, stake_on, counterstake)
 		: await api.sendChallenge(bridge_aa, claim_num, stake_on, asset, counterstake);
 	if (txid) {
