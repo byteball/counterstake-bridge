@@ -6,7 +6,7 @@ const conf = require('ocore/conf.js');
 const mutex = require('ocore/mutex.js');
 const db = require('ocore/db.js');
 const network = require('ocore/network.js');
-const desktopApp = require("ocore/desktop_app.js");
+const validationUtils = require('ocore/validation_utils.js');
 const notifications = require('./notifications.js');
 
 const Obyte = require('./obyte.js');
@@ -67,6 +67,8 @@ async function addTransfer(transfer, bRewritable) {
 async function handleTransfer(transfer) {
 	const { bridge_id, type, sender_address, dest_address, data, txid, txts } = transfer;
 	let { amount, reward } = transfer;
+	if (typeof reward === 'number' && !validationUtils.isInteger(reward))
+		return console.log(`invalid reward ${reward} in transfer ${txid} from ${sender_address} on bridge ${bridge_id}, will not claim`);
 	if (!BigNumber.isBigNumber(amount))
 		amount = BigNumber.from(amount);
 	if (!BigNumber.isBigNumber(reward))
@@ -310,6 +312,12 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	const { bridge_id, export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_asset, foreign_asset, stake_asset, home_network, foreign_network, home_asset_decimals, foreign_asset_decimals } = bridge;
 	const bCompleteBridge = import_aa && export_aa;
 	const assistant_aa = type === 'expatriation' ? import_assistant_aa : export_assistant_aa;
+
+	let amountsValid = true;
+	if (typeof amount === 'number' && !validationUtils.isPositiveInteger(amount))
+		amountsValid = false;
+	if (typeof reward === 'number' && !validationUtils.isInteger(reward))
+		amountsValid = false;
 	
 	// in case we need to delay handling of the claim
 	const tryAgain = () => {
@@ -320,7 +328,11 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	// sender_address and dest_address are case-sensitive! For Ethereum, use mixed case checksummed addresses only
 	let [transfer] = await db.query("SELECT * FROM transfers WHERE bridge_id=? AND txid=? AND txts=? AND sender_address=? AND dest_address=? AND type=? AND is_confirmed=1", [bridge_id, txid, txts, sender_address, dest_address, type]); // assuming that there are no 2 transfers that differ only by data
 	console.log('transfer candidate', transfer);
-	if (!transfer) {
+	if (!amountsValid) {
+		console.log(`invalid amounts in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
+		transfer = null;
+	}
+	if (!transfer && amountsValid) {
 		console.log(`no transfer found matching claim ${claim_num} of txid ${txid} in claim tx ${claim_txid} bridge ${bridge_id}`);
 		// it might be not confirmed yet
 	//	const tx = await networkApi[opposite_network].getTransaction(txid);
