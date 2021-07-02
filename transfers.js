@@ -532,8 +532,10 @@ async function getCounterstakeAmount(network, assistant_aa, required_counterstak
 	let balance = BigNumber.from(0);
 	if (assistant_aa)
 		balance = BigNumber.from(await api.getBalance(assistant_aa, asset));
-	const bFromAssistant = assistant_aa && !balance.isZero();
-	if (balance.isZero()) // use own balance only is assistant balance is 0
+	// assistant might have penny balance like a few thousand bytes left over from its initialization
+	const bAssistantHasEnoughBalance = required_counterstake.lte(balance);
+	const bFromAssistant = assistant_aa && bAssistantHasEnoughBalance;
+	if (!bAssistantHasEnoughBalance) // use own balance if assistant's balance is not sufficient for a full counterstake
 		balance = BigNumber.from(await api.getMyBalance(asset));
 	console.log(`${bFromAssistant ? 'assistant' : 'my'} balance available for counterstaking: ${balance}`);
 	const fBalance = parseFloat(utils.formatEther(balance));
