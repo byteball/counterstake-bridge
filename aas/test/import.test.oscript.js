@@ -166,8 +166,9 @@ describe('Creating import transaction', function () {
 		this.reward = 0
 		this.sender_address = '0xA7a2448D91AA5E09b217D94AA78bB1c7A8dAE01f'
 		this.txts = Math.floor((await this.bob.getTime()).time/1000)
+		this.data = { b: 8, a: 'nn' }
 		this.stake_amount = Math.ceil(this.amount/1e8 * 600/20 * 1e9 * this.ratio)
-		this.claim_hash = sha256(this.sender_address + '_' + this.bobAddress + '_' + this.txid + '_' + this.txts + '_' + this.amount + '_' + this.reward + '_')
+		this.claim_hash = sha256(this.sender_address + '_' + this.bobAddress + '_' + this.txid + '_' + this.txts + '_' + this.amount + '_' + this.reward + '_' + '{"a":"nn","b":8}')
 		const { unit, error } = await this.bob.triggerAaWithData({
 			toAddress: this.import_aa,
 			amount: this.stake_amount + 2000,
@@ -176,6 +177,7 @@ describe('Creating import transaction', function () {
 				txts: this.txts,
 				amount: this.amount,
 				sender_address: this.sender_address,
+				data: this.data,
 			},
 		})
 		expect(error).to.be.null
@@ -209,6 +211,7 @@ describe('Creating import transaction', function () {
 			ts: response.timestamp,
 			expiry_ts: response.timestamp + this.challenging_periods[0] * 3600,
 			challenging_target: this.stake_amount * this.counterstake_coef,
+			data: this.data,
 		}
 		
 		const { vars } = await this.bob.readAAStateVars(this.import_aa)
@@ -229,6 +232,7 @@ describe('Creating import transaction', function () {
 				txts: this.txts,
 				amount: this.amount,
 				sender_address: this.sender_address,
+				data: this.data,
 			},
 		})
 		expect(error).to.be.null
@@ -363,6 +367,7 @@ describe('Creating import transaction', function () {
 			sender_address: this.sender_address,
 			address: this.bobAddress,
 			amount: this.amount,
+			data: this.data,
 		})
 	})
 
@@ -415,6 +420,7 @@ describe('Creating import transaction', function () {
 				txts: this.txts,
 				amount: this.amount,
 				sender_address: this.sender_address,
+				data: this.data,
 			},
 		})
 		expect(error).to.be.null
@@ -659,7 +665,7 @@ describe('Creating import transaction', function () {
 		expect(unit).to.be.validUnit
 
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.alice, unit)
-	//	await this.network.witnessUntilStable(response.response_unit)
+		await this.network.witnessUntilStable(response.response_unit)
 
 		expect(response.response.error).to.be.undefined
 		expect(response.bounced).to.be.false

@@ -2,4 +2,4 @@
 	--bail
 	--exit
 	--slow 20000
-	--require test/bootload.js
+#	--require aas/test/bootload.js

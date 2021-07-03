@@ -568,7 +568,7 @@ describe('Creating export transaction', function () {
 		expect(unit).to.be.validUnit
 
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.alice, unit)
-	//	await this.network.witnessUntilStable(response.response_unit)
+		await this.network.witnessUntilStable(response.response_unit)
 
 		expect(response.response.error).to.be.undefined
 		expect(response.bounced).to.be.false
