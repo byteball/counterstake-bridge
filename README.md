@@ -103,7 +103,7 @@ In all cases, you are welcome to submit PRs to add your work to this repo.
 
 ## Running automated tests on autonomous agents
 ```bash
-yarn test
+yarn test aas/test
 ```
 
 ## Running automated tests on smart contracts
