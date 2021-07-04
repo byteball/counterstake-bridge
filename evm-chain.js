@@ -432,6 +432,10 @@ class EvmChain {
 		// assuming always synced
 	}
 
+	async refresh() {
+		return false;
+	}
+
 	async startWatchingSymbolUpdates() {
 		// assuming symbols are never updated
 	}

@@ -172,33 +172,38 @@ class Obyte {
 
 
 	startWatchingExportAA(export_aa) {
-		walletGeneral.addWatchedAddress(export_aa);
+		startWatchingAA(export_aa);
 	}
 
 	startWatchingImportAA(import_aa) {
-		walletGeneral.addWatchedAddress(import_aa);
+		startWatchingAA(import_aa);
 	}
 
 	startWatchingExportAssistantAA(export_aa) {
-		walletGeneral.addWatchedAddress(export_aa);
+		startWatchingAA(export_aa);
 	}
 
 	startWatchingImportAssistantAA(import_aa) {
-		walletGeneral.addWatchedAddress(import_aa);
+		startWatchingAA(import_aa);
 	}
 
 
 	async onAAResponse(objAAResponse) {
 		const unlock = await mutex.lock('onAAResponse');
 		console.log(`AA response:`, JSON.stringify(objAAResponse, null, 2));
-		if (objAAResponse.bounced && objAAResponse.trigger_address === operator.getAddress())
-			return unlock(`=== our request ${objAAResponse.trigger_unit} bounced with error ` + objAAResponse.response.error);
-		if (objAAResponse.bounced)
-			return unlock(`skipping bounced request ${objAAResponse.trigger_unit} ` + objAAResponse.response.error);
+
+		const { aa_address, trigger_address, trigger_unit, response_unit, response, timestamp, bounced } = objAAResponse;
+		if (!timestamp)
+			throw Error(`no timestamp in AA response`);
+		
+		if (bounced && trigger_address === operator.getAddress())
+			return unlock(`=== our request ${trigger_unit} bounced with error ` + response.error);
+		if (bounced)
+			return unlock(`skipping bounced request ${trigger_unit} ` + response.error);
 	//	if (objAAResponse.trigger_address === operator.getAddress())
 	//		return console.log(`skipping our request ${objAAResponse.trigger_unit}`);
 		
-		const { aa_address, trigger_address, trigger_unit, response: { responseVars }, response_unit } = objAAResponse;
+		const { responseVars } = response;
 
 		const objJoint = await dag.readJoint(trigger_unit);
 		const objUnit = objJoint.unit;
@@ -240,7 +245,7 @@ class Obyte {
 		//	const params = await dag.readAAStateVar(aa_address, 'export_' + export_aa);
 			const bAdded = await transfers.handleNewExportAA(export_aa, this.network, trigger.data.asset || 'base', trigger.data.asset_decimals, trigger.data.foreign_network, trigger.data.foreign_asset);
 			if (bAdded)
-				walletGeneral.addWatchedAddress(export_aa);
+				startWatchingAA(export_aa);
 			return unlock();
 		}
 		
@@ -255,7 +260,7 @@ class Obyte {
 			const params = await dag.readAAStateVar(aa_address, 'import_' + import_aa);
 			const bAdded = await transfers.handleNewImportAA(import_aa, trigger.data.home_network, trigger.data.home_asset, this.network, params.asset, trigger.data.asset_decimals, trigger.data.stake_asset || 'base');
 			if (bAdded)
-				walletGeneral.addWatchedAddress(import_aa);
+				startWatchingAA(import_aa);
 			return unlock();
 		}
 
@@ -273,7 +278,7 @@ class Obyte {
 				return unlock(`new assistant ${assistant_aa} with another manager, will skip`);
 			const bAdded = await transfers.handleNewAssistantAA(side, assistant_aa, params.bridge_aa);
 			if (bAdded)
-				walletGeneral.addWatchedAddress(assistant_aa);
+				startWatchingAA(assistant_aa);
 			return unlock();
 		}
 		
@@ -317,7 +322,7 @@ class Obyte {
 			if (!dest_address)
 				throw Error(`no dest address in transfer ${trigger_unit}`);
 			const data = responseVars.data || ''; // json-stringified in the correct order
-			await transfers.addTransfer({ bridge_id, type, amount, reward, sender_address: trigger_address, dest_address, data, txid: trigger_unit, txts: objAAResponse.timestamp });
+			await transfers.addTransfer({ bridge_id, type, amount, reward, sender_address: trigger_address, dest_address, data, txid: trigger_unit, txts: timestamp });
 		}
 		// new claim
 		else if (new_claim_num) {
@@ -392,6 +397,17 @@ class Obyte {
 		console.log(`${this.network} is synced`);
 	}
 
+	async refresh() {
+		if (conf.bLight) {
+			const light_wallet = require("ocore/light_wallet.js");
+			light_wallet.refreshLightClientHistory();
+			await light_wallet.waitUntilHistoryRefreshDone();
+			await network.waitTillSyncIdle();
+			return true;
+		}
+		return false;
+	}
+
 	async startWatchingSymbolUpdates() {
 		walletGeneral.addWatchedAddress(conf.token_registry_aa);
 	}
@@ -423,10 +439,25 @@ class Obyte {
 		// make sure 'this' points to the class when calling the event handler
 		eventBus.on("aa_response", this.onAAResponse.bind(this));
 
+		eventBus.on("message_for_light", (ws, subject, body) => {
+			switch (subject) {
+				case 'light/aa_response':
+					// we don't have the trigger unit in our db yet, trigger a refresh to get it
+					console.log(`will refresh`);
+					const light_wallet = require("ocore/light_wallet.js");
+					light_wallet.refreshLightClientHistory();
+				//	this.onAAResponse.call(this, body);
+					break;
+			}
+		});
 	//	console.error('--- network', this.network)
 
 	}
 }
 
+function startWatchingAA(aa) {
+	network.addLightWatchedAa(aa);
+	walletGeneral.addWatchedAddress(aa);
+}
 
 module.exports = Obyte;

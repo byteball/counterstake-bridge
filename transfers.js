@@ -130,6 +130,7 @@ async function handleTransfer(transfer) {
 
 	const sendClaim = async () => {
 
+		const unlock = await mutex.lock(dst_network);
 		console.log(`will claim a transfer from ${sender_address} amount ${dst_amount} reward ${dst_reward} txid ${txid}`);
 
 		// check if the transfer got removed while we were waiting
@@ -138,12 +139,12 @@ async function handleTransfer(transfer) {
 			throw Error(`${db_transfers.length} transfers found in db for transfer tx ${txid}`);
 		const [{ transfer_id, is_confirmed }] = db_transfers;
 		if (!is_confirmed)
-			return console.log(`transfer ${txid} from ${sender_address} got removed, won't claim`);
+			return unlock(`transfer ${txid} from ${sender_address} got removed, won't claim`);
 
 		// check if it was claimed while we were waiting
 		const [db_claim] = await db.query("SELECT * FROM claims WHERE transfer_id=?", [transfer_id]);
 		if (db_claim)
-			return console.log(`transfer ${txid} #${transfer_id} from ${sender_address} already claimed`);
+			return unlock(`transfer ${txid} #${transfer_id} from ${sender_address} already claimed`);
 		
 		let stake = await dst_api.getRequiredStake(bridge_aa, dst_amount);
 		stake = BigNumber.from(stake);
@@ -170,13 +171,16 @@ async function handleTransfer(transfer) {
 					: (stake.lte(await dst_api.getMyBalance(staked_asset))
 						&& dst_amount.lte(await dst_api.getMyBalance(claimed_asset))))
 				: stake.lte(await dst_api.getMyBalance(staked_asset));
-			if (!bHaveEnoughBalance)
-				return notifications.notifyAdmin(`not enough balance to claim ${dst_amount / 10 ** dst_asset_decimals} ${claimed_symbol} on ${dst_network} (${claimed_asset}) in transfer ${txid}`);
+			if (!bHaveEnoughBalance) {
+				notifications.notifyAdmin(`not enough balance to claim ${dst_amount / 10 ** dst_asset_decimals} ${claimed_symbol} on ${dst_network} (${claimed_asset}) in transfer ${txid}`);
+				return unlock();
+			}
 		}
 		const claim_txid = bClaimFromPooledAssistant
 			? await dst_api.sendClaimFromPooledAssistant({ assistant_aa, amount: dst_amount, reward: dst_reward, sender_address, dest_address, data, txid, txts })
 			: await dst_api.sendClaim({ bridge_aa, amount: dst_amount, reward: dst_reward, claimed_asset, stake, staked_asset, sender_address, dest_address, data, txid, txts });
 		console.log(`claimed transfer from ${sender_address} amount ${dst_amount} reward ${dst_reward}: ${claim_txid}`);
+		unlock();
 	};
 
 	let min_tx_age = await dst_api.getMinTxAge(bridge_aa);
@@ -326,14 +330,28 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	};
 
 	// sender_address and dest_address are case-sensitive! For Ethereum, use mixed case checksummed addresses only
-	let [transfer] = await db.query("SELECT * FROM transfers WHERE bridge_id=? AND txid=? AND txts=? AND sender_address=? AND dest_address=? AND type=? AND is_confirmed=1", [bridge_id, txid, txts, sender_address, dest_address, type]); // assuming that there are no 2 transfers that differ only by data
-	console.log('transfer candidate', transfer);
-	if (!amountsValid) {
+	const findTransfer = async () => {
+		const [transfer] = await db.query("SELECT * FROM transfers WHERE bridge_id=? AND txid=? AND txts=? AND sender_address=? AND dest_address=? AND type=? AND is_confirmed=1", [bridge_id, txid, txts, sender_address, dest_address, type]); // assuming that there are no 2 transfers that differ only by data
+		console.log('transfer candidate', transfer);
+		return transfer;
+	};
+	let transfer;
+	if (amountsValid)
+		transfer = await findTransfer();
+	else {
 		console.log(`invalid amounts in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
 		transfer = null;
 	}
 	if (!transfer && amountsValid) {
 		console.log(`no transfer found matching claim ${claim_num} of txid ${txid} in claim tx ${claim_txid} bridge ${bridge_id}`);
+		const retryAfterTxOrTimeout = (timeout) => {
+			const t = setTimeout(tryAgain, timeout * 1000);
+			eventBus.once(txid, () => {
+				console.log(`got txid event ${txid}`);
+				clearTimeout(t);
+				tryAgain();
+			});
+		};
 		// it might be not confirmed yet
 	//	const tx = await networkApi[opposite_network].getTransaction(txid);
 		const stable_ts = await networkApi[opposite_network].getLastStableTimestamp();
@@ -341,13 +359,14 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		if (txts < Date.now() / 1000 + conf.max_ts_error && (bTooYoung || bCatchingUp)) {
 			// schedule another check
 			const timeout = bTooYoung ? (txts - stable_ts + 60) : 60;
-			const t = setTimeout(tryAgain, timeout * 1000);
-			eventBus.once(txid, () => {
-				console.log(`got txid event ${txid}`);
-				clearTimeout(t);
-				tryAgain();
-			});
+			retryAfterTxOrTimeout(timeout);
 			return unlock(`the claimed transfer ${claim_num} ${bTooYoung ? 'is too young' : 'not found while catching up'}, will check again in ${timeout} s, maybe it appears in the source chain`);
+		}
+		const bMightUpdate = await networkApi[opposite_network].refresh();
+		if (bMightUpdate) { // try again
+			console.log(`will try to find the transfer ${txid} again`);
+			// if we see a new transfer after refresh, we'll try to claim it but the destination network is still locked by mutex here. We'll finish here first, insert this claim, unlock the mutex, and our claim attempt will see that a claim already exists
+			transfer = await findTransfer();
 		}
 	}
 	if (transfer) {
