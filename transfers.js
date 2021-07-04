@@ -441,15 +441,25 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 		throw Error(`null aa in challenge ${challenge_txid} on claim ${claim_num}`);
 	const assistant_aa = type === 'expatriation' ? import_assistant_aa : export_assistant_aa;
 	const api = networkApi[network];
-	const valid_outcome = await getValidOutcome({ claim_num, bridge_id, type }, false);
-	// this can happen if the claim was too young when received and we delayed its processing but someone challenged it in the mean time. We won't log the challenge then, not a big issue.
-	if (valid_outcome === null)
-		return unlock(`claim ${claim_num} challenged in ${challenge_txid} is not known yet, will skip`);
-
 	const claim = await api.getClaim(bridge_aa, claim_num, false, false);
 	console.log(`claim challenged in trigger ${challenge_txid}`, claim);
 	if (!claim)
 		return unlock(`ongoing claim ${claim_num} challenged in ${challenge_txid} not found, will skip`);
+	
+	const valid_outcome = await getValidOutcome({ claim_num, bridge_id, type }, false);
+	// this can happen if the claim was too young when received and we delayed its processing but someone challenged it in the mean time. Will wait and retry.
+	if (valid_outcome === null) {
+		console.log(`claim ${claim_num} challenged in ${challenge_txid} is not known yet, will retry`);
+		setTimeout(() => {
+			handleChallenge(bridge, type, claim_num, address, stake_on, stake, challenge_txid);
+		}, 60 * 1000);
+		return unlock();
+	}
+
+	const my_stake = await getMyStake({ claim_num, bridge_id, type });
+	if (my_stake && my_stake !== '0' && !api.isMyAddress(address) && address !== assistant_aa)
+		notifications.notifyAdmin(`my claim ${claim_num} challenged by ${address}`, `network ${network}, bridge ${bridge_id}, AA ${bridge_aa}\n${stake.toString()} on ${stake_on}`);
+
 //	if (claim.type !== type)
 //		throw Error(`wrong type in claim ${claim_num}`);
 	
@@ -573,6 +583,10 @@ async function getValidOutcome({ claim_num, bridge_id, type }, bThrowIfNotFound)
 	return db_claim.transfer_id ? 'yes' : 'no';
 }
 
+async function getMyStake({ claim_num, bridge_id, type }) {
+	const [row] = await db.query("SELECT my_stake FROM claims WHERE claim_num=? AND bridge_id=? AND type=?", [claim_num, bridge_id, type]);
+	return row ? row.my_stake : null;
+}
 
 async function sendChallenge(network, bridge_aa, assistant_aa, { claim_num, bridge_id, type }, stake_on, asset, counterstake) {
 	const api = networkApi[network];
@@ -590,9 +604,10 @@ async function sendChallenge(network, bridge_aa, assistant_aa, { claim_num, brid
 		? await api.sendChallengeFromPooledAssistant(assistant_aa, claim_num, stake_on, counterstake)
 		: await api.sendChallenge(bridge_aa, claim_num, stake_on, asset, counterstake);
 	if (txid) {
-		const [{ my_stake }] = await db.query("SELECT my_stake FROM claims WHERE claim_num=? AND bridge_id=? AND type=?", [claim_num, bridge_id, type]);
+		const my_stake = await getMyStake({ claim_num, bridge_id, type });
 		const new_my_stake = BigNumber.from(my_stake).add(counterstake);
 		await db.query("UPDATE claims SET my_stake=? WHERE claim_num=? AND bridge_id=? AND type=?", [new_my_stake.toString(), claim_num, bridge_id, type]);
+		notifications.notifyAdmin(`challenged claim ${claim_num}`, `network ${network}, bridge ${bridge_id}, AA ${bridge_aa}\n${counterstake.toString()} on ${stake_on}`);
 	}
 }
 
