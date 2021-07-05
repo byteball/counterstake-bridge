@@ -139,7 +139,7 @@ async function handleTransfer(transfer) {
 			throw Error(`${db_transfers.length} transfers found in db for transfer tx ${txid}`);
 		const [{ transfer_id, is_confirmed }] = db_transfers;
 		if (!is_confirmed)
-			return unlock(`transfer ${txid} from ${sender_address} got removed, won't claim`);
+			return unlock(`transfer ${txid} from ${sender_address} got removed, will not claim`);
 
 		// check if it was claimed while we were waiting
 		const [db_claim] = await db.query("SELECT * FROM claims WHERE transfer_id=?", [transfer_id]);
@@ -275,11 +275,11 @@ async function attackClaim(bridge, type, claim_num, claim_txid) {
 	const claim = await api.getClaim(bridge_aa, claim_num, false, false);
 	console.log(`will attack new claim received in trigger ${claim_txid}`, claim);
 	if (!claim)
-		return console.log(`ongoing claim ${claim_num} not found, will not attack`);
+		return notifications.notifyAdmin(`ongoing claim ${claim_num} not found, will not attack`);
 	if (claim.current_outcome !== 'yes') // someone challenged it before us
 		return console.log(`claim ${claim_num} already challenged`);
 	if (claim.expiry_ts < Date.now() / 1000)
-		return console.log(`too late: the challenging period in claim ${claim_num} has already expired, will not attack`);
+		return notifications.notifyAdmin(`challenging period expired in claim ${claim_num}`, `too late: the challenging period in claim ${claim_num} has already expired, will not attack\nbridge ${bridge_id} on ${network}, AA ${bridge_aa}\nclaim txid ${claim_txid}`);
 
 	const required_counterstake = BigNumber.from(claim.challenging_target);
 	const asset = type === 'expatriation' ? stake_asset : home_asset;
@@ -474,8 +474,10 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 		const asset = type === 'expatriation' ? stake_asset : home_asset;
 		if (!asset)
 			throw Error(`null asset in challenge ${challenge_txid} on claim ${claim_num}`);
-		if (claim.expiry_ts < Date.now() / 1000)
-			return unlock(`too late: the challenging period in claim ${claim_num} challenged by ${challenge_txid} has already expired, will not attack`);
+		if (claim.expiry_ts < Date.now() / 1000) {
+			notifications.notifyAdmin(`on new challenge: challenging period expired in claim ${claim_num}`, `too late: the challenging period in claim ${claim_num} challenged by ${challenge_txid} has already expired, will not attack\nbridge ${bridge_id} on ${network}, AA ${bridge_aa}`);
+			return unlock();
+		}
 		const required_counterstake = BigNumber.from(claim.challenging_target).sub(claim.stakes[valid_outcome]);
 		if (required_counterstake.lte(0))
 			throw Error(`required counterstake is ${required_counterstake} after challenge ${challenge_txid} on claim ${claim_num}`)
@@ -607,7 +609,8 @@ async function sendChallenge(network, bridge_aa, assistant_aa, { claim_num, brid
 		const my_stake = await getMyStake({ claim_num, bridge_id, type });
 		const new_my_stake = BigNumber.from(my_stake).add(counterstake);
 		await db.query("UPDATE claims SET my_stake=? WHERE claim_num=? AND bridge_id=? AND type=?", [new_my_stake.toString(), claim_num, bridge_id, type]);
-		notifications.notifyAdmin(`challenged claim ${claim_num}`, `network ${network}, bridge ${bridge_id}, AA ${bridge_aa}\n${counterstake.toString()} on ${stake_on}`);
+		const [{ claim_txid }] = await db.query("SELECT claim_txid FROM claims WHERE claim_num=? AND bridge_id=? AND type=?", [claim_num, bridge_id, type]);
+		notifications.notifyAdmin(`challenged claim ${claim_num}`, `network ${network}, bridge ${bridge_id}, AA ${bridge_aa}\nclaim txid ${claim_txid}\n${counterstake.toString()} on ${stake_on}`);
 	}
 }
 
