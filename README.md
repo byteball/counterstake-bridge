@@ -107,7 +107,7 @@ yarn test aas/test
 ```
 
 ## Running automated tests on smart contracts
-Install and run Ganache. If using a command-line version of Ganache (ganache-cli), change the port in evm/truffle-config.js from 7545 to 8545. Then run
+Install and run Ganache. If using a command-line version of Ganache (ganache-cli), run it on port 7545 (the default is 8545). Then run
 ```bash
 cd evm
 truffle test
