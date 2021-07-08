@@ -782,7 +782,7 @@ async function handleNewAssistantAA(side, assistant_aa, bridge_aa) {
 }
 
 async function getActiveClaimants() {
-	const claimant_rows = await db.query(`SELECT DISTINCT claimant_address FROM claims WHERE creation_date > ` + db.addTime('-1 DAY'));
+	const claimant_rows = await db.query(`SELECT DISTINCT claimant_address FROM claims WHERE claimant_address != dest_address AND creation_date > ` + db.addTime('-7 DAY'));
 	const claimants = claimant_rows.map(row => row.claimant_address);
 	return claimants;
 }
