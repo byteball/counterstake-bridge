@@ -642,6 +642,7 @@ async function sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id,
 		if (!txid)
 			return null;
 	}
+	setTimeout(recheckOldTransfers, 15 * 60 * 1000);
 	return txid;
 }
 
@@ -690,10 +691,10 @@ async function checkUnfinishedClaims() {
 async function recheckOldTransfers() {
 	if (!conf.bClaimForOthers)
 		return;
+	const unlock = await mutex.lock('recheckOldTransfers');
 	const transfers = await db.query(
 		`SELECT transfers.* FROM transfers LEFT JOIN claims USING(transfer_id)
 		WHERE claim_num IS NULL AND is_confirmed=1 AND transfers.reward>=0
-		--	AND transfers.transfer_id>=77
 			AND transfers.creation_date < ` + db.addTime('-1 MINUTE')
 	);
 	console.error('----- transfers', transfers.length)
@@ -701,6 +702,7 @@ async function recheckOldTransfers() {
 		console.log('will retry old unhandled transfer', transfer);
 		await handleTransfer(transfer);
 	}
+	unlock();
 }
 
 
