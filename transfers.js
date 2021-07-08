@@ -829,7 +829,7 @@ async function updateMaxAmounts() {
 				if (stake_balance.isZero())
 					continue;
 				let required_stake = await networkApi[foreign_network].getRequiredStake(import_aa, balance);
-				required_stake = BigNumber.from(required_stake);
+				required_stake = BigNumber.from(required_stake).mul(110).div(100); // add 10%
 				let max_amount = balance.toString() / 10 ** foreign_asset_decimals;
 				if (required_stake.gt(stake_balance))
 					max_amount *= stake_balance.toString() / required_stake.toString(); // scale down
