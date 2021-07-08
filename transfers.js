@@ -180,6 +180,7 @@ async function handleTransfer(transfer) {
 			? await dst_api.sendClaimFromPooledAssistant({ assistant_aa, amount: dst_amount, reward: dst_reward, sender_address, dest_address, data, txid, txts })
 			: await dst_api.sendClaim({ bridge_aa, amount: dst_amount, reward: dst_reward, claimed_asset, stake, staked_asset, sender_address, dest_address, data, txid, txts });
 		console.log(`claimed transfer from ${sender_address} amount ${dst_amount} reward ${dst_reward}: ${claim_txid}`);
+		setTimeout(updateMaxAmounts, 60 * 1000);
 		unlock();
 	};
 
@@ -611,6 +612,7 @@ async function sendChallenge(network, bridge_aa, assistant_aa, { claim_num, brid
 		await db.query("UPDATE claims SET my_stake=? WHERE claim_num=? AND bridge_id=? AND type=?", [new_my_stake.toString(), claim_num, bridge_id, type]);
 		const [{ claim_txid }] = await db.query("SELECT claim_txid FROM claims WHERE claim_num=? AND bridge_id=? AND type=?", [claim_num, bridge_id, type]);
 		notifications.notifyAdmin(`challenged claim ${claim_num}`, `network ${network}, bridge ${bridge_id}, AA ${bridge_aa}\nclaim txid ${claim_txid}\n${counterstake.toString()} on ${stake_on}`);
+		setTimeout(updateMaxAmounts, 60 * 1000);
 	}
 }
 
@@ -642,6 +644,7 @@ async function sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id,
 		if (!txid)
 			return null;
 	}
+	setTimeout(updateMaxAmounts, 60 * 1000);
 	setTimeout(recheckOldTransfers, 15 * 60 * 1000);
 	return txid;
 }
@@ -790,6 +793,9 @@ async function getActiveClaimants() {
 }
 
 async function updateMaxAmounts() {
+	const unlock = await mutex.lockOrSkip('updateMaxAmounts');
+	if (!unlock)
+		return console.log('updateMaxAmounts already under way, skipping');
 	console.log('starting updateMaxAmounts');
 
 	// gt active claimants first
@@ -797,8 +803,7 @@ async function updateMaxAmounts() {
 	console.log('active claimants', claimants);
 	if (claimants.length === 0) {
 		maxAmounts = {};
-		console.log('updateMaxAmounts done, no active claimants');
-		return;
+		return unlock('updateMaxAmounts done, no active claimants');
 	}
 
 	let _maxAmounts = {};
@@ -842,6 +847,7 @@ async function updateMaxAmounts() {
 	}
 	maxAmounts = _maxAmounts;
 	console.log('done updateMaxAmounts', maxAmounts);
+	unlock();
 }
 
 function getMaxAmounts() {
