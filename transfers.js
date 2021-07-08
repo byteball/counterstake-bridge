@@ -332,7 +332,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	// sender_address and dest_address are case-sensitive! For Ethereum, use mixed case checksummed addresses only
 	const findTransfer = async () => {
 		const [transfer] = await db.query("SELECT * FROM transfers WHERE bridge_id=? AND txid=? AND txts=? AND sender_address=? AND dest_address=? AND type=? AND is_confirmed=1", [bridge_id, txid, txts, sender_address, dest_address, type]); // assuming that there are no 2 transfers that differ only by data
-		console.log('transfer candidate', transfer);
+		console.log(`transfer candidate for ${txid}`, transfer);
 		return transfer;
 	};
 	let transfer;
