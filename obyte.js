@@ -26,7 +26,11 @@ class Obyte {
 		return my_balances[asset] ? my_balances[asset].total : 0;
 	}
 
-	async getBalance(address, asset) {
+	async getBalance(address, asset, bExternalAddress) {
+		if (bExternalAddress) {
+			const balances = await dag.readBalance(address);
+			return balances[asset] ? balances[asset].total : 0;
+		}
 		return new Promise(resolve => balances.readOutputsBalance(address, assocBalances => resolve(assocBalances[asset] ? assocBalances[asset].total : 0)));
 	}
 

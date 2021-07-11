@@ -818,7 +818,7 @@ async function updateMaxAmounts() {
 			if (networkApi[home_network].isValidAddress(claimant_address)) {
 				const type = 'repatriation';
 				const key = bridge_id + type;
-				let balance = await networkApi[home_network].getBalance(claimant_address, home_asset);
+				let balance = await networkApi[home_network].getBalance(claimant_address, home_asset, true);
 				balance = balance.toString() / 10 ** home_asset_decimals;
 				const max_amount = balance / 2; // amount + stake
 				if (!_maxAmounts[key] || max_amount > _maxAmounts[key])
@@ -827,11 +827,11 @@ async function updateMaxAmounts() {
 			if (networkApi[foreign_network].isValidAddress(claimant_address)) {
 				const type = 'expatriation';
 				const key = bridge_id + type;
-				let balance = await networkApi[foreign_network].getBalance(claimant_address, foreign_asset);
+				let balance = await networkApi[foreign_network].getBalance(claimant_address, foreign_asset, true);
 				balance = BigNumber.from(balance);
 				if (balance.isZero())
 					continue;
-				let stake_balance = await networkApi[foreign_network].getBalance(claimant_address, stake_asset);
+				let stake_balance = await networkApi[foreign_network].getBalance(claimant_address, stake_asset, true);
 				stake_balance = BigNumber.from(stake_balance);
 				if (stake_balance.isZero())
 					continue;
