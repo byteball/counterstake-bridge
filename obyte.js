@@ -43,7 +43,7 @@ class Obyte {
 		return conf.obyte_min_transfer_age; // after MCI timestamp, which is backdated when the AA trigger is processed
 	}
 
-	async getMinReward(claimed_asset, src_network, src_asset, bWithAssistant, bCached) {
+	async getMinReward(type, claimed_asset, src_network, src_asset, bWithAssistant, bCached) {
 		return 0;
 	}
 

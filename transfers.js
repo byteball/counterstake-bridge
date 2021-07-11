@@ -117,7 +117,7 @@ async function handleTransfer(transfer) {
 		const fReward = parseFloat(utils.formatEther(reward));
 		if (fReward < conf.min_reward_ratio * fAmount)
 			return console.log(`too small reward in transfer ${txid} from ${sender_address}`);
-		const fMinReward = await dst_api.getMinReward(claimed_asset, src_network, src_asset, !!assistant_aa);
+		const fMinReward = await dst_api.getMinReward(type, claimed_asset, src_network, src_asset, !!assistant_aa);
 		console.log({ fMinReward });
 		if (fMinReward === null)
 			return console.log(`unable to determine min reward for transfer ${txid} from ${sender_address} in ${claimed_asset}, will not claim`);

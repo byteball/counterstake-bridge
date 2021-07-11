@@ -119,14 +119,14 @@ async function tryGetTokenPrice(network, token_address, nativeSymbol, cached) {
 	return null;
 }
 
-async function fetchExchangeRateInNativeAsset(dst_network, claimed_asset, src_network, src_asset, cached) {
+// dst_network must be EVM based
+async function fetchExchangeRateInNativeAsset(type, dst_network, claimed_asset, src_network, src_asset, cached) {
 	const nativeSymbol = nativeSymbols[dst_network];
 	if (!nativeSymbol)
 		throw Error(`native symbol for network ${dst_network} unknown`);
-	let rate = await tryGetTokenPrice(dst_network, claimed_asset, nativeSymbol, cached);
-	if (rate)
-		return rate;
-	rate = await tryGetTokenPrice(src_network, src_asset, nativeSymbol, cached);
+	if (type === 'repatriation')
+		return await tryGetTokenPrice(dst_network, claimed_asset, nativeSymbol, cached);
+	let rate = await tryGetTokenPrice(src_network, src_asset, nativeSymbol, cached);
 	if (rate)
 		return rate;
 	if (src_network === 'Obyte') {

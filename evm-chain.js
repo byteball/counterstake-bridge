@@ -120,13 +120,13 @@ class EvmChain {
 	}
 
 	// returns floating number in display units of the claimed asset
-	async getMinReward(claimed_asset, src_network, src_asset, bWithAssistant, bCached) {
-		console.log('getMinReward', claimed_asset, src_network, src_asset, bWithAssistant);
+	async getMinReward(type, claimed_asset, src_network, src_asset, bWithAssistant, bCached) {
+		console.log('getMinReward', type, claimed_asset, src_network, src_asset, bWithAssistant);
 		const gas = bWithAssistant ? conf.evm_required_gas_with_pooled_assistant : conf.evm_required_gas;
 		const fee = gas * (await this.getGasPrice()) / 1e9; // in Ether, 1 gwei = 1e-9 ETH
 		if (claimed_asset === AddressZero)
 			return fee;
-		const rate = await fetchExchangeRateInNativeAsset(this.network, claimed_asset, src_network, src_asset, bCached);
+		const rate = await fetchExchangeRateInNativeAsset(type, this.network, claimed_asset, src_network, src_asset, bCached);
 		if (!rate)
 			return null;
 		return fee / rate;

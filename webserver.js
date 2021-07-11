@@ -39,8 +39,8 @@ router.get('/bridges', async (ctx) => {
 	console.log(`-- getting bridges`);
 	for (let bridge of bridges) {
 		const { bridge_id, home_asset, foreign_asset, home_network, foreign_network } = bridge;
-		bridge.min_expatriation_reward = await networkApi[foreign_network].getMinReward(foreign_asset, home_network, home_asset, false, true);
-		bridge.min_repatriation_reward = await networkApi[home_network].getMinReward(home_asset, foreign_network, foreign_asset, false, true);
+		bridge.min_expatriation_reward = await networkApi[foreign_network].getMinReward('expatriation', foreign_asset, home_network, home_asset, false, true);
+		bridge.min_repatriation_reward = await networkApi[home_network].getMinReward('repatriation', home_asset, foreign_network, foreign_asset, false, true);
 		bridge.count_expatriation_claimants = claimantCounts[bridge_id + 'expatriation'] || 0;
 		bridge.count_repatriation_claimants = claimantCounts[bridge_id + 'repatriation'] || 0;
 		bridge.max_expatriation_amount = maxAmounts[bridge_id + 'expatriation'] || 0;
