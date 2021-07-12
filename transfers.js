@@ -331,19 +331,18 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	};
 
 	// sender_address and dest_address are case-sensitive! For Ethereum, use mixed case checksummed addresses only
-	const findTransfer = async () => {
-		const [transfer] = await db.query("SELECT * FROM transfers WHERE bridge_id=? AND txid=? AND txts=? AND sender_address=? AND dest_address=? AND type=? AND is_confirmed=1", [bridge_id, txid, txts, sender_address, dest_address, type]); // assuming that there are no 2 transfers that differ only by data
-		console.log(`transfer candidate for ${txid}`, transfer);
-		return transfer;
+	const findTransfers = async () => {
+		const transfers = await db.query("SELECT * FROM transfers WHERE bridge_id=? AND txid=? AND txts=? AND sender_address=? AND dest_address=? AND type=? AND is_confirmed=1", [bridge_id, txid, txts, sender_address, dest_address, type]);
+		console.log(`transfer candidates for ${txid}`, transfers);
+		return transfers;
 	};
-	let transfer;
+	let transfers = [];
 	if (amountsValid)
-		transfer = await findTransfer();
+		transfers = await findTransfers();
 	else {
 		console.log(`invalid amounts in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
-		transfer = null;
 	}
-	if (!transfer && amountsValid) {
+	if (!transfers[0] && amountsValid) {
 		console.log(`no transfer found matching claim ${claim_num} of txid ${txid} in claim tx ${claim_txid} bridge ${bridge_id}`);
 		const retryAfterTxOrTimeout = (timeout) => {
 			const t = setTimeout(tryAgain, timeout * 1000);
@@ -367,34 +366,34 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		if (bMightUpdate) { // try again
 			console.log(`will try to find the transfer ${txid} again`);
 			// if we see a new transfer after refresh, we'll try to claim it but the destination network is still locked by mutex here. We'll finish here first, insert this claim, unlock the mutex, and our claim attempt will see that a claim already exists
-			transfer = await findTransfer();
+			transfers = await findTransfers();
 		}
 	}
+
+	const checkTransfer = (transfer) => {
+		if (!bCompleteBridge)
+			throw Error(`found a transfer ${transfer.transfer_id} on an incomplete bridge ${bridge_id}, claim ${claim_num} in tx ${claim_txid}`);
+		if (home_asset_decimals === null || foreign_asset_decimals === null)
+			throw Error(`home_asset_decimals=${home_asset_decimals}, foreign_asset_decimals=${foreign_asset_decimals} on complete bridge ${bridge_id}, claim ${claim_num} in tx ${claim_txid}`);
+		if (transfer.data !== data) {
+			console.log(`data strings do not match in claim ${claim_num} tx ${claim_txid}: expected ${transfer.data}, got ${data}, bridge ${bridge_id}`);
+			return false;
+		}
+		const src_asset_decimals = type === 'expatriation' ? home_asset_decimals : foreign_asset_decimals;
+		const dst_asset_decimals = type === 'expatriation' ? foreign_asset_decimals : home_asset_decimals;
+		if (!amountsMatch(transfer.amount, src_asset_decimals, amount, dst_asset_decimals)) {
+			console.log(`transfer amounts do not match in claim ${claim_num} tx ${claim_txid}: expected ${transfer.amount} with ${src_asset_decimals} decimals, got ${amount} with ${dst_asset_decimals} decimals, bridge ${bridge_id}`);
+			return false;
+		}
+		if (!amountsMatch(transfer.reward, src_asset_decimals, reward, dst_asset_decimals)) {
+			console.log(`transfer rewards do not match in claim ${claim_num} tx ${claim_txid}: expected ${transfer.reward} with ${src_asset_decimals} decimals, got ${reward} with ${dst_asset_decimals} decimals, bridge ${bridge_id}`);
+			return false;
+		}
+		return true;
+	};
+	transfers = transfers.filter(checkTransfer);
+	const transfer = transfers[0];
 	if (transfer) {
-		const checkTransfer = () => {
-			if (!bCompleteBridge)
-				throw Error(`found a transfer ${transfer.transfer_id} on an incomplete bridge ${bridge_id}, claim ${claim_num} in tx ${claim_txid}`);
-			if (home_asset_decimals === null || foreign_asset_decimals === null)
-				throw Error(`home_asset_decimals=${home_asset_decimals}, foreign_asset_decimals=${foreign_asset_decimals} on complete bridge ${bridge_id}, claim ${claim_num} in tx ${claim_txid}`);
-			if (transfer.data !== data) {
-				console.log(`data strings do not match in claim ${claim_num} tx ${claim_txid}: expected ${transfer.data}, got ${data}, bridge ${bridge_id}`);
-				transfer = null;
-				return;
-			}
-			const src_asset_decimals = type === 'expatriation' ? home_asset_decimals : foreign_asset_decimals;
-			const dst_asset_decimals = type === 'expatriation' ? foreign_asset_decimals : home_asset_decimals;
-			if (!amountsMatch(transfer.amount, src_asset_decimals, amount, dst_asset_decimals)) {
-				console.log(`transfer amounts do not match in claim ${claim_num} tx ${claim_txid}: expected ${transfer.amount} with ${src_asset_decimals} decimals, got ${amount} with ${dst_asset_decimals} decimals, bridge ${bridge_id}`);
-				transfer = null;
-				return;
-			}
-			if (!amountsMatch(transfer.reward, src_asset_decimals, reward, dst_asset_decimals)) {
-				console.log(`transfer rewards do not match in claim ${claim_num} tx ${claim_txid}: expected ${transfer.reward} with ${src_asset_decimals} decimals, got ${reward} with ${dst_asset_decimals} decimals, bridge ${bridge_id}`);
-				transfer = null;
-				return;
-			}
-		};
-		checkTransfer();
 		const min_transfer_age = networkApi[opposite_network].getMinTransferAge();
 		if (transfer && txts > Date.now() / 1000 - min_transfer_age) {
 			setTimeout(tryAgain, (txts + min_transfer_age + 1) * 1000 - Date.now());
