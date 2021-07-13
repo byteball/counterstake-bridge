@@ -54,7 +54,7 @@ router.get('/bridges', async (ctx) => {
 });
 
 router.get('/transfer/:txid*', async (ctx) => {
-	const txid = decodeURIComponent(ctx.params.txid);
+	const txid = ctx.params.txid ? decodeURIComponent(ctx.params.txid) : ctx.query.txid;
 	const [transfer] = await db.query("SELECT * FROM transfers WHERE txid=? AND is_confirmed=1", [txid]);
 	if (!transfer)
 		return setError(ctx, 'no such transfer ' + txid);
