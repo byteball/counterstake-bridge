@@ -627,21 +627,23 @@ async function addressHasStakesInClaim({ claim_num, bridge_id, type }, address) 
 
 async function sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa) {
 	const api = networkApi[network];
-	if (!assistant_aa)
-		return await api.sendWithdrawalRequest(bridge_aa, claim_num);
 	let txid;
-	if (await addressHasStakesInClaim({ claim_num, bridge_id, type }, assistant_aa)) {
-		console.log(`sending withdrawal request on claim ${claim_num} for assistant`);
-		txid = await api.sendWithdrawalRequest(bridge_aa, claim_num, assistant_aa);
-		if (!txid)
-			return null;
-	}
-	const my_address = api.getMyAddress();
-	if (await addressHasStakesInClaim({ claim_num, bridge_id, type }, my_address)) {
-		console.log(`sending withdrawal request on claim ${claim_num} for myself`);
+	if (!assistant_aa)
 		txid = await api.sendWithdrawalRequest(bridge_aa, claim_num);
-		if (!txid)
-			return null;
+	else {
+		if (await addressHasStakesInClaim({ claim_num, bridge_id, type }, assistant_aa)) {
+			console.log(`sending withdrawal request on claim ${claim_num} for assistant`);
+			txid = await api.sendWithdrawalRequest(bridge_aa, claim_num, assistant_aa);
+			if (!txid)
+				return null;
+		}
+		const my_address = api.getMyAddress();
+		if (await addressHasStakesInClaim({ claim_num, bridge_id, type }, my_address)) {
+			console.log(`sending withdrawal request on claim ${claim_num} for myself`);
+			txid = await api.sendWithdrawalRequest(bridge_aa, claim_num);
+			if (!txid)
+				return null;
+		}
 	}
 	setTimeout(updateMaxAmounts, 60 * 1000);
 	setTimeout(recheckOldTransfers, 15 * 60 * 1000);
