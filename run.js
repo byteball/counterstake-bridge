@@ -8,10 +8,12 @@ const operator = require('aabot/operator.js');
 const db_import = require('./db_import.js');
 const transfers = require('./transfers.js');
 const webserver = require('./webserver.js');
+const chat = require('./chat.js');
 
 eventBus.on('headless_wallet_ready', async () => {
 	await db_import.initDB();
 	await operator.start();
+	chat.start();
 
 	if (!conf.export_factory_aa || !conf.import_factory_aa)
 		throw Error("Please specify export and import factory AAs in conf.json");

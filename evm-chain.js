@@ -286,6 +286,20 @@ class EvmChain {
 		return txid;
 	}
 
+	async sendPayment(asset, address, amount, recipient_device_address) {
+		let res;
+		if (asset === AddressZero)
+			res = await this.#wallet.sendTransaction({ to: address, value: amount });
+		else {
+			const contract = new ethers.Contract(asset, erc20Json.abi, this.#wallet);
+			res = await contract.transfer(address, amount);
+		}
+		const txid = res.hash;
+		console.log(`sent payment ${amount} ${asset} to ${address}: ${txid}`);
+		return txid;
+	}
+
+
 	startWatchingExportAA(export_aa) {
 		const contract = new ethers.Contract(export_aa, exportJson.abi, this.#wallet);
 		contract.on('NewExpatriation', this.onNewExpatriation.bind(this));

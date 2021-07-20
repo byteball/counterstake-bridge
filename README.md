@@ -83,11 +83,30 @@ Check `conf.js` for the available options. You can override them in your conf.js
 * `evm_count_blocks_for_finality`: if your bot sees a new claim for a transfer sent from an EVM-based chain but can't find the transfer, and its timestamp is earlier than that of the block `evm_count_blocks_for_finality` blocks ago, then the bot will think that the transfer doesn't exist and will counterstake against the claim. Otherwise, the bot will wait for a few more blocks and check again if the tranfer has appeared in the source chain. The default is 20 blocks. Set a lower value to make sure that your bot counterstakes earlier than other watchdogs but this also increases the risk that the transfer will still appear in the source chain and your bot will lose money.
 * `bLight`: whether to run the bot as a light Obyte node. Default `true`. Running a full node allows the bot to see new transactions slightly faster and is also more secure as the bot doesn't need to trust any external sources. However a full node takes a lot more disk space and its initial sync takes several days.
 * `socksHost` and `socksPort`: host and port for connecting to TOR proxy. By default, the bot is configured to connect to Obyte nodes through TOR. To disable TOR, set `socksHost` to `null`.
+* `control_addresses`: array of device addresses of your Obyte wallets (usually GUI wallets) that are allowed to view and withdraw balances using chatbot interface.
+* `payout_addresses`: associative array of your withdrawal addresses keyed by network.
 
 ## Running as a pooled assistant
 If the bot notices that a pooled assistant has been created for a specific bridge and the bot's address is set as the manager, the bot will start using the pool's money for claiming and counterstaking on that bridge when sufficient funds are available.
 
 There is no UI for contributing to the pools yet, so this is not a real option at the moment.
+
+## Managing the bot and withdrawing funds
+When the bot starts, it prints its pairing code, like this:
+```
+====== my pairing code: AzA8qzvoMEnf7vVyo4YCw7u/hIiDOb8APpTmIPttP/29@obyte.org/bb-test#0000
+```
+Use this code to pair your GUI wallet with the bot and manage it through chat interface.
+
+Set `control_addresses` in your conf.json to let the bot know who is allowed to manage it (by default, nobody is allowed). Set your `payout_addresses` addresses to enable withdrawals to your Obyte, Ethereum, and other addresses (by default, withdrawals are disabled), like this:
+```
+        "payout_addresses": {
+                "Obyte": "EJC4A7WQGHEZEKW6RLO7F26SAR4LAQBU",
+                "Ethereum": "0xbd2C1400eA794D837669d3A83Ef8B3534579b5BF"
+        },
+```
+
+Type `help` in chat to see the available commands. In particular, you can use `balances` command to view the bot's balances in all currencies, `deposit` to add funds, `withdraw` to withdraw funds from the bot's balance to your payout addresses.
 
 ## Adding new bridges
 See `setup_bridges.js` and edit `setupAdditionalBridge()` as appropriate.

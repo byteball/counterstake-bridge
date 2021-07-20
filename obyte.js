@@ -9,6 +9,7 @@ const string_utils = require("ocore/string_utils.js");
 const db = require('ocore/db.js');
 const balances = require('ocore/balances.js');
 const validationUtils = require('ocore/validation_utils.js');
+const headlessWallet = require('headless-obyte');
 
 const dag = require('aabot/dag.js');
 const operator = require('aabot/operator.js');
@@ -173,6 +174,30 @@ class Obyte {
 		return txid;
 	}
 
+	async sendPayment(asset, address, amount, recipient_device_address) {
+		if (amount === 'all') {
+			if (asset !== 'base')
+				throw Error(`sendPayment all for asset ${asset}`);
+			const { unit } = await headlessWallet.sendAllBytes(address, recipient_device_address);
+			console.log(`sent all bytes to ${address}: ${unit}`);
+			return unit;
+		}
+		if (typeof amount !== 'number')
+			amount = amount.toNumber();
+		let opts = {
+			to_address: address,
+			amount,
+			paying_addresses: [operator.getAddress()],
+			change_address: operator.getAddress(),
+			spend_unconfirmed: 'all',
+			recipient_device_address,
+		};
+		if (asset && asset !== 'base')
+			opts.asset = asset;
+		const { unit } = await headlessWallet.sendMultiPayment(opts);
+		console.log(`sent payment ${amount} ${asset} to ${address}: ${unit}`);
+		return unit;
+	}
 
 
 	startWatchingExportAA(export_aa) {
