@@ -65,7 +65,8 @@ async function start() {
 	const oracle = new ethers.Contract(oracleAddress, oracleJson.abi, signer);
 //	await oracle.setPrice("Obyte", "_NATIVE_", 50, evmNativePrice);
 //	await wait(2000);
-	await oracle.setPrice(asset, "_NATIVE_", price_in_usd, evmNativePrice);
+	const res = await oracle.setPrice(asset, "_NATIVE_", price_in_usd, evmNativePrice);
+	console.error(res);
 	await wait(2000);
 
 	console.error('done');
