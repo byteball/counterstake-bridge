@@ -6,11 +6,30 @@ const desktopApp = require("ocore/desktop_app.js");
 
 const oracleJson = require('./build/contracts/Oracle.json');
 
+const evmProps = {
+	Ethereum: {
+		symbol: 'ETH',
+		price: 2000,
+	},
+	BSC: {
+		symbol: 'BNB',
+		price: 300,
+	},
+};
 
+const oracleAddresses = process.env.testnet
+	? {
+		Ethereum: '0x1Af68677849da73B62A91d775B6A2bF457c0B2e3',
+		BSC: '0x3d2cd866b2e2e4fCE1dCcf662E71ea9611113344',
+	}
+	: {
+		Ethereum: '0xAC4AA997A171A6CbbF5540D08537D5Cb1605E191',
+		BSC: '0xdD52899A001a4260CDc43307413A5014642f37A2',
+	};
 
-//const evmNetwork = 'Ethereum';
-const evmNetwork = 'BSC';
-const evmNativePrice = 300;
+const evmNetwork = 'Ethereum';
+//const evmNetwork = 'BSC';
+const evmNativePrice = evmProps[evmNetwork].price;
 
 
 const provider = process.env.devnet
@@ -37,15 +56,16 @@ process.on('unhandledRejection', up => {
 
 async function start() {
 
-	// OUSD on Obyte
-	let ousdAsset = process.env.testnet ? 'CPPYMBzFzI4+eMk7tLMTGjLF4E60t5MUfo2Gq7Y6Cn4=' : '0IwAk71D5xFP0vTzwamKBwzad3I1ZUjZ1gdeB5OnfOg=';
+	// asset on Obyte
+	let asset = '7kU/4vBq36C3Q53BX4C3lfOFFT20i/3SGBWATlpn+WU=';
+	let price_in_usd = 30;
 	
 	// oracle
-	const oracleAddress = '0x3B9AF3beead49768734A93c2B27E0d5205328a88';
+	const oracleAddress = oracleAddresses[evmNetwork];
 	const oracle = new ethers.Contract(oracleAddress, oracleJson.abi, signer);
-	await oracle.setPrice("Obyte", "_NATIVE_", 50, evmNativePrice);
-	await wait(2000);
-	await oracle.setPrice(ousdAsset, "_NATIVE_", 1, evmNativePrice);
+//	await oracle.setPrice("Obyte", "_NATIVE_", 50, evmNativePrice);
+//	await wait(2000);
+	await oracle.setPrice(asset, "_NATIVE_", price_in_usd, evmNativePrice);
 	await wait(2000);
 
 	console.error('done');
