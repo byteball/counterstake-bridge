@@ -819,30 +819,42 @@ async function updateMaxAmounts() {
 			if (networkApi[home_network].isValidAddress(claimant_address)) {
 				const type = 'repatriation';
 				const key = bridge_id + type;
-				let balance = await networkApi[home_network].getBalance(claimant_address, home_asset, true);
-				balance = balance.toString() / 10 ** home_asset_decimals;
-				const max_amount = balance / 2; // amount + stake
-				if (!_maxAmounts[key] || max_amount > _maxAmounts[key])
-					_maxAmounts[key] = max_amount;
+				try {
+					let balance = await networkApi[home_network].getBalance(claimant_address, home_asset, true);
+					balance = balance.toString() / 10 ** home_asset_decimals;
+					const max_amount = balance / 2; // amount + stake
+					if (!_maxAmounts[key] || max_amount > _maxAmounts[key])
+						_maxAmounts[key] = max_amount;
+				}
+				catch (e) {
+					console.log(`updateMaxAmounts repatriation ${home_network} error`, e);
+					_maxAmounts[key] = maxAmounts && maxAmounts[key] ? maxAmounts[key] : 0;
+				}
 			}
 			if (networkApi[foreign_network].isValidAddress(claimant_address)) {
 				const type = 'expatriation';
 				const key = bridge_id + type;
-				let balance = await networkApi[foreign_network].getBalance(claimant_address, foreign_asset, true);
-				balance = BigNumber.from(balance);
-				if (balance.isZero())
-					continue;
-				let stake_balance = await networkApi[foreign_network].getBalance(claimant_address, stake_asset, true);
-				stake_balance = BigNumber.from(stake_balance);
-				if (stake_balance.isZero())
-					continue;
-				let required_stake = await networkApi[foreign_network].getRequiredStake(import_aa, balance);
-				required_stake = BigNumber.from(required_stake).mul(110).div(100); // add 10%
-				let max_amount = balance.toString() / 10 ** foreign_asset_decimals;
-				if (required_stake.gt(stake_balance))
-					max_amount *= stake_balance.toString() / required_stake.toString(); // scale down
-				if (!_maxAmounts[key] || max_amount > _maxAmounts[key])
-					_maxAmounts[key] = max_amount;
+				try {
+					let balance = await networkApi[foreign_network].getBalance(claimant_address, foreign_asset, true);
+					balance = BigNumber.from(balance);
+					if (balance.isZero())
+						continue;
+					let stake_balance = await networkApi[foreign_network].getBalance(claimant_address, stake_asset, true);
+					stake_balance = BigNumber.from(stake_balance);
+					if (stake_balance.isZero())
+						continue;
+					let required_stake = await networkApi[foreign_network].getRequiredStake(import_aa, balance);
+					required_stake = BigNumber.from(required_stake).mul(110).div(100); // add 10%
+					let max_amount = balance.toString() / 10 ** foreign_asset_decimals;
+					if (required_stake.gt(stake_balance))
+						max_amount *= stake_balance.toString() / required_stake.toString(); // scale down
+					if (!_maxAmounts[key] || max_amount > _maxAmounts[key])
+						_maxAmounts[key] = max_amount;
+				}
+				catch (e) {
+					console.log(`updateMaxAmounts expatriation ${foreign_network} error`, e);
+					_maxAmounts[key] = maxAmounts && maxAmounts[key] ? maxAmounts[key] : 0;
+				}
 			}
 		}
 	}
