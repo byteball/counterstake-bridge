@@ -9,6 +9,7 @@ const db_import = require('./db_import.js');
 const transfers = require('./transfers.js');
 const webserver = require('./webserver.js');
 const chat = require('./chat.js');
+const stats = require('./stats.js');
 
 eventBus.on('headless_wallet_ready', async () => {
 	await db_import.initDB();
@@ -25,6 +26,7 @@ eventBus.on('headless_wallet_ready', async () => {
 //	network.start();
 	await transfers.start();
 	webserver.start();
+	stats.start();
 });
 
 process.on('unhandledRejection', up => {

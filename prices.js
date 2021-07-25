@@ -1,4 +1,7 @@
 const fetch = require('node-fetch');
+const { ethers } = require("ethers");
+
+const { constants: { AddressZero } } = ethers;
 
 const nativeSymbols = {
 	Ethereum: 'ETH',
@@ -130,17 +133,11 @@ async function fetchExchangeRateInNativeAsset(type, dst_network, claimed_asset, 
 	if (rate)
 		return rate;
 	if (src_network === 'Obyte') {
-		if (src_asset === 'nDEJfA3xTO/n0PMBWxlw+ZvgmW9dVELeLaaFZDo8bQ8=') // OUSD devnet
-			src_asset = '0IwAk71D5xFP0vTzwamKBwzad3I1ZUjZ1gdeB5OnfOg=';
-		if (src_asset === 'CPPYMBzFzI4+eMk7tLMTGjLF4E60t5MUfo2Gq7Y6Cn4=') // OUSD testnet
-			src_asset = '0IwAk71D5xFP0vTzwamKBwzad3I1ZUjZ1gdeB5OnfOg=';
-		if (src_asset === 'RGJT5nS9Luw2OOlAeOGywxbxwWPXtDAbZfEw5PiXVug=') // IBIT testnet
-			src_asset = 'viWGuQQnKBkXbuBFryfT3oJd+KHRWMtCDfy7ZEJguaA=';
 		if (src_asset === 'base')
 			rate = await fetchCryptocompareExchangeRateCached('GBYTE', nativeSymbol, cached)
 		else {
 			const prices = await fetchObyteTokenPricesCached(cached);
-			const price_in_usd = prices[src_asset];
+			const price_in_usd = prices[toMainnetObyteAsset(src_asset)];
 			if (!price_in_usd)
 				return null;
 			const native_price_in_usd = await fetchCryptocompareExchangeRateCached(nativeSymbol, 'USD', cached)
@@ -150,6 +147,31 @@ async function fetchExchangeRateInNativeAsset(type, dst_network, claimed_asset, 
 	return rate;
 }
 
+async function fetchExchangeRateInUSD(network, asset, cached) {
+	if (network === 'Obyte') {
+		if (asset === 'base')
+			return await fetchCryptocompareExchangeRateCached('GBYTE', 'USD', cached);
+		const prices = await fetchObyteTokenPricesCached(cached);
+		const price_in_usd = prices[toMainnetObyteAsset(asset)];
+		return price_in_usd || null;
+	}
+	if (asset === AddressZero)
+		return await fetchCryptocompareExchangeRateCached(nativeSymbols[network], 'USD', cached);
+	return await tryGetTokenPrice(network, asset, 'USD', cached);
+}
+
+function toMainnetObyteAsset(asset) {
+	if (asset === 'nDEJfA3xTO/n0PMBWxlw+ZvgmW9dVELeLaaFZDo8bQ8=') // OUSD devnet
+		return '0IwAk71D5xFP0vTzwamKBwzad3I1ZUjZ1gdeB5OnfOg=';
+	if (asset === 'CPPYMBzFzI4+eMk7tLMTGjLF4E60t5MUfo2Gq7Y6Cn4=') // OUSD testnet
+		return '0IwAk71D5xFP0vTzwamKBwzad3I1ZUjZ1gdeB5OnfOg=';
+	if (asset === 'RGJT5nS9Luw2OOlAeOGywxbxwWPXtDAbZfEw5PiXVug=') // IBIT testnet
+		return 'viWGuQQnKBkXbuBFryfT3oJd+KHRWMtCDfy7ZEJguaA=';
+	return asset;
+}
+
+
+
 async function test() {
 	console.log('BAT', await fetchExchangeRateInNativeAsset('Ethereum', '0x0d8775f648430679a709e98d2b0cb6250d2887ef', 'Obyte', 'BAT-on-Obyte-asset-id', true))
 	console.log('GBYTE', await fetchExchangeRateInNativeAsset('Ethereum', 'some-token-address', 'Obyte', 'base', true))
@@ -158,3 +180,4 @@ async function test() {
 //test();
 
 exports.fetchExchangeRateInNativeAsset = fetchExchangeRateInNativeAsset;
+exports.fetchExchangeRateInUSD = fetchExchangeRateInUSD;

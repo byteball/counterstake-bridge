@@ -36,6 +36,10 @@ class EvmChain {
 	#bCatchingUp = true;
 	#last_tx_ts = 0;
 
+	getProvider() {
+		return this.#provider;
+	}
+
 	getMaxBlockRange() {
 		return 0;
 	}
