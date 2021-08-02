@@ -111,3 +111,5 @@ CREATE TABLE IF NOT EXISTS last_blocks (
 INSERT OR IGNORE INTO last_blocks (network, last_block) VALUES ('Ethereum', 8600000);
 -- query separator
 INSERT OR IGNORE INTO last_blocks (network, last_block) VALUES ('BSC', 0);
+-- query separator
+INSERT OR IGNORE INTO last_blocks (network, last_block) VALUES ('Polygon', 0);

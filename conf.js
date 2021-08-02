@@ -62,6 +62,9 @@ exports.ethereum_assistant_factory_contract_address = process.env.devnet ? '0x3D
 exports.bsc_factory_contract_address = process.env.devnet ? '' : (process.env.testnet ? '0x154cEF0ef08f715B66531017E6c2712BB85ac0e5' : '0x91C79A253481bAa22E7E481f6509E70e5E6A883F');
 exports.bsc_assistant_factory_contract_address = process.env.devnet ? '' : (process.env.testnet ? '0x426D200d3572febdc2C154A58043bF9f857fb7E6' : '0xd634330ca14524A43d193E1c2e92cbaB72952896');
 
+exports.polygon_factory_contract_address = process.env.devnet ? '' : (process.env.testnet ? '0x5e4E4eA9C780b6dF0087b0052A7A1ad039F398bB' : '0x7EF26EF55FcE4032281783c70726af1bfB1d51e8');
+exports.polygon_assistant_factory_contract_address = process.env.devnet ? '' : (process.env.testnet ? '0xd8BF89335214Caf4724739F52621bC6D70eF87bF' : '0xE740C62aC78bB2666Fa9465052D0a292D7C27A11');
+
 exports.infura_project_id = ''; // in conf.json
 
 

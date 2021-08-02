@@ -1,20 +1,16 @@
 "use strict";
 const { ethers } = require("ethers");
-const conf = require('ocore/conf.js');
+const { getProvider } = require("./provider.js");
 
 const importJson = require('./build/contracts/Import.json');
 
 
 //const evmNetwork = 'Ethereum';
 const evmNetwork = 'BSC';
+//const evmNetwork = 'Polygon';
 
 
-const provider = process.env.devnet
-	? new ethers.providers.JsonRpcProvider("http://0.0.0.0:7545") // ganache
-	: (evmNetwork === 'Ethereum'
-		? new ethers.providers.InfuraProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id)
-		: new ethers.providers.JsonRpcProvider(process.env.testnet ? "https://data-seed-prebsc-1-s1.binance.org:8545" : "https://bsc-dataseed.binance.org"));
-
+const provider = getProvider(evmNetwork);
 
 
 process.on('unhandledRejection', up => {

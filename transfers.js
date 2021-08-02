@@ -12,6 +12,7 @@ const notifications = require('./notifications.js');
 const Obyte = require('./obyte.js');
 const Ethereum = require('./ethereum.js');
 const BSC = require('./bsc.js');
+const Polygon = require('./polygon.js');
 
 const networkApi = {};
 let maxAmounts;
@@ -869,33 +870,38 @@ function getMaxAmounts() {
 	return maxAmounts;
 }
 
+async function restartNetwork(network) {
+	console.log(`restarting ${network}`);
+	const bridges = await db.query("SELECT * FROM bridges WHERE home_network=? OR foreign_network=?", [network, network]);
+	for (let bridge of bridges) {
+		const { bridge_id, home_network, export_aa, export_assistant_aa, foreign_network, import_aa, import_assistant_aa } = bridge;
+		if (export_aa && home_network === network)
+			networkApi[home_network].startWatchingExportAA(export_aa);
+		if (import_aa && foreign_network === network)
+			networkApi[foreign_network].startWatchingImportAA(import_aa);
+		if (export_assistant_aa && home_network === network)
+			networkApi[home_network].startWatchingExportAssistantAA(export_assistant_aa);
+		if (import_assistant_aa && foreign_network === network)
+			networkApi[foreign_network].startWatchingImportAssistantAA(import_assistant_aa);
+	}
+	await networkApi[network].startWatchingSymbolUpdates();
+	await networkApi[network].startWatchingFactories();
+	await networkApi[network].startWatchingAssistantFactories();
+	await networkApi[network].catchup();
+	console.log(`restart: catching up ${network} done`);
+}
+
 async function start() {
 	networkApi.Obyte = new Obyte();
 	networkApi.Ethereum = new Ethereum();
 	networkApi.BSC = new BSC();
+	networkApi.Polygon = new Polygon();
 
 	// reconnect to Ethereum websocket
 	eventBus.on('ethereum_disconnected', async () => {
 		console.log('will reconnect to Ethereum');
 		networkApi.Ethereum = new Ethereum();
-		const bridges = await db.query("SELECT * FROM bridges WHERE home_network='Ethereum' OR foreign_network='Ethereum'");
-		for (let bridge of bridges) {
-			const { bridge_id, home_network, export_aa, export_assistant_aa, foreign_network, import_aa, import_assistant_aa } = bridge;
-			if (export_aa && home_network === 'Ethereum')
-				networkApi[home_network].startWatchingExportAA(export_aa);
-			if (import_aa && foreign_network === 'Ethereum')
-				networkApi[foreign_network].startWatchingImportAA(import_aa);
-			if (export_assistant_aa && home_network === 'Ethereum')
-				networkApi[home_network].startWatchingExportAssistantAA(export_assistant_aa);
-			if (import_assistant_aa && foreign_network === 'Ethereum')
-				networkApi[foreign_network].startWatchingImportAssistantAA(import_assistant_aa);
-		}
-		console.log(`restarting Ethereum`);
-		await networkApi.Ethereum.startWatchingSymbolUpdates();
-		await networkApi.Ethereum.startWatchingFactories();
-		await networkApi.Ethereum.startWatchingAssistantFactories();
-		await networkApi.Ethereum.catchup();
-		console.log('catching up Ethereum done');
+		await restartNetwork('Ethereum');
 	});
 
 	// some bridges might be incomplete: only import or only export
@@ -935,6 +941,14 @@ async function start() {
 
 	await updateMaxAmounts();
 	setInterval(updateMaxAmounts, 3600 * 1000); // every hour
+
+	// we start Polygon with Infura to be able to scan more than 1000 blocks of past events, then switch to maticgivil to track ongoing events
+	setTimeout(async () => {
+		console.log('will restart Polygon on a free provider');
+		networkApi.Polygon.forget();
+		networkApi.Polygon = new Polygon(true);
+		await restartNetwork('Polygon');
+	}, 10 * 60 * 1000);
 }
 
 // don't rewrite module.exports, otherwise circular dependent modules won't see the new object

@@ -6,6 +6,7 @@ const { constants: { AddressZero } } = ethers;
 const nativeSymbols = {
 	Ethereum: 'ETH',
 	BSC: 'BNB',
+	Polygon: 'MATIC',
 };
 
 
@@ -106,12 +107,19 @@ const fetchERC20ExchangeRateCached = cachify(fetchERC20ExchangeRate, 3)
 const fetchCryptocompareExchangeRateCached = cachify(fetchCryptocompareExchangeRate, 2)
 const fetchObyteTokenPricesCached = cachify(fetchObyteTokenPrices, 0)
 
+const coingeckoChainIds = {
+	Ethereum: 'ethereum',
+	BSC: 'binance-smart-chain',
+	Polygon: 'polygon-pos',
+};
+
 async function tryGetTokenPrice(network, token_address, nativeSymbol, cached) {
 	switch (network) {
 		case 'Ethereum':
 		case 'BSC':
+		case 'Polygon':
 			try {
-				const chain = network === 'Ethereum' ? 'ethereum' : 'binance-smart-chain';
+				const chain = coingeckoChainIds[network];
 				return await fetchERC20ExchangeRateCached(chain, token_address, nativeSymbol, cached);
 			}
 			catch (e) {

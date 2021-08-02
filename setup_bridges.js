@@ -13,6 +13,7 @@ const operator = require('aabot/operator.js');
 const db_import = require('./db_import.js');
 const transfers = require('./transfers.js');
 const webserver = require('./webserver.js');
+const { getProvider } = require("./evm/provider.js");
 
 const exportJson = require('./evm/build/contracts/Export.json');
 const importJson = require('./evm/build/contracts/Import.json');
@@ -26,13 +27,14 @@ const { utils: { parseEther, parseUnits }, constants: { AddressZero } } = ethers
 const bWithAssistants = true;
 
 const opts = {
-	gasPrice: 10e9
+//	gasPrice: 3e9
 };
 
 const evmProps = {
 	Ethereum: {
 		symbol: 'ETH',
 		price: 2000,
+		decimals_on_obyte: 8,
 		large_threshold: parseEther('100'),
 		stablecoinSymbol: 'USDC', // get testnet USDC from https://app.compound.finance/
 		stablecoinTokenAddress: process.env.testnet ? '0x4DBCdF9B62e891a7cec5A2568C3F4FAF9E8Abe2b' : '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
@@ -43,6 +45,7 @@ const evmProps = {
 	BSC: {
 		symbol: 'BNB',
 		price: 300,
+		decimals_on_obyte: 8,
 		large_threshold: parseEther('1000'),
 		stablecoinSymbol: 'BUSD', // get testnet BUSD https://testnet.binance.org/faucet-smart
 		stablecoinTokenAddress: process.env.testnet ? '0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee' : '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', 
@@ -50,13 +53,26 @@ const evmProps = {
 		factory: conf.bsc_factory_contract_address,
 		assistant_factory: conf.bsc_assistant_factory_contract_address,
 	},
+	Polygon: {
+		symbol: 'MATIC',
+		price: 1,
+		decimals_on_obyte: 5,
+		large_threshold: parseEther('100000'),
+		stablecoinSymbol: '',
+		stablecoinTokenAddress: process.env.testnet ? '' : '', 
+		stablecoinDecimals: 18,
+		factory: conf.polygon_factory_contract_address,
+		assistant_factory: conf.polygon_assistant_factory_contract_address,
+	},
 };
 
 const evmNetwork = 'Ethereum';
 //const evmNetwork = 'BSC';
+//const evmNetwork = 'Polygon';
 
 const evmNativeSymbol = evmProps[evmNetwork].symbol;
 const evmNativePrice = evmProps[evmNetwork].price;
+const evmNativeDecimalsOnObyte = evmProps[evmNetwork].decimals_on_obyte;
 const evmNativeLargeThreshold = evmProps[evmNetwork].large_threshold;
 const evmStablecoinSymbol = evmProps[evmNetwork].stablecoinSymbol;
 const evmStablecoinTokenAddress = evmProps[evmNetwork].stablecoinTokenAddress;
@@ -79,12 +95,11 @@ const ethereum_challenging_periods = (process.env.devnet || process.env.testnet)
 const ethereum_long_challenging_periods = (process.env.devnet || process.env.testnet) ? [0.2 * 3600, 0.3 * 3600, 0.7 * 3600, 1.5 * 3600] : [7 * 24 * 3600, 30 * 24 * 3600, 60 * 24 * 3600, 90 * 24 * 3600];
 
 let providers = {};
-providers.Ethereum = new ethers.providers.InfuraProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id);
-providers.BSC = new ethers.providers.JsonRpcProvider(process.env.testnet ? "https://data-seed-prebsc-1-s1.binance.org:8545" : "https://bsc-dataseed.binance.org");
+providers.Ethereum = getProvider('Ethereum');
+providers.BSC = getProvider('BSC');
+providers.Polygon = getProvider('Polygon');
 
-const provider = process.env.devnet
-	? new ethers.providers.JsonRpcProvider("http://0.0.0.0:7545") // ganache
-	: providers[evmNetwork];
+const provider = providers[evmNetwork];
 const ethWallet = ethers.Wallet.fromMnemonic(JSON.parse(fs.readFileSync(desktopApp.getAppDataDir() + '/keys.json')).mnemonic_phrase);
 console.error(`====== my ETH address: `, ethWallet.address);
 const signer = process.env.devnet ? provider.getSigner(0) : ethWallet.connect(provider);
@@ -240,7 +255,7 @@ async function createObyteExportAssistant(bridge_aa, symbol, asset_decimals) {
 		throw Error(`createObyteExportAssistant ${symbol} bounced: ${response.response.error}`);
 	const address = response.response.responseVars.address;
 	const shares_asset = await dag.readAAStateVar(address, 'shares_asset');
-	await registerObyteToken(shares_asset, `${symbol}EA`, asset_decimals, `${symbol} export assistant shares`);
+	await registerObyteToken(shares_asset, `${symbol}${evmNetwork.substr(0, 1).toUpperCase()}EA`, asset_decimals, `${symbol} export assistant shares`);
 }
 
 async function createObyteImportAssistant(bridge_aa, symbol, asset_decimals) {
@@ -309,6 +324,7 @@ async function createEvmImportAssistant(bridge_aa, symbol, network) {
 
 
 async function createEvmOracle(network) {
+	console.error(`deploying oracle on ${network}`);
 	const oracleFactory = ethers.ContractFactory.fromSolidity(oracleJson, ethWallet.connect(providers[network]));
 	const oracle = await oracleFactory.deploy(opts);
 	console.error(evmNetwork, 'oracle', oracle.address);
@@ -361,6 +377,7 @@ async function setupInitialBridges() {
 	}
 
 	await transfers.start();
+	webserver.start();
 
 	// USDC on Ethereum
 	let usdcTokenAddress;
@@ -401,8 +418,8 @@ async function setupInitialBridges() {
 		setInterval(push, 4000);
 
 	// ETH: Ethereum -> Obyte
-	const { address: eth_import_aa, asset: eth_on_obyte } = await createObyteImport(AddressZero, evmNativeSymbol, 8, `${obyte_oracle}*${evmNativeSymbol}_USD ${obyte_oracle}/GBYTE_USD`, 1000e9);
-	await createObyteImportAssistant(eth_import_aa, evmNativeSymbol, 8);
+	const { address: eth_import_aa, asset: eth_on_obyte } = await createObyteImport(AddressZero, evmNativeSymbol, evmNativeDecimalsOnObyte, `${obyte_oracle}*${evmNativeSymbol}_USD ${obyte_oracle}/GBYTE_USD`, 1000e9);
+	await createObyteImportAssistant(eth_import_aa, evmNativeSymbol, evmNativeDecimalsOnObyte);
 	const eth_export_aa = await createEvmExport(eth_on_obyte, AddressZero, evmNativeLargeThreshold, evmNetwork, "Obyte");
 	await wait(5000);
 	await createEvmExportAssistant(eth_export_aa, evmNativeSymbol, evmNetwork);
@@ -450,10 +467,12 @@ const oracleAddresses = process.env.testnet
 	? {
 		Ethereum: '0x1Af68677849da73B62A91d775B6A2bF457c0B2e3',
 		BSC: '0x3d2cd866b2e2e4fCE1dCcf662E71ea9611113344',
+		Polygon: '0x7A5b663D4Be50E415803176d9f473ee81db590b7',
 	}
 	: {
 		Ethereum: '0xAC4AA997A171A6CbbF5540D08537D5Cb1605E191',
 		BSC: '0xdD52899A001a4260CDc43307413A5014642f37A2',
+		Polygon: '0xdd603Fc2312A0E7Ab01dE2dA83e7776Af406DCeB',
 	};
 
 async function setupObyte2EvmBridge(asset, symbol, obyte_decimals, large_threshold, min_stake, price_in_usd) {

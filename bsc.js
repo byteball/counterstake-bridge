@@ -1,7 +1,7 @@
 "use strict";
-const { ethers } = require("ethers");
 const conf = require('ocore/conf.js');
 const EvmChain = require('./evm-chain.js');
+const { getProvider } = require("./evm/provider.js");
 
 let bCreated = false;
 
@@ -12,7 +12,7 @@ class BSC extends EvmChain {
 			throw Error("BSC class already created, must be a singleton");
 		bCreated = true;
 		
-		const provider = new ethers.providers.JsonRpcProvider(process.env.testnet ? "https://data-seed-prebsc-1-s1.binance.org:8545" : "https://bsc-dataseed.binance.org");
+		const provider = getProvider('BSC');
 		super('BSC', conf.bsc_factory_contract_address, conf.bsc_assistant_factory_contract_address, provider);
 	}
 

@@ -65,6 +65,7 @@ class EvmChain {
 		const last_block = Math.max(await this.getLastBlock() - 100, 0);
 		if (!this.getMaxBlockRange())
 			return last_block;
+		console.log(`have max block range ${this.getMaxBlockRange()} on ${this.network}`);
 		const currentBlockNumber = await this.#provider.getBlockNumber();
 		const top_available_block = currentBlockNumber - this.getMaxBlockRange() + 100;
 		if (last_block > top_available_block)
