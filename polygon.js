@@ -21,6 +21,8 @@ class Polygon extends EvmChain {
 	}
 
 	forget() {
+		console.log(`removing ${this.getProvider().listenerCount()} listeners on ${this.network}`);
+		this.getProvider().removeAllListeners();
 		bCreated = false;
 	}
 
