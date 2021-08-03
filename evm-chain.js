@@ -35,6 +35,7 @@ class EvmChain {
 	#contractsByAddress = {};
 	#bCatchingUp = true;
 	#last_tx_ts = 0;
+	#bWaitForMined = false; // set to true for unreliable providers that might lose a transaction
 
 	getProvider() {
 		return this.#provider;
@@ -216,6 +217,8 @@ class EvmChain {
 			const claim_txid = res.hash;
 			console.log(`sent claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
 			this.#last_tx_ts = Date.now();
+			if (this.#bWaitForMined)
+				await res.wait();
 		//	const receipt = await res.wait();
 		//	console.log('tx mined, receipt', receipt, 'events', receipt.events, 'args', receipt.events[1].args);
 			unlock();
@@ -241,6 +244,8 @@ class EvmChain {
 			const claim_txid = res.hash;
 			console.log(`sent assistant claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
 			this.#last_tx_ts = Date.now();
+			if (this.#bWaitForMined)
+				await res.wait();
 			unlock();
 			return claim_txid;
 		}
@@ -260,6 +265,8 @@ class EvmChain {
 		const txid = res.hash;
 		console.log(`sent counterstake ${counterstake} for "${stake_on}" to challenge claim ${claim_num}: ${txid}`);
 		this.#last_tx_ts = Date.now();
+		if (this.#bWaitForMined)
+			await res.wait();
 		unlock();
 		return txid;
 	}
@@ -273,6 +280,8 @@ class EvmChain {
 		const txid = res.hash;
 		console.log(`sent assistant counterstake ${counterstake} for "${stake_on}" to challenge claim ${claim_num}: ${txid}`);
 		this.#last_tx_ts = Date.now();
+		if (this.#bWaitForMined)
+			await res.wait();
 		unlock();
 		return txid;
 	}
@@ -287,6 +296,8 @@ class EvmChain {
 		const txid = res.hash;
 		console.log(`sent withdrawal request on claim ${claim_num} to ${to_address || 'self'}: ${txid}`);
 		this.#last_tx_ts = Date.now();
+		if (this.#bWaitForMined)
+			await res.wait();
 		unlock();
 		return txid;
 	}
@@ -301,6 +312,8 @@ class EvmChain {
 		}
 		const txid = res.hash;
 		console.log(`sent payment ${amount} ${asset} to ${address}: ${txid}`);
+		if (this.#bWaitForMined)
+			await res.wait();
 		return txid;
 	}
 
@@ -435,7 +448,10 @@ class EvmChain {
 				console.log(`spender ${spenderAddress} already approved`);
 				return "already approved";
 			}
-			return await token.approve(spenderAddress, BigNumber.from(2).pow(256).sub(1));
+			const res = await token.approve(spenderAddress, BigNumber.from(2).pow(256).sub(1));
+			if (this.#bWaitForMined)
+				await res.wait();
+			return res;
 		}
 		catch (e) {
 			console.log(`approve(${spenderAddress}) failed`, e);
