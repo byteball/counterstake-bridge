@@ -898,10 +898,15 @@ async function start() {
 	networkApi.Polygon = new Polygon();
 
 	// reconnect to Ethereum websocket
-	eventBus.on('ethereum_disconnected', async () => {
-		console.log('will reconnect to Ethereum');
-		networkApi.Ethereum = new Ethereum();
-		await restartNetwork('Ethereum');
+	eventBus.on('network_disconnected', async (network) => {
+		console.log('will reconnect to', network);
+		if (network === 'Ethereum')
+			networkApi.Ethereum = new Ethereum();
+		if (network === 'Polygon')
+			networkApi.Polygon = new Polygon();
+		else
+			throw Error(`unknown network disconnected ${network}`);
+		await restartNetwork(network);
 	});
 
 	// some bridges might be incomplete: only import or only export
@@ -943,12 +948,12 @@ async function start() {
 	setInterval(updateMaxAmounts, 3600 * 1000); // every hour
 
 	// we start Polygon with Infura to be able to scan more than 1000 blocks of past events, then switch to maticgivil to track ongoing events
-	setTimeout(async () => {
+/*	setTimeout(async () => {
 		console.log('will restart Polygon on a free provider');
 		networkApi.Polygon.forget();
 		networkApi.Polygon = new Polygon(true);
 		await restartNetwork('Polygon');
-	}, 10 * 60 * 1000);
+	}, 10 * 60 * 1000);*/
 }
 
 // don't rewrite module.exports, otherwise circular dependent modules won't see the new object

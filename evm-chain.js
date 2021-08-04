@@ -566,7 +566,7 @@ class EvmChain {
 		await this.updateLastBlock(await this.#provider.getBlockNumber());
 	}
 
-	constructor(network, factory_contract_address, assistant_factory_contract_address, provider){
+	constructor(network, factory_contract_address, assistant_factory_contract_address, provider, bWebsocket){
 		this.network = network;
 		this.#factory_contract_address = factory_contract_address;
 		this.#assistant_factory_contract_address = assistant_factory_contract_address;
@@ -574,6 +574,19 @@ class EvmChain {
 		let wallet = ethers.Wallet.fromMnemonic(JSON.parse(fs.readFileSync(desktopApp.getAppDataDir() + '/keys.json')).mnemonic_phrase);
 		console.log(`====== my ${network} address: `, wallet.address);
 		this.#wallet = wallet.connect(provider);
+
+		if (bWebsocket && !process.env.devnet) {
+			provider.on('block', () => {
+				console.log('new block', this.network);
+				provider._websocket.ping();
+			});
+			provider._websocket.on('pong', () => console.log('pong', this.network));
+			provider._websocket.on('close', () => {
+				console.log('====== !!!!! websocket connection closed', this.network);
+				this.forget();
+				eventBus.emit('network_disconnected', this.network);
+			});
+		}
 	}
 
 }

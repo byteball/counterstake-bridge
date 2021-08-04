@@ -15,8 +15,9 @@ class Polygon extends EvmChain {
 			throw Error("Polygon class already created, must be a singleton");
 		bCreated = true;
 		
-		const provider = getProvider('Polygon', bFree);
-		super('Polygon', conf.polygon_factory_contract_address, conf.polygon_assistant_factory_contract_address, provider);
+	//	const provider = getProvider('Polygon', bFree);
+		const provider = new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://polygon-mumbai.g.alchemy.com/v2/${conf.alchemy_keys.polygon.testnet}` : `wss://polygon-mainnet.g.alchemy.com/v2/${conf.alchemy_keys.polygon.mainnet}`);
+		super('Polygon', conf.polygon_factory_contract_address, conf.polygon_assistant_factory_contract_address, provider, true);
 		this.#bFree = bFree;
 	}
 
@@ -30,9 +31,9 @@ class Polygon extends EvmChain {
 		return 'MATIC';
 	}
 
-	getMaxBlockRange() {
-		return this.#bFree ? 1000 : 0;
-	}
+//	getMaxBlockRange() {
+//		return this.#bFree ? 1000 : 0;
+//	}
 
 
 }
