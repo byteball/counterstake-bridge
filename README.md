@@ -77,6 +77,15 @@ If `sendmail` is not setup and configured on your system (usually, it isn't), ad
 ## Configuration
 Check `conf.js` for the available options. You can override them in your conf.json. The most important ones are:
 * `infura_project_id`: your infura project ID. Sign up at infura to get it.
+* `alchemy_keys`: your alchemy keys. Sign up at alchemy to get them. The format is like
+```json
+	"alchemy_keys": {
+		"polygon": {
+			"mainnet": "<your mainnet key>",
+			"testnet": "<your testnet key>"
+		}
+	},
+```
 * `min_reward_ratio`: minimum net reward (net of gas fees) that your bot expects to earn for assisting a transfer. The bot will ignore the transfers that pay a lower reward. Default 0.005 (0.5%).
 * `max_exposure`: max share of the bot's balance in a specific token that can be sent in a counterstake against a fraudulent claim a challenge. This limits the risk you are taking. Default 0.5 (50%).
 * `evm_min_transfer_age`: minimum age (in seconds) of the transfer on an EVM-based source chain before it is deemed irreversible and safe to claim on the destination chain. The default is 300 seconds (5 minutes). You can set a lower value to make sure your bot claims a transfer before other assistant bots but this also increases the risk that the transfer will be reverted and your bot will lose money.
