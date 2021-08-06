@@ -120,7 +120,7 @@ let aas = [
 	'import-factory.oscript',
 ];
 if (process.env.devnet)
-	aas.unshift('../token-registry-aa/token-registry.oscript');
+	aas.unshift('../../token-registry-aa/token-registry.oscript');
 const deploymentDependencies = {
 	'export-factory.oscript': ['export-governance.oscript'],
 	'import-factory.oscript': ['import-governance.oscript'],
