@@ -658,9 +658,9 @@ async function finishClaim({ claim_num, bridge_id, type }) {
 
 async function checkUnfinishedClaims() {
 	console.log('checking for unfinished claims');
-	const rows = await db.query(`SELECT export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_network, foreign_network, claim_num, bridge_id, type FROM claims CROSS JOIN bridges USING(bridge_id) WHERE is_finished=0 AND my_stake!='0'`);
+	const rows = await db.query(`SELECT export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_network, foreign_network, claim_num, bridge_id, type, home_symbol, claims.creation_date FROM claims CROSS JOIN bridges USING(bridge_id) WHERE is_finished=0 AND my_stake!='0'`);
 	console.log(`${rows.length} unfinished claims`);
-	for (let { export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_network, foreign_network, claim_num, bridge_id, type } of rows) {
+	for (let { export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_network, foreign_network, home_symbol, claim_num, bridge_id, type, creation_date } of rows) {
 		const claim_info = { claim_num, bridge_id, type };
 		const bridge_aa = type === 'expatriation' ? import_aa : export_aa;
 		if (!bridge_aa)
@@ -668,28 +668,30 @@ async function checkUnfinishedClaims() {
 		let assistant_aa = type === 'expatriation' ? import_assistant_aa : export_assistant_aa;
 		const network = type === 'expatriation' ? foreign_network : home_network;
 		const api = networkApi[network];
+		const desc = `claim ${claim_num} of ${creation_date} on ${network} bridge ${bridge_id} AA ${bridge_aa} for ${home_symbol}`;
+		console.log(`checkUnfinishedClaims: will query ${desc}`);
 		let claim = await api.getClaim(bridge_aa, claim_num, false, false);
 		if (!claim)
 			claim = await api.getClaim(bridge_aa, claim_num, true, false);
 		if (!claim)
-			throw Error(`claim ${claim_num} not found in ongoing nor finished`);
+			throw Error(`${desc} not found in ongoing nor finished`);
 		if (assistant_aa && api.isMyAddress(claim.claimant_address)) // claimed myself
 			assistant_aa = undefined;
 		if (claim.expiry_ts < Date.now() / 1000 - 60) {
 			const valid_outcome = await getValidOutcome(claim_info, true);
 			if (claim.current_outcome === valid_outcome) {
-				console.log(`checkUnfinishedClaims: claim ${claim_num} finished as expected`);
+				console.log(`checkUnfinishedClaims: ${desc} finished as expected`);
 				const txid = await sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa);
 				if (txid)
 					await finishClaim(claim_info);
 			}
 			else {
-				notifications.notifyAdmin(`checkUnfinishedClaims: claim ${claim_num} finished as "${claim.current_outcome}", expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
+				notifications.notifyAdmin(`checkUnfinishedClaims: ${desc} finished as "${claim.current_outcome}", expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
 				await finishClaim(claim_info);
 			}
 		}
 		else
-			console.log(`checkUnfinishedClaims: claim ${claim_num} challenging period is still ongoing`);
+			console.log(`checkUnfinishedClaims: ${desc} challenging period is still ongoing`);
 	}
 }
 
