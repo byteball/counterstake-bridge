@@ -156,6 +156,15 @@ class EvmChain {
 		}
 	}
 
+	isValidData(data) {
+		return true;
+	}
+
+	// both are strings
+	dataMatches(sent_data, claimed_data) {
+		return sent_data === claimed_data;
+	}
+
 	async getClaim(bridge_aa, claim_num, bFinished, bThrowIfNotFound) {
 		const contract = this.#contractsByAddress[bridge_aa];
 		let claim = await contract['getClaim(uint256)'](claim_num);

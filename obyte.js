@@ -64,6 +64,37 @@ class Obyte {
 		return validationUtils.isValidAddress(address);
 	}
 
+	isValidData(data) {
+		if (!data)
+			return true;
+		try {
+			JSON.parse(data);
+			return true;
+		}
+		catch (e) {
+			console.log(`invalid data`, data, e);
+			return false;
+		}
+	}
+
+	// both are strings
+	dataMatches(sent_data, claimed_data) {
+		if (sent_data === claimed_data)
+			return true;
+		try {
+			// it's ok if the object was json-stringified without sorting when sending.
+			// there is a degree of freedom when sending but not when claiming as the data is part of the hash
+			const obj_sent_data = JSON.parse(sent_data);
+			const sorted_sent_data = string_utils.getJsonSourceString(obj_sent_data, false);
+			console.log('sorted sent data', sorted_sent_data);
+			return sorted_sent_data === claimed_data;
+		}
+		catch (e) {
+			console.log(`error in dataMatches`, e);
+			return false;
+		}
+	}
+
 	async getClaim(bridge_aa, claim_num, bFinished, bThrowIfNotFound) {
 		const prefix = bFinished ? 'f_' : 'o_';
 		const claim = await dag.readAAStateVar(bridge_aa, prefix + claim_num);
@@ -100,7 +131,7 @@ class Obyte {
 			txts,
 		};
 		if (data)
-			trigger_data.data = data;
+			trigger_data.data = JSON.parse(data);
 		if (dest_address)
 			trigger_data.address = dest_address;
 		const bThirdPartyClaiming = (dest_address && dest_address !== operator.getAddress());
@@ -141,7 +172,7 @@ class Obyte {
 			txts,
 		};
 		if (data)
-			trigger_data.data = data;
+			trigger_data.data = JSON.parse(data);
 		const claim_txid = await dag.sendAARequest(assistant_aa, trigger_data);
 		console.log(`sent assistant claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
 		return claim_txid;

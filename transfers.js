@@ -106,6 +106,9 @@ async function handleTransfer(transfer) {
 	if (!dst_api.isValidAddress(dest_address))
 		return console.log(`invalid dest address ${dest_address} in transfer ${txid}, will not claim`);
 
+	if (data && !dst_api.isValidData(data))
+		return console.log(`invalid data ${data} in transfer ${txid}, will not claim`);
+
 	const bThirdPartyClaiming = !dst_api.isMyAddress(dest_address);
 	if (!conf.bClaimForOthers && bThirdPartyClaiming)
 		return console.log(`not claiming for others and transfer ${txid} is not to me`);
@@ -376,7 +379,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 			throw Error(`found a transfer ${transfer.transfer_id} on an incomplete bridge ${bridge_id}, claim ${claim_num} in tx ${claim_txid}`);
 		if (home_asset_decimals === null || foreign_asset_decimals === null)
 			throw Error(`home_asset_decimals=${home_asset_decimals}, foreign_asset_decimals=${foreign_asset_decimals} on complete bridge ${bridge_id}, claim ${claim_num} in tx ${claim_txid}`);
-		if (transfer.data !== data) {
+		if (networkApi[network].dataMatches(transfer.data, data)) {
 			console.log(`data strings do not match in claim ${claim_num} tx ${claim_txid}: expected ${transfer.data}, got ${data}, bridge ${bridge_id}`);
 			return false;
 		}
