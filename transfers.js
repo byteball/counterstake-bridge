@@ -907,7 +907,7 @@ async function start() {
 		console.log('will reconnect to', network);
 		if (network === 'Ethereum')
 			networkApi.Ethereum = new Ethereum();
-		if (network === 'Polygon')
+		else if (network === 'Polygon')
 			networkApi.Polygon = new Polygon();
 		else
 			throw Error(`unknown network disconnected ${network}`);
