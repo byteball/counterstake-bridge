@@ -16,8 +16,10 @@ class Polygon extends EvmChain {
 		bCreated = true;
 		
 	//	const provider = getProvider('Polygon', bFree);
-		const provider = new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://polygon-mumbai.g.alchemy.com/v2/${conf.alchemy_keys.polygon.testnet}` : `wss://polygon-mainnet.g.alchemy.com/v2/${conf.alchemy_keys.polygon.mainnet}`);
-		super('Polygon', conf.polygon_factory_contract_address, conf.polygon_assistant_factory_contract_address, provider, true);
+	//	const provider = new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://polygon-mumbai.g.alchemy.com/v2/${conf.alchemy_keys.polygon.testnet}` : `wss://polygon-mainnet.g.alchemy.com/v2/${conf.alchemy_keys.polygon.mainnet}`);
+		const provider = new ethers.providers.JsonRpcProvider((process.env.testnet ? `https://polygon-mumbai.infura.io/v3/${conf.infura_project_id}` : `https://polygon-mainnet.infura.io/v3/${conf.infura_project_id}`));
+		provider.pollingInterval = 120 * 1000;
+		super('Polygon', conf.polygon_factory_contract_address, conf.polygon_assistant_factory_contract_address, provider, false);
 		this.#bFree = bFree;
 	}
 
