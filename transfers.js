@@ -671,6 +671,8 @@ async function checkUnfinishedClaims() {
 		let assistant_aa = type === 'expatriation' ? import_assistant_aa : export_assistant_aa;
 		const network = type === 'expatriation' ? foreign_network : home_network;
 		const api = networkApi[network];
+		if (!api)
+			continue;
 		const desc = `claim ${claim_num} of ${creation_date} on ${network} bridge ${bridge_id} AA ${bridge_aa} for ${home_symbol}`;
 		console.log(`checkUnfinishedClaims: will query ${desc}`);
 		let claim = await api.getClaim(bridge_aa, claim_num, false, false);
@@ -822,7 +824,7 @@ async function updateMaxAmounts() {
 	const bridges = await db.query("SELECT * FROM bridges WHERE import_aa IS NOT NULL AND export_aa IS NOT NULL");
 	for (let { bridge_id, import_aa, stake_asset, home_asset, foreign_asset, home_asset_decimals, foreign_asset_decimals, home_network, foreign_network } of bridges) {
 		for (let claimant_address of claimants) {
-			if (networkApi[home_network].isValidAddress(claimant_address)) {
+			if (networkApi[home_network] && networkApi[home_network].isValidAddress(claimant_address)) {
 				const type = 'repatriation';
 				const key = bridge_id + type;
 				try {
@@ -837,7 +839,7 @@ async function updateMaxAmounts() {
 					_maxAmounts[key] = maxAmounts && maxAmounts[key] ? maxAmounts[key] : 0;
 				}
 			}
-			if (networkApi[foreign_network].isValidAddress(claimant_address)) {
+			if (networkApi[foreign_network] && networkApi[foreign_network].isValidAddress(claimant_address)) {
 				const type = 'expatriation';
 				const key = bridge_id + type;
 				try {
@@ -918,6 +920,10 @@ async function start() {
 	const bridges = await db.query("SELECT * FROM bridges");
 	for (let bridge of bridges) {
 		const { bridge_id, home_network, export_aa, export_assistant_aa, foreign_network, import_aa, import_assistant_aa } = bridge;
+		if (!networkApi[home_network] || !networkApi[foreign_network]) {
+			console.log(`skipping bridge ${bridge_id} ${home_network}->${foreign_network} as one of networks is not available`);
+			continue;
+		}
 		if (export_aa)
 			networkApi[home_network].startWatchingExportAA(export_aa);
 		if (import_aa)

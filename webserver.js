@@ -35,7 +35,8 @@ router.get('/bridges', async (ctx) => {
 	
 	const maxAmounts = getMaxAmounts();
 	
-	const bridges = await db.query("SELECT * FROM bridges WHERE import_aa IS NOT NULL AND export_aa IS NOT NULL");
+	const networks = Object.keys(networkApi);
+	const bridges = await db.query("SELECT * FROM bridges WHERE import_aa IS NOT NULL AND export_aa IS NOT NULL AND home_network IN(?) AND foreign_network IN(?)", [networks, networks]);
 	console.log(`-- getting bridges`);
 	for (let bridge of bridges) {
 		const { bridge_id, home_asset, foreign_asset, home_network, foreign_network } = bridge;
