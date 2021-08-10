@@ -951,7 +951,7 @@ async function start() {
 	bCatchingUp = false;
 
 	await checkUnfinishedClaims();
-	setInterval(checkUnfinishedClaims, 2 * 60 * 1000); // every hour
+	setInterval(checkUnfinishedClaims, (process.env.testnet || process.env.devnet ? 2 : 30) * 60 * 1000); // every half an hour
 
 	await recheckOldTransfers();
 
