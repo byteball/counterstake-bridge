@@ -675,9 +675,16 @@ async function checkUnfinishedClaims() {
 			continue;
 		const desc = `claim ${claim_num} of ${creation_date} on ${network} bridge ${bridge_id} AA ${bridge_aa} for ${home_symbol}`;
 		console.log(`checkUnfinishedClaims: will query ${desc}`);
-		let claim = await api.getClaim(bridge_aa, claim_num, false, false);
-		if (!claim)
-			claim = await api.getClaim(bridge_aa, claim_num, true, false);
+		let claim;
+		try {
+			claim = await api.getClaim(bridge_aa, claim_num, false, false);
+			if (!claim)
+				claim = await api.getClaim(bridge_aa, claim_num, true, false);
+		}
+		catch (e) {
+			console.log(`checkUnfinishedClaims: getting status of ${desc} failed`, e);
+			continue;
+		}
 		if (!claim)
 			throw Error(`${desc} not found in ongoing nor finished`);
 		if (assistant_aa && api.isMyAddress(claim.claimant_address)) // claimed myself
