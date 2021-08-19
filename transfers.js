@@ -730,6 +730,11 @@ async function handleNewExportAA(export_aa, home_network, home_asset, home_asset
 	const [existing_bridge] = await db.query("SELECT bridge_id FROM bridges WHERE export_aa=?", [export_aa]);
 	if (existing_bridge)
 		return console.log(`export AA ${export_aa} already belongs to bridge ${existing_bridge.bridge_id}`);
+        if (!networkApi[home_network])
+                return console.log(`skipping export AA ${export_aa} because network ${home_network} is disabled`);
+        if (!networkApi[foreign_network])
+                return console.log(`skipping export AA ${export_aa} because network ${foreign_network} is disabled`);
+
 	const home_symbol = await networkApi[home_network].getSymbol(home_asset);
 	const foreign_symbol = await networkApi[foreign_network].getSymbol(foreign_asset);
 	
@@ -764,6 +769,11 @@ async function handleNewImportAA(import_aa, home_network, home_asset, foreign_ne
 	const [existing_bridge] = await db.query("SELECT bridge_id FROM bridges WHERE import_aa=?", [import_aa]);
 	if (existing_bridge)
 		return console.log(`import AA ${import_aa} already belongs to bridge ${existing_bridge.bridge_id}`);
+	if (!networkApi[home_network])
+		return console.log(`skipping import AA ${import_aa} because network ${home_network} is disabled`);
+	if (!networkApi[foreign_network])
+		return console.log(`skipping import AA ${import_aa} because network ${foreign_network} is diabled`);
+
 	const home_symbol = await networkApi[home_network].getSymbol(home_asset);
 	const foreign_symbol = await networkApi[foreign_network].getSymbol(foreign_asset);
 	
