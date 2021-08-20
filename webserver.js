@@ -60,12 +60,13 @@ router.get('/transfer/:txid*', async (ctx) => {
 	if (!transfer)
 		return setError(ctx, 'no such transfer ' + txid);
 	delete transfer.is_confirmed;
-	const [claim] = await db.query("SELECT is_stable, unit, claim_txid, claim_num, is_finished FROM claims LEFT JOIN units ON claim_txid=unit WHERE transfer_id=?", [transfer.transfer_id]);
+	const [claim] = await db.query("SELECT is_stable, unit, claim_txid, claim_num, claimant_address, is_finished FROM claims LEFT JOIN units ON claim_txid=unit WHERE transfer_id=?", [transfer.transfer_id]);
 	if (claim) {
 		transfer.status = (claim.is_stable || !claim.unit) ? 'claim_confirmed' : 'claimed';
 		transfer.claim_txid = claim.claim_txid;
 		transfer.is_finished = claim.is_finished;
 		transfer.claim_num = claim.claim_num;
+		transfer.claimant_address = claim.claimant_address;
 	}
 	else {
 		if (txid.length === 44) { // Obyte
