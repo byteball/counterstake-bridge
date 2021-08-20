@@ -33,9 +33,9 @@ class Polygon extends EvmChain {
 		return 'MATIC';
 	}
 
-//	getMaxBlockRange() {
-//		return this.#bFree ? 1000 : 0;
-//	}
+	getMaxBlockRange() {
+		return 100000; // infura
+	}
 
 
 }
