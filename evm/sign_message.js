@@ -47,7 +47,7 @@ async function start() {
 	const ethWallet = ethers.Wallet.fromMnemonic(JSON.parse(fs.readFileSync(desktopApp.getAppDataDir() + '/keys.json')).mnemonic_phrase);
 	const sig = await ethWallet.signMessage(msg);
 	const full_sig = { address: ethWallet.address, msg, sig, version: "2.0" };
-	console.error(full_sig);
+	console.error(JSON.stringify(full_sig, null, 2));
 
 	process.exit();
 }
