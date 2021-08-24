@@ -26,7 +26,8 @@ eventBus.on('headless_wallet_ready', async () => {
 //	network.start();
 	await transfers.start();
 	webserver.start();
-	stats.start();
+	if (conf.bTrackStats)
+		stats.start();
 });
 
 process.on('unhandledRejection', up => {
