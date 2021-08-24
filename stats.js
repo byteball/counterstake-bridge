@@ -6,6 +6,7 @@ const dag = require('aabot/dag.js');
 
 const { networkApi } = require('./transfers.js');
 const { fetchExchangeRateInUSD } = require('./prices.js');
+const { wait } = require('./utils.js');
 const erc20Json = require('./evm/build/contracts/ERC20.json');
 const exportJson = require('./evm/build/contracts/Export.json');
 
@@ -120,7 +121,8 @@ async function processPastEvents(contract, filter, since_block, thisArg, handler
 	}
 }
 
-function start() {
+async function start() {
+	await wait(3 * 60 * 1000);
 	calcTransferredAmounts();
 	setInterval(calcTransferredAmounts, 3600 * 1000);
 }
