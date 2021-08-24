@@ -824,13 +824,17 @@ async function updateMaxAmounts() {
 		return console.log('updateMaxAmounts already under way, skipping');
 	console.log('starting updateMaxAmounts');
 
-	// gt active claimants first
+	// get active claimants first
 	const claimants = await getActiveClaimants();
 	console.log('active claimants', claimants);
 	if (claimants.length === 0) {
 		maxAmounts = {};
 		return unlock('updateMaxAmounts done, no active claimants');
 	}
+
+	const timeout = setTimeout(() => {
+		unlock(`updateMaxAmounts is taking too long, aborting`);
+	}, 1800 * 1000);
 
 	let _maxAmounts = {};
 /*	const claims = await db.query(
@@ -883,6 +887,8 @@ async function updateMaxAmounts() {
 			}
 		}
 	}
+
+	clearTimeout(timeout);
 	maxAmounts = _maxAmounts;
 	console.log('done updateMaxAmounts', maxAmounts);
 	unlock();
