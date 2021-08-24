@@ -924,8 +924,10 @@ async function restartNetwork(network) {
 async function start() {
 	networkApi.Obyte = new Obyte();
 	networkApi.Ethereum = new Ethereum();
-	networkApi.BSC = new BSC();
-	networkApi.Polygon = new Polygon();
+	if (!conf.disableBSC)
+		networkApi.BSC = new BSC();
+	if (!conf.disablePolygon)
+		networkApi.Polygon = new Polygon();
 
 	// reconnect to Ethereum websocket
 	eventBus.on('network_disconnected', async (network) => {
