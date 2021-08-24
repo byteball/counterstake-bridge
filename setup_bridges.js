@@ -14,6 +14,7 @@ const db_import = require('./db_import.js');
 const transfers = require('./transfers.js');
 const webserver = require('./webserver.js');
 const { getProvider } = require("./evm/provider.js");
+const { wait } = require('./utils.js');
 
 const exportJson = require('./evm/build/contracts/Export.json');
 const importJson = require('./evm/build/contracts/Import.json');
@@ -151,9 +152,6 @@ async function waitForDeploymentDependencies(aa) {
 	}
 }
 
-function wait(ms) {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 async function push() {
 	const unit = await dag.sendPayment({ to_address: operator.getAddress(), amount: 5e5 });

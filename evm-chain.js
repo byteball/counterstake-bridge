@@ -9,6 +9,7 @@ const desktopApp = require("ocore/desktop_app.js");
 const notifications = require('./notifications.js');
 const transfers = require('./transfers.js');
 const { fetchExchangeRateInNativeAsset } = require('./prices.js');
+const { wait } = require('./utils.js');
 
 const exportJson = require('./evm/build/contracts/Export.json');
 const importJson = require('./evm/build/contracts/Import.json');
@@ -22,9 +23,6 @@ const assistantFactoryJson = require('./evm/build/contracts/AssistantFactory.jso
 const { BigNumber, constants: { AddressZero } } = ethers;
 const TIMEOUT_BETWEEN_TRANSACTIONS = 3000;
 
-function wait(ms) {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 class EvmChain {
 	network = "AbstractEVMChain";

@@ -3,6 +3,7 @@ const network = require('ocore/network.js');
 const headlessWallet = require('headless-obyte');
 const operator = require('aabot/operator.js');
 const dag = require('aabot/dag.js');
+const { wait } = require('./utils.js');
 
 const aas = [
 	'export-governance.oscript',
@@ -42,10 +43,6 @@ async function waitForDeploymentDependencies(aa) {
 		await headlessWallet.waitUntilMyUnitBecameStable(dependency_unit);
 		console.error(`${dependency_unit} is stable`);
 	}
-}
-
-function wait(ms) {
-	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 

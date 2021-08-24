@@ -3,6 +3,7 @@ const fs = require("fs");
 const { ethers } = require("ethers");
 const desktopApp = require("ocore/desktop_app.js");
 const { getProvider } = require("./provider.js");
+const { wait } = require('../utils.js');
 
 const oracleJson = require('./build/contracts/Oracle.json');
 
@@ -44,10 +45,6 @@ const provider = getProvider(evmNetwork);
 const ethWallet = ethers.Wallet.fromMnemonic(JSON.parse(fs.readFileSync(desktopApp.getAppDataDir() + '/keys.json')).mnemonic_phrase);
 console.error(`====== my ETH address on ${evmNetwork}: `, ethWallet.address);
 const signer = process.env.devnet ? provider.getSigner(0) : ethWallet.connect(provider);
-
-function wait(ms) {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 
 

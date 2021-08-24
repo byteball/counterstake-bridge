@@ -2,6 +2,7 @@ const fs = require("fs");
 const { ethers } = require("ethers");
 const desktopApp = require("ocore/desktop_app.js");
 const { getProvider } = require("./provider.js");
+const { wait } = require('../utils.js');
 
 const CounterstakeLibrary = require('./build/contracts/CounterstakeLibrary.json');
 const Export = require('./build/contracts/Export.json');
@@ -33,9 +34,6 @@ process.on('unhandledRejection', up => {
 	throw up;
 });
 
-async function wait(ms) {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 function link(contractJson, libName, libAddress) {
 	const symbol = "__" + libName + "_".repeat(40 - libName.length - 2);
