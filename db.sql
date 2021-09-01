@@ -17,6 +17,24 @@ CREATE TABLE IF NOT EXISTS bridges (
 );
 -- query separator
 
+CREATE TABLE IF NOT EXISTS pooled_assistants (
+	assistant_aa VARCHAR(50) NOT NULL PRIMARY KEY,
+	bridge_id INT NOT NULL,
+	bridge_aa VARCHAR(50) NOT NULL,
+	network VARCHAR(10) NOT NULL,
+	side CHAR(6) NOT NULL, -- export or import
+	manager VARCHAR(50) NOT NULL,
+	shares_asset VARCHAR(50) NOT NULL,
+	shares_symbol VARCHAR(20) NULL,
+	FOREIGN KEY (bridge_id) REFERENCES bridges(bridge_id)
+);
+-- query separator
+CREATE INDEX IF NOT EXISTS assistantByBridgeId ON pooled_assistants(bridge_id);
+-- query separator
+CREATE INDEX IF NOT EXISTS assistantByBridgeAA ON pooled_assistants(bridge_aa);
+-- query separator
+CREATE INDEX IF NOT EXISTS assistantByManager ON pooled_assistants(manager);
+-- query separator
 
 -- via Export AA on the home network
 -- via Import AA on the foreign network

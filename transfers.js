@@ -802,14 +802,44 @@ async function handleNewImportAA(import_aa, home_network, home_asset, foreign_ne
 	return true;
 }
 
-async function handleNewAssistantAA(side, assistant_aa, bridge_aa) {
-	console.log(`new assistant`, { side, assistant_aa, bridge_aa });
-	const [bridge] = await db.query(`SELECT * FROM bridges WHERE ${side}_aa=?`, [bridge_aa]);
+async function handleNewAssistantAA(side, assistant_aa, bridge_aa, network, manager, assistant_shares_asset, assistant_shares_symbol) {
+	console.log(`new assistant`, { side, assistant_aa, bridge_aa, manager, assistant_shares_asset, assistant_shares_symbol });
+	const [bridge] = await db.query(`SELECT * FROM bridges WHERE ${side}_aa=? AND ${side === 'export' ? 'home_network' : 'foreign_network'}=?`, [bridge_aa, network]);
 	if (!bridge)
 		return console.log(`got new ${side} assistant for AA ${bridge_aa} but the bridge not found`);
 	const { bridge_id } = bridge;
-	await db.query(`UPDATE bridges SET ${side}_assistant_aa=? WHERE bridge_id=?`, [assistant_aa, bridge_id]);
-	return true;
+	const meIsManager = networkApi[network].getMyAddress() === manager;
+	if (meIsManager)
+		await db.query(`UPDATE bridges SET ${side}_assistant_aa=? WHERE bridge_id=?`, [assistant_aa, bridge_id]);
+	await db.query(`INSERT INTO pooled_assistants (assistant_aa, bridge_id, bridge_aa, network, side, manager, shares_asset, shares_symbol) VALUES(?, ?,?, ?,?,?, ?,?)`, [assistant_aa, bridge_id, bridge_aa, network, side, manager, assistant_shares_asset, assistant_shares_symbol]);
+	return meIsManager;
+}
+
+async function populatePooledAssistantsTable() {
+	const dag = require('aabot/dag.js');
+
+	async function addPooledAssistant(bridge_id, network, bridge_aa, side, assistant_aa) {
+		const api = networkApi[network];
+		let shares_asset, manager;
+		if (network === 'Obyte') {
+			manager = (await dag.readAAParams(assistant_aa)).manager;
+			shares_asset = await dag.readAAStateVar(assistant_aa, 'shares_asset');
+		}
+		else {
+			manager = api.getMyAddress();
+			shares_asset = assistant_aa;
+		}
+		const shares_symbol = await api.getSymbol(shares_asset);
+		await db.query(`INSERT INTO pooled_assistants (assistant_aa, bridge_id, bridge_aa, network, side, manager, shares_asset, shares_symbol) VALUES(?, ?,?, ?,?,?, ?,?)`, [assistant_aa, bridge_id, bridge_aa, network, side, manager, shares_asset, shares_symbol]);
+	}
+
+	const bridges = await db.query("SELECT * FROM bridges");
+	for (let { bridge_id, export_aa, export_assistant_aa, import_aa, import_assistant_aa, home_network, foreign_network } of bridges) {
+		if (export_assistant_aa)
+			await addPooledAssistant(bridge_id, home_network, export_aa, 'export', export_assistant_aa);
+		if (import_assistant_aa)
+			await addPooledAssistant(bridge_id, foreign_network, import_aa, 'import', import_assistant_aa);
+	}
 }
 
 async function getActiveClaimants() {
@@ -968,6 +998,8 @@ async function start() {
 		if (net === 'Obyte')
 			network.start();
 	}
+
+//	await populatePooledAssistantsTable();
 
 	// must be called after the bridges are loaded, contractsByAddress are populated by then
 	for (let net in networkApi)

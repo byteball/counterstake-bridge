@@ -54,6 +54,14 @@ router.get('/bridges', async (ctx) => {
 	};
 });
 
+router.get('/pooled_assistants', async (ctx) => {
+	const assistants = await db.query("SELECT * FROM pooled_assistants");
+	ctx.body = {
+		status: 'success',
+		data: assistants
+	};
+});
+
 router.get('/transfer/:txid*', async (ctx) => {
 	const txid = ctx.params.txid ? decodeURIComponent(ctx.params.txid) : ctx.query.txid;
 	const [transfer] = await db.query("SELECT * FROM transfers WHERE txid=? AND is_confirmed=1", [txid]);

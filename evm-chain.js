@@ -526,18 +526,18 @@ class EvmChain {
 
 	async startWatchingAssistantFactories() {
 		const onNewExportAssistant = async (assistantAddress, bridgeAddress, manager, symbol) => {
-			if (manager !== this.#wallet.address)
-				return console.log(`new assistant ${assistantAddress} with another manager, will skip`);
+		//	if (manager !== this.#wallet.address)
+		//		return console.log(`new assistant ${assistantAddress} with another manager, will skip`);
 			console.log(`new export assistant ${assistantAddress}, shares ${symbol}`);
-			const bAdded = await transfers.handleNewAssistantAA('export', assistantAddress, bridgeAddress);
+			const bAdded = await transfers.handleNewAssistantAA('export', assistantAddress, bridgeAddress, this.network, manager, assistantAddress, symbol);
 			if (bAdded)
 				this.startWatchingExportAssistantAA(assistantAddress);
 		};
 		const onNewImportAssistant = async (assistantAddress, bridgeAddress, manager, symbol) => {
-			if (manager !== this.#wallet.address)
-				return console.log(`new assistant ${assistantAddress} with another manager, will skip`);
+		//	if (manager !== this.#wallet.address)
+		//		return console.log(`new assistant ${assistantAddress} with another manager, will skip`);
 			console.log(`new import assistant ${assistantAddress}, shares ${symbol}`);
-			const bAdded = await transfers.handleNewAssistantAA('import', assistantAddress, bridgeAddress);
+			const bAdded = await transfers.handleNewAssistantAA('import', assistantAddress, bridgeAddress, this.network, manager, assistantAddress, symbol);
 			if (bAdded)
 				this.startWatchingImportAssistantAA(assistantAddress);
 		};

@@ -284,12 +284,19 @@ class Obyte {
 			if (!asset || !name)
 				return unlock(`no asset or name in response from token registry, trigger ${trigger_unit}`);
 			const rows = await db.query("SELECT bridge_id, home_asset=? AS is_home FROM bridges WHERE home_asset=? OR foreign_asset=?", [asset, asset, asset]);
-			if (rows.length === 0)
-				return unlock(`new name ${name} of unrelated asset ${asset}, trigger ${trigger_unit}`);
-			for (let { bridge_id, is_home } of rows) {
-				const field = is_home ? 'home_symbol' : 'foreign_symbol';
-				console.log(`new ${field} in bridge ${bridge_id}: ${name}`);
-				await db.query(`UPDATE bridges SET ${field}=? WHERE bridge_id=?`, [name, bridge_id]);
+			if (rows.length > 0) { // the asset can be exported through several bridges
+				for (let { bridge_id, is_home } of rows) {
+					const field = is_home ? 'home_symbol' : 'foreign_symbol';
+					console.log(`new ${field} in bridge ${bridge_id}: ${name}`);
+					await db.query(`UPDATE bridges SET ${field}=? WHERE bridge_id=?`, [name, bridge_id]);
+				}
+			}
+			else { // maybe pooled assistant AA?
+				const [row] = await db.query("SELECT assistant_aa FROM pooled_assistants WHERE shares_asset=?", [asset]);
+				if (row)
+					await db.query(`UPDATE pooled_assistants SET shares_symbol=? WHERE assistant_aa=?`, [name, row.assistant_aa]);
+				else
+					console.log(`new name ${name} of unrelated asset ${asset}, trigger ${trigger_unit}`);
 			}
 			return unlock();
 		}
@@ -334,9 +341,9 @@ class Obyte {
 				throw Error(`no address in response from ${side} assistant factory`);
 			console.log(`new ${side} assistant AA ${assistant_aa}`);
 			const params = await dag.readAAStateVar(aa_address, 'assistant_' + assistant_aa);
-			if (params.manager !== operator.getAddress())
-				return unlock(`new assistant ${assistant_aa} with another manager, will skip`);
-			const bAdded = await transfers.handleNewAssistantAA(side, assistant_aa, params.bridge_aa);
+		//	if (params.manager !== operator.getAddress())
+		//		return unlock(`new assistant ${assistant_aa} with another manager, will skip`);
+			const bAdded = await transfers.handleNewAssistantAA(side, assistant_aa, params.bridge_aa, this.network, params.manager, params.shares_asset, null);
 			if (bAdded)
 				startWatchingAA(assistant_aa);
 			return unlock();
