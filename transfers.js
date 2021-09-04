@@ -13,6 +13,7 @@ const Obyte = require('./obyte.js');
 const Ethereum = require('./ethereum.js');
 const BSC = require('./bsc.js');
 const Polygon = require('./polygon.js');
+const { wait } = require('./utils.js');
 
 const networkApi = {};
 let maxAmounts;
@@ -523,10 +524,12 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 	const claim = await api.getClaim(bridge_aa, claim_num, true, true);
 	if (claim.current_outcome === valid_outcome) {
 		console.log(`claim ${claim_num} finished as expected`);
-		if (claim.stakes.no) { // it was challenged
+		if (!isZero(claim.stakes.no)) { // it was challenged
+			if (network !== 'Obyte')
+				await wait(3000); // getMyStake() might go to a different node that is not perfectly synced
 			const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome);
 			console.log(`my stake on claim ${claim_num} was ${my_stake}`); // duplicates are harmless
-			if (my_stake && !BigNumber.from(my_stake).isZero()) {
+			if (!isZero(my_stake)) {
 				const txid = await sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa);
 				if (txid)
 					await finishClaim(claim_info);
@@ -544,6 +547,9 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 	unlock();
 }
 
+function isZero(amount) {
+	return amount === 0 || BigNumber.isBigNumber(amount) && amount.isZero();
+}
 
 function amountsMatch(src_amount, src_asset_decimals, dst_amount, dst_asset_decimals) {
 	src_amount = BigNumber.from(src_amount);
@@ -693,9 +699,15 @@ async function checkUnfinishedClaims() {
 			const valid_outcome = await getValidOutcome(claim_info, true);
 			if (claim.current_outcome === valid_outcome) {
 				console.log(`checkUnfinishedClaims: ${desc} finished as expected`);
-				const txid = await sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa);
-				if (txid)
+				const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome);
+				console.log(`my stake on claim ${claim_num} was ${my_stake}`);
+				if (isZero(my_stake))
 					await finishClaim(claim_info);
+				else {
+					const txid = await sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa);
+					if (txid)
+						await finishClaim(claim_info);
+				}
 			}
 			else {
 				notifications.notifyAdmin(`checkUnfinishedClaims: ${desc} finished as "${claim.current_outcome}", expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
