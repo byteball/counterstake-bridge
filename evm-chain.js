@@ -474,7 +474,34 @@ class EvmChain {
 		// assuming always synced
 	}
 
-	async refresh() {
+	async refresh(txid) {
+		const tx = await this.getTransaction(txid);
+		if (!tx) {
+			console.log(`tx ${txid} not found in ${this.network}`);
+			return false;
+		}
+		if (!tx.blockNumber) {
+			console.log(`tx ${txid} found but not mined in ${this.network}`);
+			return false;
+		}
+		const since_block = tx.blockNumber;
+		const block_range = this.getMaxBlockRange();
+		if (block_range) {
+			const currentBlockNumber = await this.#provider.getBlockNumber();
+			const top_available_block = currentBlockNumber - block_range;
+			if (top_available_block > since_block)
+				throw Error(`tx ${txid} in ${this.network} exists but its block is already unavailable`);
+		}
+		// rescan transfers since that block in case we missed them
+		for (let address in this.#contractsByAddress) {
+			const contract = this.#contractsByAddress[address];
+			if (!contract.filters.NewClaim) // not a bridge, must be an assistant
+				continue;
+			if (contract.filters.NewExpatriation)
+				await processPastEvents(contract, contract.filters.NewExpatriation(), since_block, this, this.onNewExpatriation);
+			if (contract.filters.NewRepatriation)
+				await processPastEvents(contract, contract.filters.NewRepatriation(), since_block, this, this.onNewRepatriation);
+		}
 		return false;
 	}
 

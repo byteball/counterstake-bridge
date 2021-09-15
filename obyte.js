@@ -464,7 +464,7 @@ class Obyte {
 		console.log(`${this.network} is synced`);
 	}
 
-	async refresh() {
+	async refresh(txid) {
 		if (conf.bLight) {
 			const light_wallet = require("ocore/light_wallet.js");
 			light_wallet.refreshLightClientHistory();

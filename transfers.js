@@ -367,7 +367,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 			retryAfterTxOrTimeout(timeout);
 			return unlock(`the claimed transfer ${claim_num} ${bTooYoung ? 'is too young' : 'not found while catching up'}, will check again in ${timeout} s, maybe it appears in the source chain`);
 		}
-		const bMightUpdate = await networkApi[opposite_network].refresh();
+		const bMightUpdate = await networkApi[opposite_network].refresh(txid);
 		if (bMightUpdate) { // try again
 			console.log(`will try to find the transfer ${txid} again`);
 			// if we see a new transfer after refresh, we'll try to claim it but the destination network is still locked by mutex here. We'll finish here first, insert this claim, unlock the mutex, and our claim attempt will see that a claim already exists
