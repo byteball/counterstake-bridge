@@ -474,7 +474,9 @@ class EvmChain {
 		// assuming always synced
 	}
 
+	// returns true if the transfer event might have appeared after refreshing
 	async refresh(txid) {
+		console.log(`will refresh trying to find tx ${txid} in ${this.network}`);
 		const tx = await this.getTransaction(txid);
 		if (!tx) {
 			console.log(`tx ${txid} not found in ${this.network}`);
@@ -493,6 +495,7 @@ class EvmChain {
 				throw Error(`tx ${txid} in ${this.network} exists but its block is already unavailable`);
 		}
 		// rescan transfers since that block in case we missed them
+		console.log(`will rescan past events trying to find the transfer event in tx ${txid} in ${this.network}`);
 		for (let address in this.#contractsByAddress) {
 			const contract = this.#contractsByAddress[address];
 			if (!contract.filters.NewClaim) // not a bridge, must be an assistant
@@ -502,7 +505,7 @@ class EvmChain {
 			if (contract.filters.NewRepatriation)
 				await processPastEvents(contract, contract.filters.NewRepatriation(), since_block, this, this.onNewRepatriation);
 		}
-		return false;
+		return true;
 	}
 
 	async startWatchingSymbolUpdates() {
