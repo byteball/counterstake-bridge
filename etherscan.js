@@ -17,8 +17,6 @@ async function getAddressHistory(base_url, address, startblock, api_key) {
 	if (api_key)
 		url += `&apikey=${api_key}`;
 	const resp = await request(url);
-	if (resp.status !== "1")
-		throw Error(`resp from ${base_url} for ${address}: ${JSON.stringify(resp)}`);
 	const history = resp.result;
 	if (!Array.isArray(history))
 		throw Error(`no history from ${base_url} for ${address}: ${JSON.stringify(resp)}`);
