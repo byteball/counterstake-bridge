@@ -482,6 +482,10 @@ class EvmChain {
 	// returns true if the transfer event might have appeared after refreshing
 	async refresh(txid) {
 		console.log(`will refresh trying to find tx ${txid} in ${this.network}`);
+		if (!tx.match(/^0x[0-9a-f]{64}/)) {
+			console.log(`invalid tx format ${txid} in ${this.network}`);
+			return false;
+		}
 		const tx = await this.getTransaction(txid);
 		if (!tx) {
 			console.log(`tx ${txid} not found in ${this.network}`);

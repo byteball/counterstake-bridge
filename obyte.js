@@ -9,6 +9,7 @@ const string_utils = require("ocore/string_utils.js");
 const db = require('ocore/db.js');
 const balances = require('ocore/balances.js');
 const validationUtils = require('ocore/validation_utils.js');
+const constants = require('ocore/constants.js');
 const headlessWallet = require('headless-obyte');
 
 const dag = require('aabot/dag.js');
@@ -465,6 +466,10 @@ class Obyte {
 	}
 
 	async refresh(txid) {
+		if (!validationUtils.isValidBase64(txid, constants.HASH_LENGTH)) {
+			console.log(`invalid tx format ${txid} in ${this.network}`);
+			return false;
+		}
 		if (conf.bLight) {
 			const light_wallet = require("ocore/light_wallet.js");
 			light_wallet.refreshLightClientHistory();
