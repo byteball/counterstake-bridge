@@ -500,12 +500,15 @@ class EvmChain {
 			return false;
 		}
 		const since_block = tx.blockNumber;
+		let to_block = 0;
 		const block_range = this.getMaxBlockRange();
 		if (block_range) {
 			const currentBlockNumber = await this.#provider.getBlockNumber();
 			const top_available_block = currentBlockNumber - block_range;
-			if (top_available_block > since_block)
-				throw Error(`tx ${txid} in ${this.network} exists but its block is already unavailable`);
+			if (top_available_block > since_block - 100) {
+				to_block = since_block + block_range;
+				console.log(`tx ${txid} exists but is out of block range, will scan events until block ${to_block}`);
+			}
 		}
 		// rescan transfers since that block in case we missed them
 		console.log(`will rescan past events trying to find the transfer event in tx ${txid} in ${this.network}`);
@@ -514,9 +517,9 @@ class EvmChain {
 			if (!contract.filters.NewClaim) // not a bridge, must be an assistant
 				continue;
 			if (contract.filters.NewExpatriation)
-				await processPastEvents(contract, contract.filters.NewExpatriation(), since_block, this, this.onNewExpatriation);
+				await processPastEvents(contract, contract.filters.NewExpatriation(), since_block, to_block, this, this.onNewExpatriation);
 			if (contract.filters.NewRepatriation)
-				await processPastEvents(contract, contract.filters.NewRepatriation(), since_block, this, this.onNewRepatriation);
+				await processPastEvents(contract, contract.filters.NewRepatriation(), since_block, to_block, this, this.onNewRepatriation);
 		}
 		return true;
 	}
@@ -550,8 +553,8 @@ class EvmChain {
 		contract.on('NewImport', onNewImport);
 
 		const since_block = await this.getSinceBlock();
-		await processPastEvents(contract, contract.filters.NewExport(), since_block, null, onNewExport);
-		await processPastEvents(contract, contract.filters.NewImport(), since_block, null, onNewImport);
+		await processPastEvents(contract, contract.filters.NewExport(), since_block, 0, null, onNewExport);
+		await processPastEvents(contract, contract.filters.NewImport(), since_block, 0, null, onNewImport);
 	}
 
 	
@@ -589,8 +592,8 @@ class EvmChain {
 		contract.on('NewImportAssistant', onNewImportAssistant);
 
 		const since_block = await this.getSinceBlock();
-		await processPastEvents(contract, contract.filters.NewExportAssistant(), since_block, null, onNewExportAssistant);
-		await processPastEvents(contract, contract.filters.NewImportAssistant(), since_block, null, onNewImportAssistant);
+		await processPastEvents(contract, contract.filters.NewExportAssistant(), since_block, 0, null, onNewExportAssistant);
+		await processPastEvents(contract, contract.filters.NewImportAssistant(), since_block, 0, null, onNewImportAssistant);
 	}
 
 
@@ -602,12 +605,12 @@ class EvmChain {
 			if (!contract.filters.NewClaim) // not a bridge, must be an assistant
 				continue;
 			if (contract.filters.NewExpatriation)
-				await processPastEvents(contract, contract.filters.NewExpatriation(), since_block, this, this.onNewExpatriation);
+				await processPastEvents(contract, contract.filters.NewExpatriation(), since_block, 0, this, this.onNewExpatriation);
 			if (contract.filters.NewRepatriation)
-				await processPastEvents(contract, contract.filters.NewRepatriation(), since_block, this, this.onNewRepatriation);
-			await processPastEvents(contract, contract.filters.NewClaim(), since_block, this, this.onNewClaim);
-			await processPastEvents(contract, contract.filters.NewChallenge(), since_block, this, this.onNewChallenge);
-			await processPastEvents(contract, contract.filters.FinishedClaim(), since_block, this, this.onFinishedClaim);
+				await processPastEvents(contract, contract.filters.NewRepatriation(), since_block, 0, this, this.onNewRepatriation);
+			await processPastEvents(contract, contract.filters.NewClaim(), since_block, 0, this, this.onNewClaim);
+			await processPastEvents(contract, contract.filters.NewChallenge(), since_block, 0, this, this.onNewChallenge);
+			await processPastEvents(contract, contract.filters.FinishedClaim(), since_block, 0, this, this.onFinishedClaim);
 		}
 		const unlock = await mutex.lock(this.network + 'Event'); // take the last place in the queue after all real events
 		unlock();
@@ -651,8 +654,8 @@ function getType(address, bridge) {
 	throw Error(`unable to determine transfer type on address ${address} and bridge ${bridge_id}, export_aa=${export_aa}, import_aa=${import_aa}`);
 }
 
-async function processPastEvents(contract, filter, since_block, thisArg, handler) {
-	const events = await contract.queryFilter(filter, since_block);
+async function processPastEvents(contract, filter, since_block, to_block, thisArg, handler) {
+	const events = await contract.queryFilter(filter, since_block, to_block || 'latest');
 	for (let event of events) {
 		console.log('--- past event', event);
 		let args = event.args.concat();
