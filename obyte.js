@@ -65,6 +65,10 @@ class Obyte {
 		return validationUtils.isValidAddress(address);
 	}
 
+	isValidTxid(txid) {
+		return validationUtils.isValidBase64(txid, constants.HASH_LENGTH);
+	}
+
 	isValidData(data) {
 		if (!data)
 			return true;
@@ -466,7 +470,7 @@ class Obyte {
 	}
 
 	async refresh(txid) {
-		if (!validationUtils.isValidBase64(txid, constants.HASH_LENGTH)) {
+		if (!this.isValidTxid(txid)) {
 			console.log(`invalid tx format ${txid} in ${this.network}`);
 			return false;
 		}

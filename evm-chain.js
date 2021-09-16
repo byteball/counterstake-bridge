@@ -159,6 +159,10 @@ class EvmChain {
 		}
 	}
 
+	isValidTxid(txid) {
+		return !!txid.match(/^0x[0-9a-f]{64}$/);
+	}
+
 	isValidData(data) {
 		return true;
 	}
@@ -482,7 +486,7 @@ class EvmChain {
 	// returns true if the transfer event might have appeared after refreshing
 	async refresh(txid) {
 		console.log(`will refresh trying to find tx ${txid} in ${this.network}`);
-		if (!txid.match(/^0x[0-9a-f]{64}/)) {
+		if (!this.isValidTxid(txid)) {
 			console.log(`invalid tx format ${txid} in ${this.network}`);
 			return false;
 		}

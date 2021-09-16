@@ -328,6 +328,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		amountsValid = false;
 	if (typeof reward === 'number' && !validationUtils.isInteger(reward))
 		amountsValid = false;
+	const txidValid = networkApi[opposite_network].isValidTxid(txid);
 	
 	// in case we need to delay handling of the claim
 	const tryAgain = () => {
@@ -342,12 +343,13 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		return transfers;
 	};
 	let transfers = [];
-	if (amountsValid)
-		transfers = await findTransfers();
-	else {
+	if (!amountsValid)
 		console.log(`invalid amounts in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
-	}
-	if (!transfers[0] && amountsValid) {
+	else if (!txidValid)
+		console.log(`invalid txid in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
+	else
+		transfers = await findTransfers();
+	if (!transfers[0] && amountsValid && txidValid) {
 		console.log(`no transfer found matching claim ${claim_num} of txid ${txid} in claim tx ${claim_txid} bridge ${bridge_id}`);
 		const retryAfterTxOrTimeout = (timeout) => {
 			const t = setTimeout(tryAgain, timeout * 1000);
