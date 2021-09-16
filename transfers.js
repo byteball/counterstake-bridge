@@ -522,7 +522,7 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 		setTimeout(() => {
 			console.log(`retrying withdrawal ${withdrawal_txid}`);
 			handleWithdrawal(bridge, type, claim_num, withdrawal_txid);
-		}, 60 * 1000);
+		}, 3 * 60 * 1000);
 		return unlock(`withdrawn claim ${claim_num} not found while catching up, will retry later`);
 	}
 	const claim = await api.getClaim(bridge_aa, claim_num, true, true);
