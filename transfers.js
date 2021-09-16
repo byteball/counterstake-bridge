@@ -399,6 +399,8 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		return true;
 	};
 	transfers = transfers.filter(checkTransfer);
+	if (transfers.length > 1)
+		throw Error(`more than 1 transfer? ${JSON.stringify(transfers)}`);
 	const transfer = transfers[0];
 	if (transfer) {
 		const min_transfer_age = networkApi[opposite_network].getMinTransferAge();
