@@ -100,7 +100,12 @@ class EvmChain {
 
 	async getLastStableTimestamp() {
 		const currentBlockNumber = await this.#provider.getBlockNumber();
-		const block = await this.#provider.getBlock(Math.max(currentBlockNumber - conf.evm_count_blocks_for_finality, 0))
+		if (!currentBlockNumber)
+			throw Error(`no current block number in ${this.network}`);
+		const last_finlized_block_number = Math.max(currentBlockNumber - conf.evm_count_blocks_for_finality, 0);
+		const block = await this.#provider.getBlock(last_finlized_block_number);
+		if (!block)
+			throw Error(`failed to get block ${last_finlized_block_number}`);
 		return block.timestamp;
 	}
 
