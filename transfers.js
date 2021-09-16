@@ -18,6 +18,7 @@ const { wait } = require('./utils.js');
 const networkApi = {};
 let maxAmounts;
 let bCatchingUp = true;
+let bCatchingUpOrHandlingPostponedEvents = true;
 
 async function getBridge(bridge_id) {
 	const [bridge] = await db.query("SELECT * FROM bridges WHERE bridge_id=?", [bridge_id]);
@@ -517,7 +518,7 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 	const api = networkApi[network];
 	const valid_outcome = await getValidOutcome({ claim_num, bridge_id, type }, false);
 	if (valid_outcome === null) {
-		if (!bCatchingUp)
+		if (!bCatchingUpOrHandlingPostponedEvents)
 			throw Error(`withdrawn claim ${claim_num} not found`);
 		setTimeout(() => {
 			console.log(`retrying withdrawal ${withdrawal_txid}`);
@@ -1022,6 +1023,7 @@ async function start() {
 		await networkApi[net].catchup();
 	console.log('catching up done');
 	bCatchingUp = false;
+	setTimeout(() => { bCatchingUpOrHandlingPostponedEvents = false; }, 3 * 60 * 1000);
 
 	await checkUnfinishedClaims();
 	setInterval(checkUnfinishedClaims, (process.env.testnet || process.env.devnet ? 2 : 30) * 60 * 1000); // every half an hour
