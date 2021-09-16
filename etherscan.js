@@ -28,7 +28,7 @@ async function getAddressHistory(base_url, address, startblock, api_key) {
 
 async function getAddressBlocks(base_url, address, startblock, api_key) {
 	const history = await getAddressHistory(base_url, address, startblock, api_key);
-	return history.map(tx => tx.blockNumber);
+	return history.map(tx => parseInt(tx.blockNumber));
 }
 
 async function test() {
