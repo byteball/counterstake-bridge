@@ -1,5 +1,5 @@
-const fetch = require('node-fetch');
 const { ethers } = require("ethers");
+const { request } = require('./request.js');
 
 const { constants: { AddressZero } } = ethers;
 
@@ -51,24 +51,6 @@ function cachify(func, count_args) {
 	}
 }
 
-
-
-const request = async (url, options) => {
-	const response = await fetch(url, {
-		headers: {
-			Accept: 'application/json',
-			'Content-Type': 'application/json',
-		},
-		...options
-	})
-	if (!response.ok) {
-		const error = await response.text()
-		console.error('-- error', error)
-		throw new Error(error)
-	}
-	const data = await response.json()
-	return data
-}
 
 const fetchERC20ExchangeRate = async (chain, token_address, quote) => {
 	if (token_address === '0x4DBCdF9B62e891a7cec5A2568C3F4FAF9E8Abe2b') // USDC rinkeby

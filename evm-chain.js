@@ -43,6 +43,10 @@ class EvmChain {
 		return 0;
 	}
 
+	async getAddressBlocks(address, since_block) {
+		throw Error(`getAddressBlocks() unimplemented`);
+	}
+
 	async waitBetweenTransactions() {
 		while (this.#last_tx_ts > Date.now() - TIMEOUT_BETWEEN_TRANSACTIONS) {
 			console.log(`will wait after the previous tx`);
@@ -60,13 +64,20 @@ class EvmChain {
 		return last_block;
 	}
 
+	async getTopAvailableBlock() {
+		if (!this.getMaxBlockRange())
+			return 0;
+		const currentBlockNumber = await this.#provider.getBlockNumber();
+		const top_available_block = currentBlockNumber - this.getMaxBlockRange() + 100;
+		return top_available_block;
+	}
+
 	async getSinceBlock() {
 		const last_block = Math.max(await this.getLastBlock() - 100, 0);
 		if (!this.getMaxBlockRange())
 			return last_block;
 		console.log(`have max block range ${this.getMaxBlockRange()} on ${this.network}`);
-		const currentBlockNumber = await this.#provider.getBlockNumber();
-		const top_available_block = currentBlockNumber - this.getMaxBlockRange() + 100;
+		const top_available_block = await this.getTopAvailableBlock();
 		if (last_block > top_available_block)
 			return last_block;
 		notifications.notifyAdmin(`missed ${top_available_block - last_block} blocks`, `${this.network} last block ${last_block}, top available block ${top_available_block}`);
@@ -503,8 +514,7 @@ class EvmChain {
 		let to_block = 0;
 		const block_range = this.getMaxBlockRange();
 		if (block_range) {
-			const currentBlockNumber = await this.#provider.getBlockNumber();
-			const top_available_block = currentBlockNumber - block_range;
+			const top_available_block = await this.getTopAvailableBlock();
 			if (top_available_block > since_block - 100) {
 				to_block = since_block + block_range;
 				console.log(`tx ${txid} exists but is out of block range, will scan events until block ${to_block}`);
@@ -552,9 +562,23 @@ class EvmChain {
 		contract.on('NewExport', onNewExport);
 		contract.on('NewImport', onNewImport);
 
+		const processPastEventsOnContract = async (from_block, to_block) => {
+			await processPastEvents(contract, contract.filters.NewExport(), from_block, to_block, null, onNewExport);
+			await processPastEvents(contract, contract.filters.NewImport(), from_block, to_block, null, onNewImport);
+		};
+		
+		// get factory events that are beyond the block range
+		const last_block = Math.max(await this.getLastBlock() - 100, 0);
+		const top_available_block = await this.getTopAvailableBlock();
+		if (top_available_block > last_block) {
+			const blocks = await this.getAddressBlocks(this.#factory_contract_address, last_block);
+			for (let blockNumber of blocks) {
+				await processPastEventsOnContract(blockNumber, blockNumber);
+			}
+		}
+
 		const since_block = await this.getSinceBlock();
-		await processPastEvents(contract, contract.filters.NewExport(), since_block, 0, null, onNewExport);
-		await processPastEvents(contract, contract.filters.NewImport(), since_block, 0, null, onNewImport);
+		await processPastEventsOnContract(since_block, 0);
 	}
 
 	
@@ -591,26 +615,60 @@ class EvmChain {
 		contract.on('NewExportAssistant', onNewExportAssistant);
 		contract.on('NewImportAssistant', onNewImportAssistant);
 
+		const processPastEventsOnContract = async (from_block, to_block) => {
+			await processPastEvents(contract, contract.filters.NewExportAssistant(), from_block, to_block, null, onNewExportAssistant);
+			await processPastEvents(contract, contract.filters.NewImportAssistant(), from_block, to_block, null, onNewImportAssistant);
+		};
+
+		// get factory events that are beyond the block range
+		const last_block = Math.max(await this.getLastBlock() - 100, 0);
+		const top_available_block = await this.getTopAvailableBlock();
+		if (top_available_block > last_block) {
+			const blocks = await this.getAddressBlocks(this.#assistant_factory_contract_address, last_block);
+			for (let blockNumber of blocks) {
+				await processPastEventsOnContract(blockNumber, blockNumber);
+			}
+		}
+
 		const since_block = await this.getSinceBlock();
-		await processPastEvents(contract, contract.filters.NewExportAssistant(), since_block, 0, null, onNewExportAssistant);
-		await processPastEvents(contract, contract.filters.NewImportAssistant(), since_block, 0, null, onNewImportAssistant);
+		await processPastEventsOnContract(since_block, 0);
 	}
 
 
 	// called on start-up to handle missed transfers
 	async catchup() {
+
+		const processPastEventsOnContract = async (contract, from_block, to_block) => {
+			if (contract.filters.NewExpatriation)
+				await processPastEvents(contract, contract.filters.NewExpatriation(), from_block, to_block, this, this.onNewExpatriation);
+			if (contract.filters.NewRepatriation)
+				await processPastEvents(contract, contract.filters.NewRepatriation(), from_block, to_block, this, this.onNewRepatriation);
+			await processPastEvents(contract, contract.filters.NewClaim(), from_block, to_block, this, this.onNewClaim);
+			await processPastEvents(contract, contract.filters.NewChallenge(), from_block, to_block, this, this.onNewChallenge);
+			await processPastEvents(contract, contract.filters.FinishedClaim(), from_block, to_block, this, this.onFinishedClaim);
+		};
+
+		// get events that are beyond the block range
+		const last_block = Math.max(await this.getLastBlock() - 100, 0);
+		const top_available_block = await this.getTopAvailableBlock();
+		if (top_available_block > last_block) {
+			for (let address in this.#contractsByAddress) {
+				const contract = this.#contractsByAddress[address];
+				if (!contract.filters.NewClaim) // not a bridge, must be an assistant
+					continue;
+				const blocks = await this.getAddressBlocks(address, last_block);
+				for (let blockNumber of blocks) {
+					await processPastEventsOnContract(contract, blockNumber, blockNumber);
+				}
+			}
+		}
+
 		const since_block = await this.getSinceBlock();
 		for (let address in this.#contractsByAddress) {
 			const contract = this.#contractsByAddress[address];
 			if (!contract.filters.NewClaim) // not a bridge, must be an assistant
 				continue;
-			if (contract.filters.NewExpatriation)
-				await processPastEvents(contract, contract.filters.NewExpatriation(), since_block, 0, this, this.onNewExpatriation);
-			if (contract.filters.NewRepatriation)
-				await processPastEvents(contract, contract.filters.NewRepatriation(), since_block, 0, this, this.onNewRepatriation);
-			await processPastEvents(contract, contract.filters.NewClaim(), since_block, 0, this, this.onNewClaim);
-			await processPastEvents(contract, contract.filters.NewChallenge(), since_block, 0, this, this.onNewChallenge);
-			await processPastEvents(contract, contract.filters.FinishedClaim(), since_block, 0, this, this.onFinishedClaim);
+			await processPastEventsOnContract(contract, since_block, 0);
 		}
 		const unlock = await mutex.lock(this.network + 'Event'); // take the last place in the queue after all real events
 		unlock();

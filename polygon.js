@@ -3,6 +3,9 @@ const { ethers } = require("ethers");
 const conf = require('ocore/conf.js');
 const EvmChain = require('./evm-chain.js');
 const { getProvider } = require("./evm/provider.js");
+const { getAddressBlocks } = require("./etherscan.js");
+
+const etherscan_base_url = process.env.testnet ? 'https://api-testnet.polygonscan.com' : 'https://api.polygonscan.com';
 
 let bCreated = false;
 
@@ -37,6 +40,9 @@ class Polygon extends EvmChain {
 		return 100000; // infura
 	}
 
+	async getAddressBlocks(address, since_block) {
+		return await getAddressBlocks(etherscan_base_url, address, since_block);
+	}
 
 }
 
