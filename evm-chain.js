@@ -34,6 +34,7 @@ class EvmChain {
 	#bCatchingUp = true;
 	#last_tx_ts = 0;
 	#bWaitForMined = false; // set to true for unreliable providers that might lose a transaction
+	#approved = {};
 
 	getProvider() {
 		return this.#provider;
@@ -229,10 +230,12 @@ class EvmChain {
 		console.log(`will send a claim to ${this.network}`, { bridge_aa, amount, reward, claimed_asset, stake, staked_asset, sender_address, dest_address, data, txid, txts });
 		await this.waitBetweenTransactions();
 		
-	//	console.log(`will approve the export contract to spend our ERC20 ${staked_asset} claimed ${claimed_asset}`);
-	//	const approval_res = await this.approve(staked_asset, bridge_aa);
-	//	console.log('approval', approval_res);
-		
+		if (staked_asset !== AddressZero) {
+			const approval_res = await this.approve(staked_asset, bridge_aa);
+			if (!approval_res)
+				throw Error(`failed to approve ${bridge_aa} to spend our ${staked_asset}`);
+		}
+
 		const bThirdPartyClaiming = (dest_address && dest_address !== this.#wallet.address);
 		const paid_amount = bThirdPartyClaiming ? amount.sub(reward) : BigNumber.from(0);
 		const total = (claimed_asset === staked_asset) ? stake.add(paid_amount) : stake;
@@ -468,16 +471,21 @@ class EvmChain {
 	async approve(tokenAddress, spenderAddress) {
 		if (tokenAddress === AddressZero)
 			throw Error(`don't need to approve ETH`);
+		if (this.#approved[tokenAddress + '-' + spenderAddress])
+			return "already approved";
 		const token = new ethers.Contract(tokenAddress, erc20Json.abi, this.#wallet);
 		try {
 			const allowance = await token.allowance(this.#wallet.address, spenderAddress);
 			if (allowance.gt(0)) {
 				console.log(`spender ${spenderAddress} already approved`);
+				this.#approved[tokenAddress + '-' + spenderAddress] = true;
 				return "already approved";
 			}
+			console.log(`will approve spender ${spenderAddress} to spend our token ${tokenAddress}`);
 			const res = await token.approve(spenderAddress, BigNumber.from(2).pow(256).sub(1));
 			if (this.#bWaitForMined)
 				await res.wait();
+			this.#approved[tokenAddress + '-' + spenderAddress] = true;
 			return res;
 		}
 		catch (e) {
@@ -543,12 +551,12 @@ class EvmChain {
 			const decimals = await this.getDecimals(tokenAddress);
 			if (decimals === null)
 				return console.log(`not adding new export contract ${contractAddress} as its token ${tokenAddress} didn't return decimals`);
-			if (tokenAddress !== AddressZero && conf.bUseOwnFunds) {
+			/*if (tokenAddress !== AddressZero && conf.bUseOwnFunds) {
 				console.log(`will approve the export contract to spend our ERC20 ${tokenAddress}`);
 				const approval_res = await this.approve(tokenAddress, contractAddress);
 				if (!approval_res)
 					return console.log(`failed to approve new export contract ${contractAddress} to spend our token ${tokenAddress}, will not add`);
-			}
+			}*/
 			const bAdded = await transfers.handleNewExportAA(contractAddress, this.network, tokenAddress, decimals, foreign_network, foreign_asset);
 			if (bAdded)
 				this.startWatchingExportAA(contractAddress);
