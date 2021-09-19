@@ -1,14 +1,14 @@
 {
-  doc_url: "https://counterstake.org/import-assistant-forward-factory.json",
+	doc_url: "https://counterstake.org/import-assistant-forward-factory.json",
 	bounce_fees: { base: 10000 },
 	init: `{
-    $assistant = trigger.data.assistant;
+		$assistant = trigger.data.assistant;
 
 		if(!is_valid_address($assistant))
-      bounce("invalid assistant address: " || $assistant);
+			bounce("invalid assistant address: " || $assistant);
 
     $import_assistant_factory = "BRDUWQBFJZ277E3QUQXTMDGP3LLLGUO3";
-		$forward_base_aa = "SJ5I32JDDTCME3VKSJHUTCOHJ3YNHVDS";
+		$forward_base_aa = "EJN5RDL4LGXU5WQWCZQBNSX2JIFVKHBB";
 		$received_base_amount = trigger.output[[asset=base]];
 		$assistant_info = var[$import_assistant_factory]["assistant_" || $assistant];
 
