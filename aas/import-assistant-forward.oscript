@@ -9,9 +9,6 @@
 		$assistant_params = definition[$assistant][1].params;
 		$bridge_aa = $assistant_params.bridge_aa;
 
-		if(!$bridge_aa OR !is_valid_address($bridge_aa))
-			bounce("no bridge");
-
 		$bridge_params = definition[$bridge_aa][1].params;
 		$stake_asset = $bridge_params.stake_asset OTHERWISE 'base';
 		$image_asset = var[$bridge_aa]['asset'];
@@ -22,21 +19,13 @@
 		$min_stake_asset_amount = ($stake_asset == 'base') ? 10000 : 0; // bounce fee
 
 		$shares_asset = var[$assistant]['shares_asset'];
-		$shares_supply = var[$assistant]['shares_supply'];
-
-		if(!$shares_asset)
-			bounce("no shares_asset");
 
 		$received_shares_amount = trigger.output[[asset=$shares_asset]];
 	}`,
 	messages: {
 		cases: [
 			{
-				if: `{ $shares_asset AND ($received_stake_amount > $min_stake_asset_amount OR $received_image_amount > 0) AND $received_shares_amount == 0 AND trigger.address != $assistant }`,
-				init: `{
-					if (!$shares_supply AND !($received_stake_amount > 0 AND $received_image_amount > 0))
-						bounce("send both assets for the first issue");
-				}`,
+				if: `{($received_stake_amount > $min_stake_asset_amount OR $received_image_amount > 0) AND $received_shares_amount == 0 AND trigger.address != $assistant}`,
 				messages: [
 					{
 						if: `{$received_stake_amount > $min_stake_asset_amount}`,
