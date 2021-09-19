@@ -1,6 +1,6 @@
 # Counterstake assistant and watchdog
 
-This bot assists [Counterstake bridge](https://counterstake.org) users with cross-chain transfers for a portion (currently 1%) of the processed transaction. 
+This bot assists [Counterstake bridge](https://counterstake.org) users with cross-chain transfers for a portion (currently 1%) of the transaction. 
 
 The bot monitors ongoing transfers and, on detection of a dishonest claim or challenge, counterstakes and maintains an open challenge against dishonest stakes until their capitulation, for a potential ROI of 66.7%. See [how Counterstake works](https://counterstake.org/how-it-works).
 
