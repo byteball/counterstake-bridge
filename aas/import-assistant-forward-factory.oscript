@@ -8,17 +8,15 @@
 			bounce("invalid assistant address: " || $assistant);
 
 		$import_assistant_factory = "BRDUWQBFJZ277E3QUQXTMDGP3LLLGUO3";
-		$forward_base_aa = "EJN5RDL4LGXU5WQWCZQBNSX2JIFVKHBB";
+		$forward_base_aa = "SVC42OVPRJNHCURFWDMVM25ARTIRXGOX";
 		$received_base_amount = trigger.output[[asset=base]];
 		$assistant_info = var[$import_assistant_factory]["assistant_" || $assistant];
 
 		if(!$assistant_info)
 			bounce("assistant not found");
-
-		$bridge_aa = $assistant_info.bridge_aa;
-
-		if(!$bridge_aa)
-			bounce("no bridge_aa");
+		
+		if(var["forward_aa_" || $assistant])
+			bounce("the forward already exists");
 	}`,
 	messages: {
 		cases: [
@@ -30,8 +28,7 @@
 						{
 							base_aa: $forward_base_aa,
 							params: {
-								assistant: $assistant,
-								bridge_aa: $bridge_aa
+								assistant: $assistant
 							}
 						}
 					];

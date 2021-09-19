@@ -2,10 +2,12 @@
 	doc_url: "https://counterstake.org/import-assistant-forward.json",
 	init: `{
 		$assistant = params.assistant;
-		$bridge_aa = params.bridge_aa;
 
 		if(!$assistant OR !is_valid_address($assistant))
 			bounce("no assistant");
+
+		$assistant_params = definition[$assistant][1].params;
+		$bridge_aa = $assistant_params.bridge_aa;
 
 		if(!$bridge_aa OR !is_valid_address($bridge_aa))
 			bounce("no bridge");
