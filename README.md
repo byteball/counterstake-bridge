@@ -6,7 +6,7 @@ The bot monitors ongoing transfers and, on detection of a dishonest claim or cha
 
 It currently supports transfers between Obyte, Ethereum, BSC, and Polygon.
 
-Flawless operation of our software is not guaranteed, unforeseen bugs in the code may cause complete and irreversible loss of funds. Use at your own risk.
+Flawless operation of our software is not guaranteed; unforeseen bugs in the code may cause complete and irreversible loss of funds. Use at your own risk.
 
 ## Clone
 ```bash
