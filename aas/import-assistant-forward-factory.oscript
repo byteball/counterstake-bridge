@@ -1,0 +1,65 @@
+{
+	doc_url: "https://counterstake.org/import-assistant-forward-factory.json",
+	bounce_fees: { base: 10000 },
+	init: `{
+		$assistant = trigger.data.assistant;
+
+		if(!is_valid_address($assistant))
+			bounce("invalid assistant address: " || $assistant);
+
+		$import_assistant_factory = "BRDUWQBFJZ277E3QUQXTMDGP3LLLGUO3";
+		$forward_base_aa = "PS2K32VPW5L32HPNB2INUDQL7RQYC34C";
+		$received_base_amount = trigger.output[[asset=base]];
+		$assistant_info = var[$import_assistant_factory]["assistant_" || $assistant];
+
+		if(!$assistant_info)
+			bounce("assistant not found");
+		
+		if(var["forward_aa_" || $assistant])
+			bounce("the forward already exists");
+	}`,
+	messages: {
+		cases: [
+			{
+				if: "{ trigger.data.create AND $assistant}",
+				init: `{
+					$forward_aa = [
+						'autonomous agent',
+						{
+							base_aa: $forward_base_aa,
+							params: {
+								assistant: $assistant
+							}
+						}
+					];
+
+					$forward_aa_address = chash160($forward_aa);
+				}`,
+				messages: [
+					{
+						app: 'definition',
+						payload: {
+							definition: `{$forward_aa}`
+						}
+					},
+					{
+						app: 'payment',
+						payload: {
+							asset: 'base',
+							outputs: [
+								{ address: "{ trigger.address }", amount: "{$received_base_amount - 6000}" }, // I'll get all this money back (minus fees)
+							]
+						}
+					},
+					{
+						app: "state",
+						state: `{
+							var["forward_aa_" || $assistant] = $forward_aa_address;
+							response['forward'] = $forward_aa_address;
+						}`
+					},
+				]
+			}
+		]
+	}
+}

@@ -1,0 +1,74 @@
+{
+	doc_url: "https://counterstake.org/import-assistant-forward.json",
+	init: `{
+		$assistant = params.assistant;
+
+		if(!$assistant OR !is_valid_address($assistant))
+			bounce("no assistant");
+
+		$assistant_params = definition[$assistant][1].params;
+		$bridge_aa = $assistant_params.bridge_aa;
+
+		$bridge_params = definition[$bridge_aa][1].params;
+		$stake_asset = $bridge_params.stake_asset OTHERWISE 'base';
+		$image_asset = var[$bridge_aa]['asset'];
+
+		$received_stake_amount = trigger.output[[asset=$stake_asset]];
+		$received_image_amount = trigger.output[[asset=$image_asset]];
+
+		$min_stake_asset_amount = ($stake_asset == 'base') ? 10000 : 0; // bounce fee
+
+		$shares_asset = var[$assistant]['shares_asset'];
+
+		$received_shares_amount = trigger.output[[asset=$shares_asset]];
+	}`,
+	messages: {
+		cases: [
+			{
+				if: `{($received_stake_amount > $min_stake_asset_amount OR $received_image_amount > 0) AND $received_shares_amount == 0 AND trigger.address != $assistant}`,
+				messages: [
+					{
+						if: `{$received_stake_amount > $min_stake_asset_amount}`,
+						app: 'payment',
+						payload: {
+							asset: '{$stake_asset}',
+							outputs: [
+								{address: "{$assistant}", amount: "{$received_stake_amount - $min_stake_asset_amount}"},
+							]
+						}
+					},
+					{
+						if: `{$received_image_amount > 0}`,
+						app: 'payment',
+						payload: {
+							asset: '{$image_asset}',
+							outputs: [
+								{address: "{$assistant}", amount: "{$received_image_amount}"},
+							]
+						}
+					},
+					{
+						app: 'data',
+						payload: {
+							buy_shares: 1
+						}
+					}
+				]
+			},
+			{
+				if: `{ $received_shares_amount > 0 AND trigger.address == $assistant }`,
+				messages: [
+					{
+						app: 'payment',
+						payload: {
+							asset: '{$shares_asset}',
+							outputs: [
+								{address: "{trigger.initial_address}", amount: "{$received_shares_amount}"}
+							]
+						}
+					}
+				]
+			}
+		]
+	}
+}
