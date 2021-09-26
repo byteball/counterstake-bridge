@@ -423,8 +423,10 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	// log the claim either way, valid or not valid
 	await db.query("INSERT INTO claims (claim_num, bridge_id, type, amount, reward, sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake) VALUES (?,?,?, ?,?, ?,?,?, ?, ?,?, ?, ?,?)", [claim_num, bridge_id, type, amount.toString(), reward.toString(), sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake]);
 
-	if (!transfer) // not valid, attack it
+	if (!transfer) { // not valid, attack it
+		eventBus.emit('fraudulent_claim', bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid);
 		await attackClaim(bridge, type, claim_num, claim_txid);
+	}
 	unlock();
 }
 
@@ -453,9 +455,11 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 	const api = networkApi[network];
 	const claim = await api.getClaim(bridge_aa, claim_num, false, false);
 	console.log(`claim challenged in trigger ${challenge_txid}`, claim);
-	if (!claim)
+	if (!claim) {
+		eventBus.emit('challenge', bridge, type, claim_num, address, stake_on, stake, challenge_txid);
 		return unlock(`ongoing claim ${claim_num} challenged in ${challenge_txid} not found, will skip`);
-	
+	}
+
 	const valid_outcome = await getValidOutcome({ claim_num, bridge_id, type }, false);
 	// this can happen if the claim was too young when received and we delayed its processing but someone challenged it in the mean time. Will wait and retry.
 	if (valid_outcome === null) {
@@ -465,6 +469,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 		}, 60 * 1000);
 		return unlock();
 	}
+	eventBus.emit('challenge', bridge, type, claim_num, address, stake_on, stake, challenge_txid, claim, valid_outcome);
 
 	const my_stake = await getMyStake({ claim_num, bridge_id, type });
 	if (my_stake && my_stake !== '0' && !api.isMyAddress(address) && address !== assistant_aa)
@@ -548,6 +553,7 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 	else {
 		notifications.notifyAdmin(`claim ${claim_num} finished as "${claim.current_outcome}" in ${withdrawal_txid}, expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
 		await finishClaim(claim_info);
+		eventBus.emit('finished_as_fraud', bridge, type, claim_num, withdrawal_txid, claim, valid_outcome);
 	}
 	unlock();
 }
@@ -717,6 +723,8 @@ async function checkUnfinishedClaims() {
 			else {
 				notifications.notifyAdmin(`checkUnfinishedClaims: ${desc} finished as "${claim.current_outcome}", expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
 				await finishClaim(claim_info);
+				const bridge = { export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_network, foreign_network, bridge_id, home_symbol };
+				eventBus.emit('finished_as_fraud', bridge, type, claim_num, null, claim, valid_outcome);
 			}
 		}
 		else
