@@ -15,10 +15,12 @@ const cache_lifetime = 10 * 60 * 1000; // 10 minutes
 class Cache {
 	#data = {};
 
-	get(key) {
+	get(key, bEvenIfExpired) {
 		const record = this.#data[key];
 		if (!record)
 			return null;
+		if (bEvenIfExpired)
+			return record.value;
 		if (record.ts < Date.now() - cache_lifetime) // expired
 			return null;
 		return record.value;
@@ -45,9 +47,20 @@ function cachify(func, count_args) {
 				return value;
 			}
 		}
-		const value = await func.apply(null, args);
-		cache.put(key, value);
-		return value
+		try {
+			const value = await func.apply(null, args);
+			cache.put(key, value);
+			return value
+		}
+		catch (e) {
+			console.log(func.name, arguments, 'failed', e);
+			const value = cache.get(key, true);
+			if (value !== null) {
+				console.log(`using expired cached value ${value} for`, func.name, arguments)
+				return value;
+			}
+			throw e;
+		}
 	}
 }
 
