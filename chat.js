@@ -101,7 +101,6 @@ function start() {
 			let amount_in_pennies;
 			if (amount === 'all') {
 				amount_in_pennies = (network === 'Obyte' && asset === 'base') ? 'all' : await networkApi[network].getMyBalance(asset);
-				amount = formatUnits(amount_in_pennies, decimals);
 			}
 			else {
 				if (!parseFloat(amount))
