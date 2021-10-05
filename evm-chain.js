@@ -134,7 +134,15 @@ class EvmChain {
 		if (this.#cached_gas_price && this.#last_gas_price_ts > Date.now() - 1 * 60 * 1000)
 			return this.#cached_gas_price;
 		console.log('provider getGasPrice', this.network)
-		this.#cached_gas_price = (await this.#provider.getGasPrice()).toNumber() / 1e9;
+		try {
+			this.#cached_gas_price = (await this.#provider.getGasPrice()).toNumber() / 1e9;
+		}
+		catch (e) {
+			if (!this.#cached_gas_price)
+				throw e;
+			console.log('provider getGasPrice', this.network, 'failed', e, 'using old cached value', this.#cached_gas_price);
+			return this.#cached_gas_price;
+		}
 		this.#last_gas_price_ts = Date.now();
 		console.log(`${this.network} gas price ${this.#cached_gas_price} gwei`);
 		return this.#cached_gas_price;
