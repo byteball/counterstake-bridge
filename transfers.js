@@ -473,7 +473,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 
 	const my_stake = await getMyStake({ claim_num, bridge_id, type });
 	if (my_stake && my_stake !== '0' && !api.isMyAddress(address) && address !== assistant_aa)
-		notifications.notifyAdmin(`my claim ${claim_num} challenged by ${address}`, `network ${network}, bridge ${bridge_id}, AA ${bridge_aa}\n${stake.toString()} on ${stake_on}`);
+		notifications.notifyAdmin(`my claim ${claim_num} challenged by ${address}`, `network ${network}, bridge ${bridge_id}, AA ${bridge_aa}\nstaked ${stake.toString()} on '${stake_on}'\nvalid outcome ${valid_outcome}, current outcome ${claim.current_outcome}, challenge txid ${challenge_txid}, type ${type}`);
 
 //	if (claim.type !== type)
 //		throw Error(`wrong type in claim ${claim_num}`);
