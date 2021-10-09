@@ -212,10 +212,10 @@ class EvmChain {
 		return claim;
 	}
 
-	async getMyStake(bridge_aa, claim_num, outcome) {
+	async getMyStake(bridge_aa, claim_num, outcome, assistant_aa) {
 		const contract = this.#contractsByAddress[bridge_aa];
 		const side = outcome === 'yes' ? 1 : 0;
-		const my_stake = await contract.stakes(claim_num, side, this.#wallet.address);
+		const my_stake = await contract.stakes(claim_num, side, assistant_aa || this.#wallet.address);
 		return my_stake;
 	}
 

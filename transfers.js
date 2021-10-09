@@ -519,7 +519,7 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 	const bridge_aa = type === 'expatriation' ? import_aa : export_aa;
 	if (!bridge_aa)
 		throw Error(`null aa in withdrawal ${withdrawal_txid} on claim ${claim_num}`);
-	const assistant_aa = type === 'expatriation' ? import_assistant_aa : export_assistant_aa;
+	let assistant_aa = type === 'expatriation' ? import_assistant_aa : export_assistant_aa;
 	const api = networkApi[network];
 	const valid_outcome = await getValidOutcome({ claim_num, bridge_id, type }, false);
 	if (valid_outcome === null) {
@@ -535,9 +535,11 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 	if (claim.current_outcome === valid_outcome) {
 		console.log(`claim ${claim_num} finished as expected`);
 		if (!isZero(claim.stakes.no)) { // it was challenged
+			if (assistant_aa && api.isMyAddress(claim.claimant_address)) // claimed myself
+				assistant_aa = undefined;
 			if (network !== 'Obyte')
 				await wait(3000); // getMyStake() might go to a different node that is not perfectly synced
-			const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome);
+			const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome, assistant_aa);
 			console.log(`my stake on claim ${claim_num} was ${my_stake}`); // duplicates are harmless
 			if (!isZero(my_stake)) {
 				const txid = await sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa);
@@ -710,7 +712,7 @@ async function checkUnfinishedClaims() {
 			const valid_outcome = await getValidOutcome(claim_info, true);
 			if (claim.current_outcome === valid_outcome) {
 				console.log(`checkUnfinishedClaims: ${desc} finished as expected`);
-				const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome);
+				const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome, assistant_aa);
 				console.log(`my stake on claim ${claim_num} was ${my_stake}`);
 				if (isZero(my_stake))
 					await finishClaim(claim_info);

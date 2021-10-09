@@ -111,8 +111,8 @@ class Obyte {
 		return claim;
 	}
 
-	async getMyStake(bridge_aa, claim_num, outcome) {
-		const my_stake = await dag.readAAStateVar(bridge_aa, claim_num + '_' + outcome + '_by_' + operator.getAddress());
+	async getMyStake(bridge_aa, claim_num, outcome, assistant_aa) {
+		const my_stake = await dag.readAAStateVar(bridge_aa, claim_num + '_' + outcome + '_by_' + (assistant_aa || operator.getAddress()));
 		return my_stake || 0;
 	}
 
