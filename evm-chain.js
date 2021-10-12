@@ -9,7 +9,7 @@ const desktopApp = require("ocore/desktop_app.js");
 const notifications = require('./notifications.js');
 const transfers = require('./transfers.js');
 const { fetchExchangeRateInNativeAsset } = require('./prices.js');
-const { wait } = require('./utils.js');
+const { wait, watchForDeadlock } = require('./utils.js');
 
 const exportJson = require('./evm/build/contracts/Export.json');
 const importJson = require('./evm/build/contracts/Import.json');
@@ -714,6 +714,10 @@ class EvmChain {
 				eventBus.emit('network_disconnected', this.network);
 			});
 		}
+
+		watchForDeadlock(this.network + 'Event');
+		watchForDeadlock(this.network + 'Tx');
+		watchForDeadlock(this.network);
 	}
 
 }

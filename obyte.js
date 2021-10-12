@@ -16,6 +16,7 @@ const dag = require('aabot/dag.js');
 const operator = require('aabot/operator.js');
 const notifications = require('./notifications.js');
 const transfers = require('./transfers.js');
+const { watchForDeadlock } = require('./utils.js');
 
 let bCreated = false;
 
@@ -527,6 +528,8 @@ class Obyte {
 			}
 		});
 	//	console.error('--- network', this.network)
+		watchForDeadlock('onAAResponse');
+		watchForDeadlock(this.network);
 
 	}
 }
