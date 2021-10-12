@@ -199,7 +199,7 @@ async function handleTransfer(transfer) {
 		setTimeout(sendClaim, timeout * 1000);
 	}
 	else
-		await sendClaim();
+		sendClaim(); // don't await, release the lock that encloses addTransfer as soon as possible. Also, sendClaim() acquires another lock which might lead to deadlocka
 }
 
 // After a transfer was removed, one of 4 things can happen:
