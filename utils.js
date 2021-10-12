@@ -9,7 +9,7 @@ function die(msg) {
 	throw Error(msg);
 }
 
-function checkForDeadlock(key) {
+async function checkForDeadlock(key) {
 	const t = setTimeout(die, 10 * 60 * 1000, `possible deadlock on ${key}`);
 	const unlock = await mutex.lock(key);
 	unlock();
