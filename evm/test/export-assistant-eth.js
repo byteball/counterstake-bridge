@@ -193,6 +193,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 
 	//	this.mf = ether('20').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
 	//	this.ts = ts
+		this.balance_in_work = paid_amount.add(stake)
 		expect(await assistant.balance_in_work()).to.be.bignumber.eq(paid_amount.add(stake))
 		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(paid_amount.add(stake))
 		expect(await assistant.profit()).to.be.bignumber.eq(bn0)
@@ -257,10 +258,17 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		await expectRevert(promise, "the challenging period has expired");
 	});
 
+	it("failed record win 1: not finished yet", async () => {
+		let promise = assistant.recordWin(this.claim_num, { from: bobAccount });
+		await expectRevert(promise, "not finished yet");
+	});
+	
 	it("withdraw", async () => {
 		let balance_before = await balance.current(assistant.address);
 	//	console.log('balance before withdrawal', balance_before.toString())
 
+	//	let gas = 150000;//await instance.withdrawTo.estimateGas(this.claim_id, assistant.address, { from: bobAccount });
+	//	console.log('gas estimation for withdrawal', gas);
 		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount });
 		console.log('withdraw to assistant res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
@@ -289,6 +297,37 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+
+		// if the callback fails:
+		/*
+		expect(await assistant.balance_in_work()).to.be.bignumber.eq(this.balance_in_work)
+		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(this.balance_in_work)
+		expect(await assistant.profit()).to.be.bignumber.eq(bn0)
+		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
+		*/
+	});
+
+	/*
+	// if the callback fails:
+	it("record win after withdrawal", async () => {
+		let res = await assistant.recordWin(this.claim_num, { from: bobAccount });
+		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
+
+		const delta_mf = ether('20').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
+		this.mf = this.mf.add(delta_mf)
+		this.ts = ts
+		expect(await assistant.balance_in_work()).to.be.bignumber.eq(bn0)
+		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(bn0)
+		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
+		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
+		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+	//	expect(0).to.eq(1)
+	});
+	*/
+
+	it("failed record win 1: this claim is already accounted for", async () => {
+		let promise = assistant.recordWin(this.claim_num, { from: bobAccount });
+		await expectRevert(promise, "this claim is already accounted for");
 	});
 
 	it("failed withdraw: already withdrawn", async () => {
@@ -393,6 +432,11 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		await expectRevert(promise, "have a winning stake in this claim");
 	});
 
+	it("failed record win 2: not finished yet", async () => {
+		let promise = assistant.recordWin(this.claim_num, { from: bobAccount });
+		await expectRevert(promise, "not finished yet");
+	});
+	
 	it("withdraw to assistant", async () => {
 		let balance_before = await balance.current(assistant.address);
 
@@ -427,6 +471,11 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
 	});
 
+	it("failed record win 2: this claim is already accounted for", async () => {
+		let promise = assistant.recordWin(this.claim_num, { from: bobAccount });
+		await expectRevert(promise, "this claim is already accounted for");
+	});
+	
 	it("alice trigers a loss and fails because there is no loss to the assistant", async () => {
 		let promise = assistant.recordLoss(this.claim_num, { from: aliceAccount });
 		await expectRevert(promise, "this claim is already accounted for");
@@ -525,7 +574,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		let assistant_balance_before = await balance.current(assistant.address);
 		let manager_balance_before = await balance.current(managerAccount);
 
-		const res = await assistant.withdrawSuccessFee({ from: managerAccount });
+		const res = await assistant.withdrawSuccessFee({ from: managerAccount, gas: 1e6 });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
 		const delta_mf = assistant_balance_before.mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))

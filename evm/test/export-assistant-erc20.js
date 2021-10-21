@@ -536,7 +536,7 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		let assistant_balance_before = await token.balanceOf(assistant.address);
 		let manager_balance_before = await token.balanceOf(managerAccount);
 
-		const res = await assistant.withdrawSuccessFee({ from: managerAccount });
+		const res = await assistant.withdrawSuccessFee({ from: managerAccount, gas: 1e6 });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
 		const delta_mf = assistant_balance_before.mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))

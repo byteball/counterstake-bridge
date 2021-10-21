@@ -1,6 +1,7 @@
 require('@openzeppelin/test-helpers/configure')({
 	provider: 'http://localhost:7545',
 });
+const Token = artifacts.require("Token");
 
 const Import = artifacts.require("Import");
 const Oracle = artifacts.require("Oracle");
@@ -50,8 +51,11 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 	const managerAccount = accounts[3]
 
 	let instance, governance, ratioVotedValue, counterstakeCoefVotedValue, largeThresholdVotedValue, challengingPeriodsVotedValue, largeChallengingPeriodsVotedValue, assistant;
+	let token;
 	
 	before(async () => {
+		token = await Token.new("USDC stake token", "USDC");
+		console.log('USDC token address', token.address);
 		const factory = await CounterstakeFactory.deployed();
 		console.log('Factory address', factory.address);
 
@@ -227,6 +231,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 	});
 
 	it("start a claim", async () => {
+	//	const aliceAccount = token.address
 		let balance_before = await instance.balanceOf(aliceAccount);
 		console.log('balance before claim', balance_before.toString())
 
@@ -278,6 +283,8 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 	//	this.stake_mf = ether('1').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
 	//	this.image_mf = ether('49').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
 	//	this.ts = ts
+		this.stake_balance_in_work = stake
+		this.image_balance_in_work = paid_amount
 		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(stake)
 		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(paid_amount)
 		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(stake)
@@ -292,6 +299,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		let balance_after = await instance.balanceOf(aliceAccount);
 		console.log('balance after claim', balance_after.toString())
 		expect(balance_before.add(paid_amount)).to.be.bignumber.equal(balance_after);
+	//	expect(0).to.eq(1)
 	});
 
 	it("failed claim: same txid again", async () => {
@@ -346,12 +354,19 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		await expectRevert(promise, "the challenging period has expired");
 	});
 
+	it("failed record win 1: not finished yet", async () => {
+		let promise = assistant.recordWin(this.claim_num, { from: bobAccount });
+		await expectRevert(promise, "not finished yet");
+	});
+	
 	it("withdraw", async () => {
 		let stake_balance_before = await balance.current(assistant.address);
 		console.log('balance before withdrawal', stake_balance_before.toString())
 		let image_balance_before = await instance.balanceOf(assistant.address);
 
-		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount });
+		let gas = await instance.withdrawTo.estimateGas(this.claim_id, assistant.address, { from: bobAccount });
+		console.log('gas estimation for withdrawal', gas);
+		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount, gas: gas - 1 });
 		console.log('withdraw res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
@@ -373,6 +388,29 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		expect(await instance.stakes(this.claim_num, yes, assistant.address)).to.be.bignumber.equal(bn0);
 		expect(await instance.stakes(this.claim_num, no, charlieAccount)).to.be.bignumber.equal(ether('0.1'));
 
+		// the onReceivedFromClaim callback should fail and the assistant's vars not updated
+
+	//	const delta_stake_mf = ether('1').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
+	//	const delta_image_mf = ether('49').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
+	//	this.stake_mf = this.stake_mf.add(delta_stake_mf)
+	//	this.image_mf = this.image_mf.add(delta_image_mf)
+	//	this.ts = ts
+		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(this.stake_balance_in_work)
+		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(this.image_balance_in_work)
+		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(this.stake_balance_in_work)
+		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.eq(this.image_balance_in_work)
+		expect((await assistant.profit())[0]).to.be.bignumber.eq(bn0)
+		expect((await assistant.profit())[1]).to.be.bignumber.eq(bn0)
+		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
+		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
+		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+	//	expect(0).to.eq(1)
+	});
+
+	it("record win after withdraw", async () => {
+		let res = await assistant.recordWin(this.claim_num, { from: bobAccount });
+		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
+
 		const delta_stake_mf = ether('1').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
 		const delta_image_mf = ether('49').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
 		this.stake_mf = this.stake_mf.add(delta_stake_mf)
@@ -387,6 +425,12 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
 		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+	//	expect(0).to.eq(1)
+	});
+
+	it("failed record win 1: this claim is already accounted for", async () => {
+		let promise = assistant.recordWin(this.claim_num, { from: bobAccount });
+		await expectRevert(promise, "this claim is already accounted for");
 	});
 
 	it("failed withdraw: already withdrawn", async () => {
@@ -499,6 +543,11 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		await expectRevert(promise, "have a winning stake in this claim");
 	});
 
+	it("failed record win 2: not finished yet", async () => {
+		let promise = assistant.recordWin(this.claim_num, { from: bobAccount });
+		await expectRevert(promise, "not finished yet");
+	});
+	
 	it("withdraw to assistant", async () => {
 		let stake_balance_before = await balance.current(assistant.address);
 		let image_balance_before = await instance.balanceOf(assistant.address);
@@ -540,6 +589,11 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
 	});
 
+	it("failed record win 2: this claim is already accounted for", async () => {
+		let promise = assistant.recordWin(this.claim_num, { from: bobAccount });
+		await expectRevert(promise, "this claim is already accounted for");
+	});
+	
 	it("alice trigers a loss and fails because there is no loss to the assistant", async () => {
 		let promise = assistant.recordLoss(this.claim_num, { from: aliceAccount });
 		await expectRevert(promise, "this claim is already accounted for");
@@ -688,7 +742,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		let manager_stake_balance_before = await balance.current(managerAccount);
 		let manager_image_balance_before = await instance.balanceOf(managerAccount)
 
-		const res = await assistant.withdrawSuccessFee({ from: managerAccount });
+		const res = await assistant.withdrawSuccessFee({ from: managerAccount, gas: 1e6 });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
 		const delta_stake_mf = assistant_stake_balance_before.mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))

@@ -251,11 +251,29 @@ abstract contract Counterstake is ReentrancyGuard {
 		notifyPaymentRecipient(to_address, claimed_amount_to_be_paid, won_stake, claim_num);
 	}
 
+//	event ExternalCall(bool res, string errtype, uint initial_gas, uint gas, address payment_recipient_address);
+
 	function notifyPaymentRecipient(address payable payment_recipient_address, uint net_claimed_amount, uint won_stake, uint claim_num) private {
 		if (CounterstakeLibrary.isContract(payment_recipient_address)){
 			CounterstakeLibrary.Claim storage c = claims[claim_num];
-		//	CounterstakeReceiver(payment_recipient_address).onReceivedFromClaim(claim_num, is_winning_claimant ? claimed_amount : 0, won_stake);
+			/*
+			uint initial_gas = gasleft();
+			try CounterstakeReceiver(payment_recipient_address).onReceivedFromClaim(claim_num, net_claimed_amount, won_stake, c.sender_address, c.recipient_address, c.data) {
+				emit ExternalCall(true, "", initial_gas, gasleft(), payment_recipient_address);
+			}
+			catch Error(string memory){
+				emit ExternalCall(false, "error", initial_gas, gasleft(), payment_recipient_address);
+			}
+			catch Panic(uint){
+				emit ExternalCall(false, "panic", initial_gas, gasleft(), payment_recipient_address);
+			}
+			catch{
+			//	emit ExternalCall(false, "catchall", initial_gas, gasleft(), payment_recipient_address);
+			}
+			*/
 			(bool res, ) = payment_recipient_address.call(abi.encodeWithSignature("onReceivedFromClaim(uint256,uint256,uint256,string,address,string)", claim_num, net_claimed_amount, won_stake, c.sender_address, c.recipient_address, c.data));
+		//	emit ExternalCall(res, payment_recipient_address);
+			require(res || claim_num > 0, "unres");
 			if (!res){
 				// ignore
 			}

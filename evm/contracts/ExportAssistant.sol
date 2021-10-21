@@ -134,11 +134,16 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 	}
 
 	function onReceivedFromClaim(uint claim_num, uint claimed_amount, uint won_stake, string memory, address, string memory) onlyBridge override external {
-		uint total = claimed_amount + won_stake;
-		updateMFAndGetBalances(total, true); // total is already added to our balance
 
 		uint invested = balances_in_work[claim_num];
 		require(invested > 0, "BUG: I didn't stake in this claim?");
+
+		receiveFromClaim(claim_num, claimed_amount, won_stake, invested);
+	}
+
+	function receiveFromClaim(uint claim_num, uint claimed_amount, uint won_stake, uint invested) private {
+		uint total = claimed_amount + won_stake;
+		updateMFAndGetBalances(total, true); // total is already added to our balance
 
 		if (total >= invested){
 			uint this_profit = total - invested;
@@ -181,6 +186,32 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 
 		balance_in_work -= invested;
 		delete balances_in_work[claim_num];
+	}
+
+	// Record a win, called by anybody.
+	// Should be called only if I missed onReceivedFromClaim (e.g. due to out-of-gas error).
+	function recordWin(uint claim_num) nonReentrant external {
+
+		uint invested = balances_in_work[claim_num];
+		require(invested > 0, "this claim is already accounted for");
+		
+		CounterstakeLibrary.Claim memory c = Export(bridgeAddress).getClaim(claim_num);
+		require(c.amount > 0, "no such claim");
+		require(c.finished, "not finished yet");
+		CounterstakeLibrary.Side opposite_outcome = c.current_outcome == CounterstakeLibrary.Side.yes ? CounterstakeLibrary.Side.no : CounterstakeLibrary.Side.yes;
+		
+		uint my_winning_stake = Export(bridgeAddress).stakes(claim_num, c.current_outcome, address(this));
+		require(my_winning_stake == 0, "my winning stake is not cleared yet");
+		
+		uint my_losing_stake = Export(bridgeAddress).stakes(claim_num, opposite_outcome, address(this));
+		my_winning_stake = invested - my_losing_stake - (c.claimant_address == address(this) ? c.amount - c.amount/100 : 0); // restore it assuming 1% reward. The profit might be inaccurate if the reward is different
+		require(my_winning_stake > 0, "I didn't stake on the winning side");
+		
+		uint winning_stake = c.current_outcome == CounterstakeLibrary.Side.yes ? c.yes_stake : c.no_stake;
+		uint won_stake = (c.yes_stake + c.no_stake) * my_winning_stake / winning_stake;
+		uint claimed_amount = (c.claimant_address == address(this) && c.current_outcome == CounterstakeLibrary.Side.yes) ? c.amount : 0;
+
+		receiveFromClaim(claim_num, claimed_amount, won_stake, invested);
 	}
 
 
