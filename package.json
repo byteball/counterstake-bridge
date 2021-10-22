@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+  	"postinstall" : "cd evm && npm_config_yes=true npx truffle compile",
     "test": "mocha --opts aas/test/mocha.opts --require aas/test/bootload.js",
     "test:all": "mocha --opts aas/test/mocha.opts --require aas/test/bootload.js aas/test/*.test.oscript.js",
     "lint": "node ./node_modules/.bin/eslint --ext .js --max-warnings=0 test"

@@ -18,10 +18,11 @@ git clone https://github.com/byteball/counterstake-bridge
 cd counterstake-bridge
 yarn
 ```
-Compile the Ethereum contracts:
+
+It should automatically compile Ethereum contracts during install, but in case any error occures, you can compile them manually:
 ```bash
 cd evm
-npm install -g truffle
+yarn global add truffle
 truffle compile
 ```
 
@@ -138,6 +139,6 @@ yarn test aas/test
 Install and run Ganache. If using a command-line version of Ganache (ganache-cli), run it on port 7545 (the default is 8545). Then run
 ```bash
 cd evm
-truffle test
+npx truffle test
 ```
 
