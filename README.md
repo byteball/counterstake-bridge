@@ -19,7 +19,7 @@ cd counterstake-bridge
 yarn
 ```
 
-It should automatically compile Ethereum contracts during install, but in case any error occures, you can compile it manually:
+It should automatically compile Ethereum contracts during install, but in case any error occures, you can compile them manually:
 ```bash
 cd evm
 yarn global add truffle
