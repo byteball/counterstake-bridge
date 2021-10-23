@@ -273,7 +273,7 @@ abstract contract Counterstake is ReentrancyGuard {
 			*/
 			(bool res, ) = payment_recipient_address.call(abi.encodeWithSignature("onReceivedFromClaim(uint256,uint256,uint256,string,address,string)", claim_num, net_claimed_amount, won_stake, c.sender_address, c.recipient_address, c.data));
 		//	emit ExternalCall(res, payment_recipient_address);
-			require(res || claim_num > 0, "unres");
+		//	require(res || claim_num > 0, "unres");
 			if (!res){
 				// ignore
 			}
