@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  	"postinstall" : "cd evm && npm_config_yes=true npx truffle compile",
+  	"postinstall" : "cd evm && npx truffle compile </dev/null",
     "test": "mocha --opts aas/test/mocha.opts --require aas/test/bootload.js",
     "test:all": "mocha --opts aas/test/mocha.opts --require aas/test/bootload.js aas/test/*.test.oscript.js",
     "lint": "node ./node_modules/.bin/eslint --ext .js --max-warnings=0 test"
@@ -22,12 +22,13 @@
     "koa-bodyparser": "^4.3.0",
     "koa-router": "^10.0.0",
     "mocha": "^6.2.0",
-    "node-fetch": "^2.6.1"
-  },
-  "devDependencies": {
+    "node-fetch": "^2.6.1",
     "@openzeppelin/contracts": "^4.0.0",
     "@openzeppelin/test-helpers": "^0.5.10",
     "@truffle/hdwallet-provider": "^1.4.0",
+    "truffle-contract-size": "^2.0.1"
+  },
+  "devDependencies": {
     "eslint": "^6.3.0",
     "eslint-config-standard": "^14.1.0",
     "eslint-plugin-chai-friendly": "^0.4.1",
@@ -35,8 +36,7 @@
     "eslint-plugin-mocha": "^6.1.1",
     "eslint-plugin-node": "^10.0.0",
     "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-standard": "^4.0.1",
-    "truffle-contract-size": "^2.0.1"
+    "eslint-plugin-standard": "^4.0.1"
   },
   "resolutions": {
     "level-rocksdb": "^4.0.0",
