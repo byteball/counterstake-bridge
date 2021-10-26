@@ -265,8 +265,8 @@ async function recheckClaim({ claim_num, bridge_id, type }) {
 async function attackClaim(bridge, type, claim_num, claim_txid) {
 	if (!conf.bWatchdog)
 		return console.log(`will skip attacking claim ${claim_txid} as watchdog function is off`);
-	if (!conf.bClaimForOthers)
-		return console.log(`will skip attacking claim ${claim_txid} as claiming function is off`);
+	if (!conf.bAttack)
+		return console.log(`will skip attacking claim ${claim_txid} as attacking function is off`);
 
 	const { bridge_id, export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_asset, foreign_asset, stake_asset, home_network, foreign_network, home_asset_decimals, foreign_asset_decimals } = bridge;
 	console.log(`will attack ${type} claim ${claim_num} in ${claim_txid} on bridge ${bridge_id}`);
@@ -485,7 +485,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 	if (stake_on !== claim.current_outcome)
 		return unlock(`the challenge ${challenge_txid} with "${stake_on}" on claim ${claim_num} didn't override the current outcome "${claim.current_outcome}", no need to act`);
 
-	if (claim.current_outcome !== valid_outcome && !conf.bClaimForOthers) { // wrong outcome leads, attack it
+	if (claim.current_outcome !== valid_outcome && !conf.bAttack) { // wrong outcome leads, attack it
 		if (!bCompleteBridge)
 			return unlock(`will not attack challenge ${challenge_txid} of claim ${claim_num} on bridge ${bridge_id} as the bridge is still incomplete`);
 		const asset = type === 'expatriation' ? stake_asset : home_asset;
