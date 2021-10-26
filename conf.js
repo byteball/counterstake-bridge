@@ -66,7 +66,7 @@ exports.polygon_factory_contract_address = process.env.devnet ? '' : (process.en
 exports.polygon_assistant_factory_contract_address = process.env.devnet ? '' : (process.env.testnet ? '0xd8BF89335214Caf4724739F52621bC6D70eF87bF' : '0xE740C62aC78bB2666Fa9465052D0a292D7C27A11');
 
 exports.infura_project_id = ''; // in conf.json
-
+exports.polygon_polling_interval = 120; // in seconds
 
 exports.max_exposure = 0.5; // up to 50% of the balance in asset can be sent in a counterstake
 
@@ -76,7 +76,7 @@ exports.recheck_timeout = 15 * 60 * 1000; // 15 mins: when to recheck if a tx wa
 exports.bWatchdog = true;
 exports.bClaimForOthers = true;
 exports.bUseOwnFunds = true;
-exports.bAttack = true;
+exports.bAttack = true; // whether to bite or just bark by emitting events (assuming bWatchdog = true)
 
 exports.min_reward_ratio = 0.005; // claim for others if the reward is at least 0.5%
 
