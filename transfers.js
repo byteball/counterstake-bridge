@@ -485,9 +485,11 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 	if (stake_on !== claim.current_outcome)
 		return unlock(`the challenge ${challenge_txid} with "${stake_on}" on claim ${claim_num} didn't override the current outcome "${claim.current_outcome}", no need to act`);
 
-	if (claim.current_outcome !== valid_outcome && !conf.bAttack) { // wrong outcome leads, attack it
+	if (claim.current_outcome !== valid_outcome) { // wrong outcome leads, attack it
 		if (!bCompleteBridge)
 			return unlock(`will not attack challenge ${challenge_txid} of claim ${claim_num} on bridge ${bridge_id} as the bridge is still incomplete`);
+		if (!conf.bAttack)
+			return console.log(`will skip challenge ${challenge_txid} as attacking function is off`);
 		const asset = type === 'expatriation' ? stake_asset : home_asset;
 		if (!asset)
 			throw Error(`null asset in challenge ${challenge_txid} on claim ${claim_num}`);
