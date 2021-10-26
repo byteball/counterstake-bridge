@@ -76,6 +76,7 @@ exports.recheck_timeout = 15 * 60 * 1000; // 15 mins: when to recheck if a tx wa
 exports.bWatchdog = true;
 exports.bClaimForOthers = true;
 exports.bUseOwnFunds = true;
+exports.bAttack = true;
 
 exports.min_reward_ratio = 0.005; // claim for others if the reward is at least 0.5%
 
