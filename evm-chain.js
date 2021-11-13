@@ -703,8 +703,8 @@ class EvmChain {
 		this.#wallet = wallet.connect(provider);
 
 		if (bWebsocket && !process.env.devnet) {
-			provider.on('block', () => {
-				console.log('new block', this.network);
+			provider.on('block', (blockNumber) => {
+				console.log('new block', this.network, blockNumber);
 				provider._websocket.ping();
 			});
 			provider._websocket.on('pong', () => console.log('pong', this.network));
