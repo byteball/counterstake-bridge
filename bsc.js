@@ -27,8 +27,8 @@ class BSC extends EvmChain {
 		return 5000;
 	}
 
-	async getAddressBlocks(address, since_block) {
-		return await getAddressBlocks(etherscan_base_url, address, since_block);
+	async getAddressBlocks(address, startblock, startts) {
+		return await getAddressBlocks({ base_url: etherscan_base_url, address, startblock, startts });
 	}
 
 }

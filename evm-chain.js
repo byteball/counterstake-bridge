@@ -44,8 +44,8 @@ class EvmChain {
 		return 0;
 	}
 
-	async getAddressBlocks(address, since_block) {
-		throw Error(`getAddressBlocks() unimplemented`);
+	async getAddressBlocks(address, startblock, startts) {
+		throw Error(`getAddressBlocks() unimplemented on ${this.network}`);
 	}
 
 	async waitBetweenTransactions() {
@@ -265,6 +265,17 @@ class EvmChain {
 		catch (e) {
 			console.log(`failed to send claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}`, e);
 			unlock();
+			if (e.toString().includes('has already been claimed')) {
+				console.log(`transfer ${txid} already claimed, maybe we missed the event?`);
+				process.nextTick(async () => {
+					console.log(`will rescan events since ${txts}`);
+					const blocks = await this.getAddressBlocks(bridge_aa, 0, txts);
+					console.log(`blocks since ${txts}:`, blocks);
+					for (let blockNumber of blocks) {
+						await this.processPastEventsOnBridgeContract(contract, blockNumber, blockNumber);
+					}
+				});
+			}
 			return null;
 		}
 	}
@@ -658,18 +669,18 @@ class EvmChain {
 	}
 
 
+	async processPastEventsOnBridgeContract(contract, from_block, to_block) {
+		if (contract.filters.NewExpatriation)
+			await processPastEvents(contract, contract.filters.NewExpatriation(), from_block, to_block, this, this.onNewExpatriation);
+		if (contract.filters.NewRepatriation)
+			await processPastEvents(contract, contract.filters.NewRepatriation(), from_block, to_block, this, this.onNewRepatriation);
+		await processPastEvents(contract, contract.filters.NewClaim(), from_block, to_block, this, this.onNewClaim);
+		await processPastEvents(contract, contract.filters.NewChallenge(), from_block, to_block, this, this.onNewChallenge);
+		await processPastEvents(contract, contract.filters.FinishedClaim(), from_block, to_block, this, this.onFinishedClaim);
+	}
+
 	// called on start-up to handle missed transfers
 	async catchup() {
-
-		const processPastEventsOnContract = async (contract, from_block, to_block) => {
-			if (contract.filters.NewExpatriation)
-				await processPastEvents(contract, contract.filters.NewExpatriation(), from_block, to_block, this, this.onNewExpatriation);
-			if (contract.filters.NewRepatriation)
-				await processPastEvents(contract, contract.filters.NewRepatriation(), from_block, to_block, this, this.onNewRepatriation);
-			await processPastEvents(contract, contract.filters.NewClaim(), from_block, to_block, this, this.onNewClaim);
-			await processPastEvents(contract, contract.filters.NewChallenge(), from_block, to_block, this, this.onNewChallenge);
-			await processPastEvents(contract, contract.filters.FinishedClaim(), from_block, to_block, this, this.onFinishedClaim);
-		};
 
 		// get events that are beyond the block range
 		const last_block = Math.max(await this.getLastBlock() - 100, 0);
@@ -681,7 +692,7 @@ class EvmChain {
 					continue;
 				const blocks = await this.getAddressBlocks(address, last_block);
 				for (let blockNumber of blocks) {
-					await processPastEventsOnContract(contract, blockNumber, blockNumber);
+					await this.processPastEventsOnBridgeContract(contract, blockNumber, blockNumber);
 				}
 			}
 		}
@@ -691,7 +702,7 @@ class EvmChain {
 			const contract = this.#contractsByAddress[address];
 			if (!contract.filters.NewClaim) // not a bridge, must be an assistant
 				continue;
-			await processPastEventsOnContract(contract, since_block, 0);
+			await this.processPastEventsOnBridgeContract(contract, since_block, 0);
 		}
 		const unlock = await mutex.lock(this.network + 'Event'); // take the last place in the queue after all real events
 		unlock();

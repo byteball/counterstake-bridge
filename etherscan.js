@@ -5,11 +5,26 @@ let last_req_ts = {};
 const timeout = 6000; // 6 sec
 
 
-async function getAddressHistory(base_url, address, startblock, api_key) {
+async function waitBetweenRequests(base_url) {
 	const passed = last_req_ts[base_url] ? Date.now() - last_req_ts[base_url] : Infinity;
 	if (passed < timeout) {
 		console.log(`will wait for ${timeout - passed} ms between ${base_url} requests`);
 		await wait(timeout - passed);
+	}
+}
+
+async function getAddressHistory({ base_url, address, startblock, startts, api_key }) {
+	await waitBetweenRequests(base_url);
+	if (startts && !startblock) {
+		let url = `${base_url}/api?module=block&action=getblocknobytime&timestamp=${startts}&closest=after`;
+		if (api_key)
+			url += `&apikey=${api_key}`;
+		const resp = await request(url);
+		startblock = resp.result;
+		if (!startblock)
+			throw Error(`no block number from ${base_url} for ${startts}: ${JSON.stringify(resp)}`);
+		last_req_ts[base_url] = Date.now();
+		await waitBetweenRequests(base_url);
 	}
 	let url = `${base_url}/api?module=account&action=txlist&address=${address}`;
 	if (startblock)
@@ -24,13 +39,13 @@ async function getAddressHistory(base_url, address, startblock, api_key) {
 	return history;
 }
 
-async function getAddressBlocks(base_url, address, startblock, api_key) {
-	const history = await getAddressHistory(base_url, address, startblock, api_key);
+async function getAddressBlocks({ base_url, address, startblock, startts, api_key }) {
+	const history = await getAddressHistory({ base_url, address, startblock, startts, api_key });
 	return history.map(tx => parseInt(tx.blockNumber));
 }
 
 async function test() {
-	const blocks = await getAddressBlocks('https://api.bscscan.com', '0x91C79A253481bAa22E7E481f6509E70e5E6A883F');
+	const blocks = await getAddressBlocks({ base_url: 'https://api.bscscan.com', address: '0x91C79A253481bAa22E7E481f6509E70e5E6A883F' });
 	console.log(blocks);
 	process.exit();
 }

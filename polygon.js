@@ -40,8 +40,8 @@ class Polygon extends EvmChain {
 		return 100000; // infura
 	}
 
-	async getAddressBlocks(address, since_block) {
-		return await getAddressBlocks(etherscan_base_url, address, since_block);
+	async getAddressBlocks(address, startblock, startts) {
+		return await getAddressBlocks({ base_url: etherscan_base_url, address, startblock, startts });
 	}
 
 }
