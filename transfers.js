@@ -548,8 +548,11 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 			if (!isZero(my_stake)) {
 				const txid = await sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa);
 				if (txid)
-					await finishClaim(claim_info);
-			}
+					process.nextTick(async () => {
+						if (await api.waitForTransaction(txid))
+							await finishClaim(claim_info);
+					});
+	}
 			else
 				await finishClaim(claim_info);
 		}
@@ -723,7 +726,10 @@ async function checkUnfinishedClaims() {
 				else {
 					const txid = await sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa);
 					if (txid)
-						await finishClaim(claim_info);
+						process.nextTick(async () => {
+							if (await api.waitForTransaction(txid))
+								await finishClaim(claim_info);
+						});
 				}
 			}
 			else {

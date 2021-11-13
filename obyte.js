@@ -458,6 +458,10 @@ class Obyte {
 		return await dag.readAAStateVar(conf.token_registry_aa, 'a2s_' + asset);
 	}
 
+	async waitForTransaction(txid) {
+		return 1;
+	}
+
 	async waitUntilSynced() {
 		console.log(`waiting for ${this.network} to sync`);
 		if (conf.bLight) {

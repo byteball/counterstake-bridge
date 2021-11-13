@@ -506,6 +506,13 @@ class EvmChain {
 		throw Error(`getNativeSymbol should be implemented in descendant classes`);
 	}
 
+	async waitForTransaction(txid) {
+		const receipt = await this.#provider.waitForTransaction(txid);
+		if (!receipt.status)
+			console.log(`tx ${txid} reverted: `, receipt);
+		return receipt.status;
+	}
+
 	async waitUntilSynced() {
 		// assuming always synced
 	}
