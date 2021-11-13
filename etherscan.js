@@ -1,3 +1,4 @@
+const mutex = require('ocore/mutex.js');
 const { request } = require('./request.js');
 const { wait } = require('./utils.js');
 
@@ -14,6 +15,7 @@ async function waitBetweenRequests(base_url) {
 }
 
 async function getAddressHistory({ base_url, address, startblock, startts, api_key }) {
+	const unlock = await mutex.lock(base_url);
 	await waitBetweenRequests(base_url);
 	if (startts && !startblock) {
 		let url = `${base_url}/api?module=block&action=getblocknobytime&timestamp=${startts}&closest=after`;
@@ -36,6 +38,7 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 	if (!Array.isArray(history))
 		throw Error(`no history from ${base_url} for ${address}: ${JSON.stringify(resp)}`);
 	last_req_ts[base_url] = Date.now();
+	unlock();
 	return history;
 }
 
