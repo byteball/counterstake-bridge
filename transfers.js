@@ -19,6 +19,7 @@ const networkApi = {};
 let maxAmounts;
 let bCatchingUp = true;
 let bCatchingUpOrHandlingPostponedEvents = true;
+let unconfirmedClaims = {}; // transfer_id => claim_txid
 
 async function getBridge(bridge_id) {
 	const [bridge] = await db.query("SELECT * FROM bridges WHERE bridge_id=?", [bridge_id]);
@@ -151,6 +152,8 @@ async function handleTransfer(transfer) {
 		const [db_claim] = await db.query("SELECT * FROM claims WHERE transfer_id=?", [transfer_id]);
 		if (db_claim)
 			return unlock(`transfer ${txid} #${transfer_id} from ${sender_address} already claimed`);
+		if (unconfirmedClaims[transfer_id])
+			return unlock(`we have already claimed transfer ${txid} #${transfer_id} from ${sender_address} in tx ${unconfirmedClaims[transfer_id]} and it's still unconfirmed`);
 		
 		let stake = await dst_api.getRequiredStake(bridge_aa, dst_amount);
 		stake = BigNumber.from(stake);
@@ -186,6 +189,7 @@ async function handleTransfer(transfer) {
 			? await dst_api.sendClaimFromPooledAssistant({ assistant_aa, amount: dst_amount, reward: dst_reward, sender_address, dest_address, data, txid, txts })
 			: await dst_api.sendClaim({ bridge_aa, amount: dst_amount, reward: dst_reward, claimed_asset, stake, staked_asset, sender_address, dest_address, data, txid, txts });
 		console.log(`claimed transfer from ${sender_address} amount ${dst_amount} reward ${dst_reward}: ${claim_txid}`);
+		unconfirmedClaims[transfer_id] = claim_txid;
 		setTimeout(updateMaxAmounts, 60 * 1000);
 		unlock();
 	};
@@ -429,6 +433,8 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		eventBus.emit('fraudulent_claim', bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid);
 		await attackClaim(bridge, type, claim_num, claim_txid);
 	}
+	else
+		delete unconfirmedClaims[transfer_id];
 	unlock();
 }
 
