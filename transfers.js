@@ -751,7 +751,8 @@ async function recheckOldTransfers() {
 	const transfers = await db.query(
 		`SELECT transfers.* FROM transfers LEFT JOIN claims USING(transfer_id)
 		WHERE claim_num IS NULL AND is_confirmed=1 AND transfers.reward>=0
-			AND transfers.creation_date < ` + db.addTime('-1 MINUTE')
+			AND transfers.creation_date < ${db.addTime('-1 MINUTE')}
+		ORDER BY transfer_id`
 	);
 	console.error('----- transfers', transfers.length)
 	for (let transfer of transfers) {
