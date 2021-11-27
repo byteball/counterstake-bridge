@@ -52,7 +52,7 @@ exports.obyte_min_transfer_age = bTest ? 0.5 * 60 : 5 * 60; // 5 mins after MCI 
 // EVM
 exports.evm_min_transfer_age = bTest ? 0.5 * 60 : 5 * 60; // 5 mins
 exports.evm_count_blocks_for_finality = bTest ? 1 : 20; // 20 blocks
-exports.evm_required_gas = 330e3 + 70e3; // total gas required for all steps of claiming, normally claim + withdraw
+exports.evm_required_gas = 420e3 + 70e3; // total gas required for all steps of claiming, normally claim + withdraw
 exports.evm_required_gas_with_pooled_assistant = 440e3 + 70e3; // total gas required for all steps of claiming eth
 //exports.evm_required_gas_with_pooled_assistant = 520e3 + 90e3; // total gas required for all steps of claiming imported tokens
 
