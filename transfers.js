@@ -681,8 +681,14 @@ async function sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id,
 				return null;
 		}
 	}
-	setTimeout(updateMaxAmounts, 60 * 1000);
-	setTimeout(recheckOldTransfers, 15 * 60 * 1000);
+	if (txid) {
+		process.nextTick(async () => {
+			if (await api.waitForTransaction(txid)) {
+				setTimeout(updateMaxAmounts, 60 * 1000);
+				setTimeout(recheckOldTransfers, 15 * 60 * 1000);
+			}
+		})
+	}
 	return txid;
 }
 
