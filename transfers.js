@@ -704,7 +704,7 @@ async function finishClaim({ claim_num, bridge_id, type }) {
 
 async function checkUnfinishedClaims() {
 	console.log('checking for unfinished claims');
-	const rows = await db.query(`SELECT export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_network, foreign_network, claim_num, bridge_id, type, home_symbol, claims.creation_date FROM claims CROSS JOIN bridges USING(bridge_id) WHERE is_finished=0 AND my_stake!='0'`);
+	const rows = await db.query(`SELECT export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_network, foreign_network, claim_num, bridge_id, type, home_symbol, claims.creation_date FROM claims CROSS JOIN bridges USING(bridge_id) WHERE is_finished=0 AND my_stake!='0' AND claims.creation_date < ${db.addTime(process.env.testnet || process.env.devnet ? '-1 MINUTE' : '-3 DAY')}`);
 	console.log(`${rows.length} unfinished claims`);
 	for (let { export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_network, foreign_network, home_symbol, claim_num, bridge_id, type, creation_date } of rows) {
 		const claim_info = { claim_num, bridge_id, type };
