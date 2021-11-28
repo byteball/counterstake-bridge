@@ -20,6 +20,7 @@ let maxAmounts;
 let bCatchingUp = true;
 let bCatchingUpOrHandlingPostponedEvents = true;
 let unconfirmedClaims = {}; // transfer_id => claim_txid
+let unconfirmeWithdrawals = {};
 
 async function getBridge(bridge_id) {
 	const [bridge] = await db.query("SELECT * FROM bridges WHERE bridge_id=?", [bridge_id]);
@@ -551,14 +552,8 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 				await wait(3000); // getMyStake() might go to a different node that is not perfectly synced
 			const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome, assistant_aa);
 			console.log(`my stake on claim ${claim_num} was ${my_stake}`); // duplicates are harmless
-			if (!isZero(my_stake)) {
-				const txid = await sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa);
-				if (txid)
-					process.nextTick(async () => {
-						if (await api.waitForTransaction(txid))
-							await finishClaim(claim_info);
-					});
-	}
+			if (!isZero(my_stake))
+				await sendWithdrawalRequest(network, bridge_aa, claim_info, assistant_aa);
 			else
 				await finishClaim(claim_info);
 		}
@@ -662,11 +657,17 @@ async function addressHasStakesInClaim({ claim_num, bridge_id, type }, address) 
 }
 
 async function sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa) {
+	const key = `${claim_num}-${bridge_id}-${type}`;
+	if (unconfirmeWithdrawals[key]) {
+		console.log(`already withdrawing ${key} in ${unconfirmeWithdrawals[key]}`);
+		return null;
+	}
 	const api = networkApi[network];
 	let txid;
 	if (!assistant_aa)
 		txid = await api.sendWithdrawalRequest(bridge_aa, claim_num);
 	else {
+		// we might send withdrawal requests for both self and assistant
 		if (await addressHasStakesInClaim({ claim_num, bridge_id, type }, assistant_aa)) {
 			console.log(`sending withdrawal request on claim ${claim_num} for assistant`);
 			txid = await api.sendWithdrawalRequest(bridge_aa, claim_num, assistant_aa);
@@ -682,12 +683,16 @@ async function sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id,
 		}
 	}
 	if (txid) {
+		unconfirmeWithdrawals[key] = txid;
 		process.nextTick(async () => {
-			if (await api.waitForTransaction(txid)) {
+			const status = await api.waitForTransaction(txid);
+			setTimeout(() => { delete unconfirmeWithdrawals[key]; }, 15 * 60 * 1000); // even if failed
+			if (status) { // only if successful
+				await finishClaim({ claim_num, bridge_id, type });
 				setTimeout(updateMaxAmounts, 60 * 1000);
 				setTimeout(recheckOldTransfers, 15 * 60 * 1000);
 			}
-		})
+		});
 	}
 	return txid;
 }
@@ -735,14 +740,8 @@ async function checkUnfinishedClaims() {
 				console.log(`my stake on claim ${claim_num} was ${my_stake}`);
 				if (isZero(my_stake))
 					await finishClaim(claim_info);
-				else {
-					const txid = await sendWithdrawalRequest(network, bridge_aa, { claim_num, bridge_id, type }, assistant_aa);
-					if (txid)
-						process.nextTick(async () => {
-							if (await api.waitForTransaction(txid))
-								await finishClaim(claim_info);
-						});
-				}
+				else
+					await sendWithdrawalRequest(network, bridge_aa, claim_info, assistant_aa);
 			}
 			else {
 				notifications.notifyAdmin(`checkUnfinishedClaims: ${desc} finished as "${claim.current_outcome}", expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
