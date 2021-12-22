@@ -304,7 +304,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 
 	// swapping finctions
 
-	function swapImage2Stake(uint image_asset_amount) nonReentrant external {
+	function swapImage2Stake(uint image_asset_amount, uint min_amount_out) nonReentrant external {
 		require(IERC20(bridgeAddress).transferFrom(msg.sender, address(this), image_asset_amount), "failed to pull image");
 
 		(, IntBalance memory net_balance) = updateMFAndGetBalances(0, image_asset_amount, false);
@@ -314,11 +314,12 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 
 		uint stake_asset_amount = (uint(net_balance.stake) - balance_in_work.stake) * image_asset_amount / (uint(net_balance.image) + image_asset_amount);
 		stake_asset_amount -= stake_asset_amount * swap_fee10000/10000;
+		require(stake_asset_amount >= min_amount_out, "would be less than min");
 
 		payStakeTokens(msg.sender, stake_asset_amount);
 	}
 
-	function swapStake2Image(uint stake_asset_amount) payable nonReentrant external {
+	function swapStake2Image(uint stake_asset_amount, uint min_amount_out) payable nonReentrant external {
 		if (tokenAddress == address(0))
 			require(msg.value == stake_asset_amount, "wrong amount received");
 		else {
@@ -333,6 +334,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 
 		uint image_asset_amount = (uint(net_balance.image) - balance_in_work.image) * stake_asset_amount / (uint(net_balance.stake) + stake_asset_amount);
 		image_asset_amount -= image_asset_amount * swap_fee10000/10000;
+		require(image_asset_amount >= min_amount_out, "would be less than min");
 
 		payImageTokens(msg.sender, image_asset_amount);
 	}

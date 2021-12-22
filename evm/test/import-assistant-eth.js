@@ -1250,7 +1250,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 
 		const amount = ether('0.1')
 
-		let res = await assistant.swapStake2Image(amount, { value: amount, from: aliceAccount });
+		let res = await assistant.swapStake2Image(amount, 0, { value: amount, from: aliceAccount });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
 		const delta_stake_mf = assistant_stake_balance_before.mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
@@ -1292,7 +1292,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 
 		const amount = ether('5')
 
-		let res = await assistant.swapImage2Stake(amount, { from: aliceAccount });
+		let res = await assistant.swapImage2Stake(amount, 0, { from: aliceAccount });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
 		const delta_stake_mf = assistant_stake_balance_before.mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
