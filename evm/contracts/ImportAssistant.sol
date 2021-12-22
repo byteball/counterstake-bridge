@@ -8,6 +8,8 @@ import "./CounterstakeLibrary.sol";
 
 contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 
+	using SafeERC20 for IERC20;
+
 	struct UintBalance {
 		uint stake;
 		uint image;
@@ -258,7 +260,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 			require(msg.value == stake_asset_amount, "wrong amount received");
 		else {
 			require(msg.value == 0, "don't send ETH");
-			require(IERC20(tokenAddress).transferFrom(msg.sender, address(this), stake_asset_amount), "failed to pull stake");
+			IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), stake_asset_amount);
 		}
 		require(IERC20(bridgeAddress).transferFrom(msg.sender, address(this), image_asset_amount), "failed to pull image");
 
@@ -324,7 +326,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 			require(msg.value == stake_asset_amount, "wrong amount received");
 		else {
 			require(msg.value == 0, "don't send ETH");
-			require(IERC20(tokenAddress).transferFrom(msg.sender, address(this), stake_asset_amount), "failed to pull stake");
+			IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), stake_asset_amount);
 		}
 
 		(, IntBalance memory net_balance) = updateMFAndGetBalances(stake_asset_amount, 0, false);
@@ -403,7 +405,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 		if (tokenAddress == address(0))
 			payable(to).transfer(amount);
 		else
-			require(IERC20(tokenAddress).transfer(to, amount), "failed to transfer stake asset");
+			IERC20(tokenAddress).safeTransfer(to, amount);
 	}
 
 	function payImageTokens(address to, uint amount) internal {

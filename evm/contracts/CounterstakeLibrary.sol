@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 // The purpose of the library is to separate some of the code out of the Export/Import contracts and keep their sizes under the 24KiB limit
 
 
 library CounterstakeLibrary {
+
+	using SafeERC20 for IERC20;
 
 	enum Side {no, yes}
 
@@ -143,7 +146,7 @@ library CounterstakeLibrary {
 			if (settings.tokenAddress == address(0))
 				payable(msg.sender).transfer(excess);
 			else
-				require(IERC20(settings.tokenAddress).transfer(msg.sender, excess), "failed to transfer the token");
+				IERC20(settings.tokenAddress).safeTransfer(msg.sender, excess);
 		}
 	}
 

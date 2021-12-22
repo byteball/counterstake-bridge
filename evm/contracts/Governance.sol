@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./VotedValue.sol";
 
 contract Governance is ReentrancyGuard {
+
+	using SafeERC20 for IERC20;
 
 	uint constant public governance_challenging_period = 10 days;
 	uint constant public governance_freeze_period = 30 days;
@@ -61,7 +64,7 @@ contract Governance is ReentrancyGuard {
 			require(msg.value == amount, "wrong amount received");
 		else {
 			require(msg.value == 0, "don't send ETH");
-			require(IERC20(votingTokenAddress).transferFrom(from, address(this), amount), "failed to pull gov deposit");
+			IERC20(votingTokenAddress).safeTransferFrom(from, address(this), amount);
 		}
 		balances[from] += amount;
 	}
@@ -81,6 +84,6 @@ contract Governance is ReentrancyGuard {
 		if (votingTokenAddress == address(0))
 			payable(msg.sender).transfer(amount);
 		else
-			require(IERC20(votingTokenAddress).transfer(msg.sender, amount), "failed to withdraw gov deposit");
+			IERC20(votingTokenAddress).safeTransfer(msg.sender, amount);
 	}
 }

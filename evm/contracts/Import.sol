@@ -15,6 +15,7 @@ interface IERC20WithSymbol is IERC20 {
 
 contract Import is ERC20, Counterstake {
 
+	using SafeERC20 for IERC20;
 
 	event NewRepatriation(address sender_address, uint amount, uint reward, string home_address, string data);
 
@@ -103,7 +104,7 @@ contract Import is ERC20, Counterstake {
 		if (settings.tokenAddress == address(0))
 			to_address.transfer(won_stake);
 		else
-			require(IERC20(settings.tokenAddress).transfer(to_address, won_stake), "failed to send the won stake");
+			IERC20(settings.tokenAddress).safeTransfer(to_address, won_stake);
 	}
 
 	function receiveMoneyInClaim(uint stake, uint paid_amount) internal override {

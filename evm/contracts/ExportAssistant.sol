@@ -8,6 +8,8 @@ import "./CounterstakeLibrary.sol";
 contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver 
 {
 
+	using SafeERC20 for IERC20;
+
 	address public bridgeAddress;
 	address public tokenAddress;
 	address public managerAddress;
@@ -222,7 +224,7 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 			require(msg.value == stake_asset_amount, "wrong amount received");
 		else {
 			require(msg.value == 0, "don't send ETH");
-			require(IERC20(tokenAddress).transferFrom(msg.sender, address(this), stake_asset_amount), "failed to pull to buy shares");
+			IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), stake_asset_amount);
 		}
 		(uint gross_balance, int net_balance) = updateMFAndGetBalances(stake_asset_amount, true);
 		require((gross_balance == 0) == (totalSupply() == 0), "bad init state");
@@ -298,7 +300,7 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 		if (tokenAddress == address(0))
 			payable(to).transfer(amount);
 		else
-			require(IERC20(tokenAddress).transfer(to, amount), "failed to transfer");
+			IERC20(tokenAddress).safeTransfer(to, amount);
 	}
 
 	function getShares(uint balance) view internal returns (uint) {

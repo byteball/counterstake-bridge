@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./Governance.sol";
 import "./GovernanceFactory.sol";
@@ -15,6 +16,8 @@ interface CounterstakeReceiver {
 }
 
 abstract contract Counterstake is ReentrancyGuard {
+
+	using SafeERC20 for IERC20;
 
 	event NewClaim(uint indexed claim_num, address author_address, string sender_address, address recipient_address, string txid, uint32 txts, uint amount, int reward, uint stake, string data, uint32 expiry_ts);
 	event NewChallenge(uint indexed claim_num, address author_address, uint stake, CounterstakeLibrary.Side outcome, CounterstakeLibrary.Side current_outcome, uint yes_stake, uint no_stake, uint32 expiry_ts, uint challenging_target);
@@ -285,7 +288,7 @@ abstract contract Counterstake is ReentrancyGuard {
 			require(msg.value == stake_asset_amount, "wrong amount received");
 		else {
 			require(msg.value == 0, "don't send ETH");
-			require(IERC20(settings.tokenAddress).transferFrom(msg.sender, address(this), stake_asset_amount), "failed to pull the token");
+			IERC20(settings.tokenAddress).safeTransferFrom(msg.sender, address(this), stake_asset_amount);
 		}
 	}
 

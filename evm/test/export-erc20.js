@@ -3,7 +3,8 @@ require('@openzeppelin/test-helpers/configure')({
 });
 
 const Export = artifacts.require("Export");
-const Token = artifacts.require("Token");
+//const Token = artifacts.require("Token");
+const Token = artifacts.require("BadToken");
 const GovernanceFactory = artifacts.require("GovernanceFactory");
 const VotedValueFactory = artifacts.require("VotedValueFactory");
 const CounterstakeFactory = artifacts.require("CounterstakeFactory");
@@ -106,7 +107,7 @@ contract("Exporting an ERC20 token", async accounts => {
 
 		// test ethers events
 		exportContract = new ethers.Contract(res.logs[0].args.contractAddress, exportJson.abi, provider);
-		console.log('==== exportContract', exportContract)
+	//	console.log('==== exportContract', exportContract)
 	//	throw 12;
 		exportContract.on('NewExpatriation', (sender_address, amount, reward, foreign_address, data, event) => {
 			console.log('==== NewExpatriation event', sender_address, amount.toString(), reward.toString(), foreign_address, data, event);

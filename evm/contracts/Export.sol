@@ -6,6 +6,7 @@ import "./Counterstake.sol";
 
 contract Export is Counterstake {
 
+	using SafeERC20 for IERC20;
 
 	event NewExpatriation(address sender_address, uint amount, int reward, string foreign_address, string data);
 
@@ -46,7 +47,7 @@ contract Export is Counterstake {
 			to_address.transfer(total);
 		}
 		else {
-			require(IERC20(settings.tokenAddress).transfer(to_address, total), "failed to send tokens");
+			IERC20(settings.tokenAddress).safeTransfer(to_address, total);
 		}
 	}
 
@@ -59,7 +60,7 @@ contract Export is Counterstake {
 			to_address.transfer(paid_amount);
 		}
 		else {
-			require(IERC20(settings.tokenAddress).transfer(to_address, paid_amount), "failed to send tokens");
+			IERC20(settings.tokenAddress).safeTransfer(to_address, paid_amount);
 		}
 	}
 

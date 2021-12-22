@@ -3,7 +3,8 @@ require('@openzeppelin/test-helpers/configure')({
 });
 
 const Export = artifacts.require("Export");
-const Token = artifacts.require("Token");
+const Token = artifacts.require("BadToken");
+//const Token = artifacts.require("Token");
 const Governance = artifacts.require("Governance");
 const VotedValueUint = artifacts.require("VotedValueUint");
 const VotedValueUintArray = artifacts.require("VotedValueUintArray");
