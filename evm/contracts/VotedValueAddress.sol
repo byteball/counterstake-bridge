@@ -21,6 +21,10 @@ contract VotedValueAddress is VotedValue {
 	// mapping(value => mapping(who => votes))
 	mapping(address => mapping(address => uint)) public votesByValueAddress;
 
+	event Vote(address indexed who, address indexed value, uint votes, uint total_votes, address leader, uint leader_total_votes, uint expiry_ts);
+	event Unvote(address indexed who, address indexed value, uint votes);
+	event Commit(address indexed who, address indexed value);
+
 	constructor() VotedValue(Governance(address(0))) {}
 
 	// constructor(Governance _governance, address initial_value, function(address) external _validationCallback, function(address) external _commitCallback) VotedValue(_governance) {
@@ -72,6 +76,7 @@ contract VotedValueAddress is VotedValue {
 			leader = value;
 			challenging_period_start_ts = block.timestamp;
 		}
+		emit Vote(msg.sender, value, balance, votesByValue[value], leader, votesByValue[leader], challenging_period_start_ts + governance.governance_challenging_period());
 	}
 
 	function unvote() external {
@@ -84,6 +89,7 @@ contract VotedValueAddress is VotedValue {
 		removeVote(prev_choice);
 		delete choices[msg.sender];
 		delete hasVote[msg.sender];
+		emit Unvote(msg.sender, prev_choice, votesByValue[prev_choice]);
 	}
 
 	function removeVote(address value) internal {
@@ -96,6 +102,7 @@ contract VotedValueAddress is VotedValue {
 		checkChallengingPeriodExpiry();
 		current_value = leader;
 		commitCallback(leader);
+		emit Commit(msg.sender, leader);
 	}
 }
 

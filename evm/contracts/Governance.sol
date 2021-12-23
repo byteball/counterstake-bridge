@@ -20,6 +20,9 @@ contract Governance is ReentrancyGuard {
 	VotedValue[] public votedValues;
 	mapping(string => VotedValue) public votedValuesMap;
 
+	event Deposit(address indexed who, uint amount);
+	event Withdrawal(address indexed who, uint amount);
+
 
 	constructor(address _governedContractAddress, address _votingTokenAddress){
 		init(_governedContractAddress, _votingTokenAddress);
@@ -67,6 +70,7 @@ contract Governance is ReentrancyGuard {
 			IERC20(votingTokenAddress).safeTransferFrom(from, address(this), amount);
 		}
 		balances[from] += amount;
+		emit Deposit(from, amount);
 	}
 
 
@@ -85,5 +89,6 @@ contract Governance is ReentrancyGuard {
 			payable(msg.sender).transfer(amount);
 		else
 			IERC20(votingTokenAddress).safeTransfer(msg.sender, amount);
+		emit Withdrawal(msg.sender, amount);
 	}
 }

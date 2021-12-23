@@ -16,6 +16,10 @@ contract VotedValueUintArray is VotedValue {
 	mapping(bytes32 => uint) public votesByValue;
 	mapping(bytes32 => mapping(address => uint)) public votesByValueAddress;
 
+	event Vote(address indexed who, uint[] value, uint votes, uint total_votes, uint[] leader, uint leader_total_votes, uint expiry_ts);
+	event Unvote(address indexed who, uint[] value, uint votes);
+	event Commit(address indexed who, uint[] value);
+
 	constructor() VotedValue(Governance(address(0))) {}
 
 	// constructor(Governance _governance, uint[] memory initial_value, function(uint[] memory) external _validationCallback, function(uint[] memory) external _commitCallback) VotedValue(_governance) {
@@ -81,6 +85,7 @@ contract VotedValueUintArray is VotedValue {
 			leader = value;
 			challenging_period_start_ts = block.timestamp;
 		}
+		emit Vote(msg.sender, value, balance, votesByValue[key], leader, votesByValue[getKey(leader)], challenging_period_start_ts + governance.governance_challenging_period());
 	}
 
 	function unvote() external {
@@ -93,6 +98,7 @@ contract VotedValueUintArray is VotedValue {
 		removeVote(prev_choice);
 		delete choices[msg.sender];
 		delete hasVote[msg.sender];
+		emit Unvote(msg.sender, prev_choice, votesByValue[getKey(prev_choice)]);
 	}
 
 	function removeVote(uint[] memory value) internal {
@@ -106,5 +112,6 @@ contract VotedValueUintArray is VotedValue {
 		checkChallengingPeriodExpiry();
 		current_value = leader;
 		commitCallback(leader);
+		emit Commit(msg.sender, leader);
 	}
 }
