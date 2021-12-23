@@ -94,7 +94,7 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 	}
 
 
-	// reentrancy is probably not a risk unless a malicious token makes a reentrant call from its balanceOf, so nonReentrant can be removed to save 10K gas
+	// Export's claim() calls token functions before performing state changes therefore nonReentrant is necessary
 	function claim(string memory txid, uint32 txts, uint amount, int reward, string memory sender_address, address payable recipient_address, string memory data) onlyManager nonReentrant external {
 		require(reward >= 0, "negative reward");
 		uint claim_num = Export(bridgeAddress).last_claim_num() + 1;
@@ -115,7 +115,6 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 		Export(bridgeAddress).claim{value: tokenAddress == address(0) ? total : 0}(txid, txts, amount, reward, required_stake, sender_address, recipient_address, data);
 	}
 
-	// like in claim() above, nonReentrant is probably unnecessary
 	function challenge(uint claim_num, CounterstakeLibrary.Side stake_on, uint stake) onlyManager nonReentrant external {
 		(, int net_balance) = updateMFAndGetBalances(0, false);
 		require(net_balance > 0, "no net balance");
