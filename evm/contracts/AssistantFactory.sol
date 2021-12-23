@@ -15,8 +15,8 @@ contract AssistantFactory {
 	address public immutable exportAssistantFactory;
 	address public immutable importAssistantFactory;
 
-	GovernanceFactory immutable governanceFactory;
-	VotedValueFactory immutable votedValueFactory;
+	GovernanceFactory private immutable governanceFactory;
+	VotedValueFactory private immutable votedValueFactory;
 
 	constructor(address _exportAssistantFactory, address _importAssistantFactory, GovernanceFactory _governanceFactory, VotedValueFactory _votedValueFactory) {
 		exportAssistantFactory = _exportAssistantFactory;

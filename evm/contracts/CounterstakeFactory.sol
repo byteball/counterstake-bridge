@@ -18,8 +18,8 @@ contract CounterstakeFactory {
 	address public immutable exportMaster;
 	address public immutable importMaster;
 
-	GovernanceFactory immutable governanceFactory;
-	VotedValueFactory immutable votedValueFactory;
+	GovernanceFactory private immutable governanceFactory;
+	VotedValueFactory private immutable votedValueFactory;
 
 	constructor(address _exportMaster, address _importMaster, GovernanceFactory _governanceFactory, VotedValueFactory _votedValueFactory) {
 		exportMaster = _exportMaster;
