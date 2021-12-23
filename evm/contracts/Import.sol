@@ -47,6 +47,7 @@ contract Import is ERC20, Counterstake {
 		home_asset = _home_asset;
 		name = __name;
 		symbol = __symbol;
+		validateOracle(oracleAddr);
 	}
 
 	function setupGovernance(GovernanceFactory governanceFactory, VotedValueFactory votedValueFactory) override virtual public {
@@ -63,7 +64,7 @@ contract Import is ERC20, Counterstake {
 		);
 	}
 
-	function validateOracle(address oracleAddr) view external {
+	function validateOracle(address oracleAddr) view public {
 		require(CounterstakeLibrary.isContract(oracleAddr), "bad oracle");
 		(uint num, uint den) = getOraclePrice(oracleAddr);
 		require(num > 0 || den > 0, "no price from oracle");

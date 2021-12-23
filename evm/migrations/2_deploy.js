@@ -11,6 +11,7 @@ const CounterstakeFactory = artifacts.require('CounterstakeFactory');
 const ExportAssistant = artifacts.require('ExportAssistant');
 const ImportAssistant = artifacts.require('ImportAssistant');
 const AssistantFactory = artifacts.require('AssistantFactory');
+const Oracle = artifacts.require('Oracle');
 const { BN, ether, constants } = require('@openzeppelin/test-helpers');
 
 module.exports = async function (deployer, network, accounts) {
@@ -53,7 +54,15 @@ module.exports = async function (deployer, network, accounts) {
 	const governanceFactory = await GovernanceFactory.deployed();
 	console.log('GovernanceFactory address', governanceFactory.address);
 
+	
+	// Oracle
 
+	await deployer.deploy(Oracle);
+	const oracle = await Oracle.deployed();
+	console.log('Orcacle address', oracle.address);
+	await oracle.setPrice("master", "_NATIVE_", 30, 1500);
+
+	
 	// Bridges
 
 	// export
@@ -62,7 +71,7 @@ module.exports = async function (deployer, network, accounts) {
 	console.log('export master address', ex.address);
 
 	// import
-	await deployer.deploy(Import, "Obyte", "master", "Imported GBYTE", "GBYTE", constants.ZERO_ADDRESS, constants.ZERO_ADDRESS, 160, 110, ether('100'), [14*3600, 3*24*3600, 7*24*3600, 30*24*3600], [4*24*3600, 7*24*3600, 30*24*3600]);
+	await deployer.deploy(Import, "Obyte", "master", "Imported GBYTE", "GBYTE", constants.ZERO_ADDRESS, oracle.address, 160, 110, ether('100'), [14*3600, 3*24*3600, 7*24*3600, 30*24*3600], [4*24*3600, 7*24*3600, 30*24*3600]);
 	const im = await Import.deployed();
 	console.log('import master address', im.address);
 

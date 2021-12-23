@@ -54,6 +54,10 @@ abstract contract Counterstake is ReentrancyGuard {
 
 	function initCounterstake(address _tokenAddr, uint16 _counterstake_coef100, uint16 _ratio100, uint _large_threshold, uint[] memory _challenging_periods, uint[] memory _large_challenging_periods) public {
 		require(address(governance) == address(0), "already initialized");
+		validateRatio(_ratio100);
+		validateCounterstakeCoef(_counterstake_coef100);
+		validateChallengingPeriods(_challenging_periods);
+		validateChallengingPeriods(_large_challenging_periods);
 		settings = CounterstakeLibrary.Settings({
 			tokenAddress: _tokenAddr,
 			counterstake_coef100: _counterstake_coef100 > 100 ? _counterstake_coef100 : 150,
@@ -96,7 +100,7 @@ abstract contract Counterstake is ReentrancyGuard {
 		governance.addVotedValue("large_challenging_periods", votedValueFactory.createVotedValueUintArray(governance, settings.large_challenging_periods, this.validateChallengingPeriods, this.setLargeChallengingPeriods));
 	}
 
-	function validateRatio(uint _ratio100) pure external {
+	function validateRatio(uint _ratio100) pure public {
 		require(_ratio100 > 0 && _ratio100 < 64000, "bad ratio");
 	}
 
@@ -105,7 +109,7 @@ abstract contract Counterstake is ReentrancyGuard {
 	}
 
 	
-	function validateCounterstakeCoef(uint _counterstake_coef100) pure external {
+	function validateCounterstakeCoef(uint _counterstake_coef100) pure public {
 		require(_counterstake_coef100 > 100 && _counterstake_coef100 < 64000, "bad counterstake coef");
 	}
 
@@ -141,7 +145,7 @@ abstract contract Counterstake is ReentrancyGuard {
 	}
 
 
-	function validateChallengingPeriods(uint[] memory periods) pure external {
+	function validateChallengingPeriods(uint[] memory periods) pure public {
 		CounterstakeLibrary.validateChallengingPeriods(periods);
 	}
 
