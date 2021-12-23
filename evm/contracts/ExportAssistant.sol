@@ -271,8 +271,9 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 		profit = 0;
 	}
 
-	// zero address is allowed
+	// zero address is not allowed
     function assignNewManager(address newManager) onlyManager external {
+		require(newManager != address(0), "zero address");
 		emit NewManager(managerAddress, newManager);
         managerAddress = newManager;
     }
