@@ -6,7 +6,7 @@ import "./VotedValue.sol";
 
 contract GovernanceFactory {
 
-	address public governanceMaster;
+	address public immutable governanceMaster;
 
 	constructor(address _governanceMaster) {
 		governanceMaster = _governanceMaster;

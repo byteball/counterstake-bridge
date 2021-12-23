@@ -15,11 +15,11 @@ contract CounterstakeFactory {
 	uint[] private default_challenging_periods = [72 hours, 7 days, 30 days, 60 days];
 	uint[] private default_large_challenging_periods = [1 weeks, 30 days, 60 days];
 
-	address public exportMaster;
-	address public importMaster;
+	address public immutable exportMaster;
+	address public immutable importMaster;
 
-	GovernanceFactory governanceFactory;
-	VotedValueFactory votedValueFactory;
+	GovernanceFactory immutable governanceFactory;
+	VotedValueFactory immutable votedValueFactory;
 
 	constructor(address _exportMaster, address _importMaster, GovernanceFactory _governanceFactory, VotedValueFactory _votedValueFactory) {
 		exportMaster = _exportMaster;

@@ -12,11 +12,11 @@ contract AssistantFactory {
 	event NewExportAssistant(address contractAddress, address bridgeAddress, address manager, string symbol);
 	event NewImportAssistant(address contractAddress, address bridgeAddress, address manager, string symbol);
 
-	address public exportAssistantFactory;
-	address public importAssistantFactory;
+	address public immutable exportAssistantFactory;
+	address public immutable importAssistantFactory;
 
-	GovernanceFactory governanceFactory;
-	VotedValueFactory votedValueFactory;
+	GovernanceFactory immutable governanceFactory;
+	VotedValueFactory immutable votedValueFactory;
 
 	constructor(address _exportAssistantFactory, address _importAssistantFactory, GovernanceFactory _governanceFactory, VotedValueFactory _votedValueFactory) {
 		exportAssistantFactory = _exportAssistantFactory;

@@ -9,9 +9,9 @@ import "./VotedValueAddress.sol";
 
 contract VotedValueFactory {
 
-	address public votedValueUintMaster;
-	address public votedValueUintArrayMaster;
-	address public votedValueAddressMaster;
+	address public immutable votedValueUintMaster;
+	address public immutable votedValueUintArrayMaster;
+	address public immutable votedValueAddressMaster;
 
 	constructor(address _votedValueUintMaster, address _votedValueUintArrayMaster, address _votedValueAddressMaster) {
 		votedValueUintMaster = _votedValueUintMaster;
