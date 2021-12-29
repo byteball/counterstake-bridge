@@ -106,6 +106,8 @@ async function handleTransfer(transfer) {
 	const fDstReward = parseFloat(dst_reward.toString()) / 10 ** dst_asset_decimals;
 	const src_api = networkApi[src_network];
 	const dst_api = networkApi[dst_network];
+	if (!dst_api && conf['disable' + dst_network])
+		return console.log(`${dst_network} disabled, will not claim transfer ${txid}`);
 
 	if (!dst_api.isValidAddress(dest_address))
 		return console.log(`invalid dest address ${dest_address} in transfer ${txid}, will not claim`);
