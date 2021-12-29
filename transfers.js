@@ -160,7 +160,7 @@ async function handleTransfer(transfer) {
 		
 		let stake = await dst_api.getRequiredStake(bridge_aa, dst_amount);
 		stake = BigNumber.from(stake);
-		if (type === 'expatriation') // we use oracle price, which might change, add 10%
+		if (type === 'expatriation' && dst_network === 'Obyte') // we use oracle price, which might change, add 10%
 			stake = stake.mul(110).div(100);
 		let bClaimFromPooledAssistant = !!assistant_aa;
 		if (bClaimFromPooledAssistant) {
