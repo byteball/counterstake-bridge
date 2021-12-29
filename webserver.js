@@ -56,9 +56,9 @@ router.get('/bridges', async (ctx) => {
 
 router.get('/pooled_assistants', async (ctx) => {
 	const assistants = await db.query("SELECT pooled_assistants.*, MIN(claims.creation_date) AS first_claim_date FROM pooled_assistants LEFT JOIN claims ON assistant_aa=claimant_address GROUP BY assistant_aa");
-	for (let assistant of assistants)
-		if (assistant.creation_date && assistant.creation_date < assistant.first_claim_date)
-			assistant.first_claim_date = assistant.creation_date;
+//	for (let assistant of assistants)
+//		if (assistant.creation_date && assistant.creation_date < assistant.first_claim_date)
+//			assistant.first_claim_date = assistant.creation_date;
 	ctx.body = {
 		status: 'success',
 		data: assistants
