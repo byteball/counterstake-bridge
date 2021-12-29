@@ -892,8 +892,13 @@ async function populatePooledAssistantsTable() {
 }
 
 async function getActiveClaimants() {
-	const claimant_rows = await db.query(`SELECT DISTINCT claimant_address FROM claims WHERE claimant_address != dest_address AND creation_date > ` + db.addTime('-7 DAY'));
-	const claimants = claimant_rows.map(row => row.claimant_address);
+	const claimant_rows = await db.query(`SELECT DISTINCT claimant_address FROM claims WHERE claimant_address != dest_address AND creation_date > ` + db.addTime('-30 DAY'));
+	let claimants = claimant_rows.map(row => row.claimant_address);
+	const manager_rows = await db.query(`SELECT DISTINCT manager FROM pooled_assistants WHERE assistant_aa IN(${claimants.map(db.escape).join(', ')})`);
+	const managers = manager_rows.map(row => row.manager);
+	for (let manager of managers)
+		if (!claimants.includes(manager))
+			claimants.push(manager);
 	return claimants;
 }
 
