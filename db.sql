@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS pooled_assistants (
 	manager VARCHAR(50) NOT NULL,
 	shares_asset VARCHAR(50) NOT NULL,
 	shares_symbol VARCHAR(20) NULL,
+	creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (bridge_id) REFERENCES bridges(bridge_id)
 );
 -- query separator
