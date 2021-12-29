@@ -24,7 +24,7 @@ class BSC extends EvmChain {
 	}
 
 	getMaxBlockRange() {
-		return 5000;
+		return 1000;
 	}
 
 	async getAddressBlocks(address, startblock, startts) {
