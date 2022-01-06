@@ -765,6 +765,7 @@ async function recheckOldTransfers() {
 		`SELECT transfers.* FROM transfers LEFT JOIN claims USING(transfer_id)
 		WHERE claim_num IS NULL AND is_confirmed=1 AND transfers.reward>=0
 			AND transfers.creation_date < ${db.addTime('-1 MINUTE')}
+			${process.env.testnet ? `AND transfers.creation_date > ${db.addTime('-30 DAY')}` : ''}
 		ORDER BY transfer_id`
 	);
 	console.error('----- transfers', transfers.length)
