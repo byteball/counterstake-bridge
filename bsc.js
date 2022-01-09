@@ -16,7 +16,13 @@ class BSC extends EvmChain {
 		bCreated = true;
 		
 		const provider = getProvider('BSC');
-		super('BSC', conf.bsc_factory_contract_address, conf.bsc_assistant_factory_contract_address, provider);
+		super('BSC', conf.bsc_factory_contract_address, conf.bsc_assistant_factory_contract_address, provider, true);
+	}
+
+	forget() {
+		console.log(`removing ${this.getProvider().listenerCount()} listeners on ${this.network}`);
+		this.getProvider().removeAllListeners();
+		bCreated = false;
 	}
 
 	getNativeSymbol() {
