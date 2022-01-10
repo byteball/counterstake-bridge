@@ -1022,7 +1022,7 @@ async function start() {
 		if (network === 'Ethereum')
 			networkApi.Ethereum = new Ethereum();
 		else if (network === 'BSC')
-			networkApi.Polygon = new BSC();
+			networkApi.BSC = new BSC();
 		else if (network === 'Polygon')
 			networkApi.Polygon = new Polygon();
 		else
