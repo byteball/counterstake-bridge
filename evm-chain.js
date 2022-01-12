@@ -81,7 +81,7 @@ class EvmChain {
 		const top_available_block = await this.getTopAvailableBlock();
 		if (last_block > top_available_block)
 			return last_block;
-		notifications.notifyAdmin(`missed ${top_available_block - last_block} blocks`, `${this.network} last block ${last_block}, top available block ${top_available_block}`);
+		console.log(`getSinceBlock() missed ${top_available_block - last_block} blocks`, `${this.network} last block ${last_block}, top available block ${top_available_block}`);
 		return top_available_block;
 	}
 
