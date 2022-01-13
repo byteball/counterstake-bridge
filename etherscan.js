@@ -14,18 +14,25 @@ async function waitBetweenRequests(base_url) {
 	}
 }
 
-async function getAddressHistory({ base_url, address, startblock, startts, api_key }) {
+async function getAddressHistory({ base_url, address, startblock, startts, api_key, retry_count = 0 }) {
 	const unlock = await mutex.lock(base_url);
+	const retry = async (msg) => {
+		unlock(msg);
+		retry_count++;
+		return await getAddressHistory({ base_url, address, startblock, startts, api_key, retry_count });
+	};
 	await waitBetweenRequests(base_url);
 	if (startts && !startblock) {
 		let url = `${base_url}/api?module=block&action=getblocknobytime&timestamp=${startts}&closest=after`;
 		if (api_key)
 			url += `&apikey=${api_key}`;
 		const resp = await request(url);
+		last_req_ts[base_url] = Date.now();
+		if (resp.message === 'NOTOK' && retry_count < 10)
+			return await retry(`got "${resp.result}", will retry`);
 		startblock = resp.result;
 		if (!startblock)
 			throw Error(`no block number from ${base_url} for ${startts}: ${JSON.stringify(resp)}`);
-		last_req_ts[base_url] = Date.now();
 		await waitBetweenRequests(base_url);
 	}
 	let url = `${base_url}/api?module=account&action=txlist&address=${address}`;
@@ -34,10 +41,12 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 	if (api_key)
 		url += `&apikey=${api_key}`;
 	const resp = await request(url);
+	last_req_ts[base_url] = Date.now();
+	if (resp.message === 'NOTOK' && retry_count < 10)
+		return await retry(`got "${resp.result}", will retry`);
 	const history = resp.result;
 	if (!Array.isArray(history))
 		throw Error(`no history from ${base_url} for ${address}: ${JSON.stringify(resp)}`);
-	last_req_ts[base_url] = Date.now();
 	unlock();
 	return history;
 }
