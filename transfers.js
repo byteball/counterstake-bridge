@@ -1056,6 +1056,7 @@ async function start() {
 		// called after adding watched addresses so that they are included in the first history request
 		if (net === 'Obyte')
 			network.start();
+		console.log(`started`, net);
 	}
 
 //	await populatePooledAssistantsTable();
