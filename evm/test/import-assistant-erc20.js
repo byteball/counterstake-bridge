@@ -150,6 +150,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		await token.approve(assistant.address, ether('5000'), { from: charlieAccount });
 		expect(await token.allowance(charlieAccount, assistant.address)).to.be.bignumber.equal(ether('5000'));
 
+		expect(await assistant.profit_diffusion_period()).to.be.bignumber.eq(new BN(10 * 24 * 3600));
 	});
 
 	it("the 1st claim", async () => {
@@ -410,6 +411,9 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		this.stake_mf = this.stake_mf.add(delta_stake_mf)
 		this.image_mf = this.image_mf.add(delta_image_mf)
 		this.ts = ts
+		this.recent_stake_profit = this.stake_profit
+		this.recent_image_profit = this.image_profit
+		this.recent_profit_ts = ts
 		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(bn0)
 		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(bn0)
 		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(bn0)
@@ -419,6 +423,9 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
 		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+		expect((await assistant.recent_profit())[0]).to.be.bignumber.eq(this.recent_stake_profit)
+		expect((await assistant.recent_profit())[1]).to.be.bignumber.eq(this.recent_image_profit)
+		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
 	});
 
 	it("failed withdraw: already withdrawn", async () => {
@@ -473,6 +480,9 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 
 		expect(await instance.stakes(this.claim_num, yes, aliceAccount)).to.be.bignumber.equal(stake);
 
+		expect((await assistant.recent_profit())[0]).to.be.bignumber.eq(this.recent_stake_profit)
+		expect((await assistant.recent_profit())[1]).to.be.bignumber.eq(this.recent_image_profit)
+		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
 	});
 
 	it("challenge by assistant, outcome changed", async () => {
@@ -518,6 +528,9 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
 		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+		expect((await assistant.recent_profit())[0]).to.be.bignumber.eq(this.recent_stake_profit)
+		expect((await assistant.recent_profit())[1]).to.be.bignumber.eq(this.recent_image_profit)
+		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
 	});
 
 	it("failed withdraw by alice: you lost", async () => {
@@ -561,6 +574,12 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		this.ts = ts
 		this.stake_profit = this.stake_profit.add(ether('300'));
 
+		const elapsed = ts - this.recent_profit_ts
+		expect(elapsed).to.be.closeTo(3600 + 3 * 24 * 3600 + 1, 10)
+		this.recent_stake_profit = this.recent_stake_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600)).add(ether('300'))
+		this.recent_image_profit = this.recent_image_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600))
+		this.recent_profit_ts = ts
+
 		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(bn0)
 		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(bn0)
 		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(bn0)
@@ -570,6 +589,9 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
 		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+		expect((await assistant.recent_profit())[0]).to.be.bignumber.eq(this.recent_stake_profit)
+		expect((await assistant.recent_profit())[1]).to.be.bignumber.eq(this.recent_image_profit)
+		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
 	});
 
 	it("alice trigers a loss and fails because there is no loss to the assistant", async () => {
@@ -603,8 +625,11 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		const image_sf = this.image_profit.mul(new BN(25)).div(new BN(100))
 		const stake_net_balance = assistant_stake_balance_before.sub(this.stake_mf).sub(stake_sf)
 		const image_net_balance = assistant_image_balance_before.sub(this.image_mf).sub(image_sf)
-		let stake_payout = stake_net_balance.mul(shares_amount).div(ether('200'))
-		let image_payout = image_net_balance.mul(shares_amount).div(ether('200'))
+		const elapsed = ts - this.recent_profit_ts
+		const unavailable_stake_profit = this.recent_stake_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600))
+		const unavailable_image_profit = this.recent_image_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600))
+		let stake_payout = stake_net_balance.sub(unavailable_stake_profit).mul(shares_amount).div(ether('200'))
+		let image_payout = image_net_balance.sub(unavailable_image_profit).mul(shares_amount).div(ether('200'))
 		stake_payout = stake_payout.sub(stake_payout.mul(new BN(30)).div(new BN(10000)))
 		image_payout = image_payout.sub(image_payout.mul(new BN(30)).div(new BN(10000)))
 		expect(assistant_stake_balance_before.sub(stake_payout)).to.be.bignumber.eq(assistant_stake_balance_after)

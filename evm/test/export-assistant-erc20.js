@@ -134,6 +134,7 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		await token.approve(assistant.address, ether('50'), { from: charlieAccount });
 		expect(await token.allowance(charlieAccount, assistant.address)).to.be.bignumber.equal(ether('50'));
 
+		expect(await assistant.profit_diffusion_period()).to.be.bignumber.eq(new BN(10 * 24 * 3600));
 	});
 
 	it("start expatriation", async () => {
@@ -304,11 +305,15 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		const delta_mf = ether('20').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
 		this.mf = this.mf.add(delta_mf)
 		this.ts = ts
+		this.recent_profit = this.profit
+		this.recent_profit_ts = ts
 		expect(await assistant.balance_in_work()).to.be.bignumber.eq(bn0)
 		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(bn0)
 		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+		expect(await assistant.recent_profit()).to.be.bignumber.eq(this.recent_profit)
+		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
 	});
 
 	it("failed withdraw: already withdrawn", async () => {
@@ -363,6 +368,8 @@ contract("Exporting ERC20 with assistance", async accounts => {
 
 		expect(await instance.stakes(this.claim_num, yes, aliceAccount)).to.be.bignumber.equal(stake);
 
+		expect(await assistant.recent_profit()).to.be.bignumber.eq(this.recent_profit)
+		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
 	});
 
 	it("challenge by assistant, outcome changed", async () => {
@@ -399,6 +406,8 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+		expect(await assistant.recent_profit()).to.be.bignumber.eq(this.recent_profit)
+		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
 	});
 
 	it("failed withdraw by alice: you lost", async () => {
@@ -439,11 +448,18 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		this.ts = ts
 		this.profit = this.profit.add(ether('4'));
 
+		const elapsed = ts - this.recent_profit_ts
+		expect(elapsed).to.be.closeTo(3600 + 3 * 24 * 3600 + 1, 10)
+		this.recent_profit = this.recent_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600)).add(ether('4'))
+		this.recent_profit_ts = ts
+
 		expect(await assistant.balance_in_work()).to.be.bignumber.eq(bn0)
 		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(bn0)
 		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+		expect(await assistant.recent_profit()).to.be.bignumber.eq(this.recent_profit)
+		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
 	});
 
 	it("alice trigers a loss and fails because there is no loss to the assistant", async () => {
@@ -469,7 +485,9 @@ contract("Exporting ERC20 with assistance", async accounts => {
 
 		const sf = this.profit.mul(new BN(25)).div(new BN(100))
 		const net_balance = assistant_balance_before.sub(this.mf).sub(sf)
-		const payout = net_balance.mul(shares_amount).div(ether('20'))
+		const elapsed = ts - this.recent_profit_ts
+		const unavailable_profit = this.recent_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600))
+		const payout = net_balance.sub(unavailable_profit).mul(shares_amount).div(ether('20'))
 		expect(assistant_balance_before.sub(payout)).to.be.bignumber.eq(assistant_balance_after)
 		expect(bob_balance_before.add(payout)).to.be.bignumber.eq(bob_balance_after)
 

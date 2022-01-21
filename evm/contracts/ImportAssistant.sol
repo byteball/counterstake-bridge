@@ -29,6 +29,9 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 
 	uint8 public exponent;
 	
+	uint constant default_profit_diffusion_period = 10 days;
+	uint public profit_diffusion_period = default_profit_diffusion_period;
+
 	uint16 public swap_fee10000;
 
 	uint public ts;
@@ -37,6 +40,9 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 	UintBalance public balance_in_work;
 
 	mapping(uint => UintBalance) public balances_in_work;
+
+	UintBalance public recent_profit;
+	uint public recent_profit_ts;
 
 	Governance public governance;
 
@@ -87,6 +93,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 		if (tokenAddr != address(0))
 			IERC20(tokenAddr).approve(bridgeAddr, type(uint).max);
 		managerAddress = (managerAddr != address(0)) ? managerAddr : msg.sender;
+		profit_diffusion_period = default_profit_diffusion_period;
 	}
 
 
@@ -113,6 +120,23 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 		}
 	}
 
+	// part of the profit that has not diffused into the balance available for withdraw yet
+	function getUnavailableProfit() public view returns (UintBalance memory) {
+		uint elapsed = block.timestamp - recent_profit_ts;
+		return (elapsed >= profit_diffusion_period) 
+			? UintBalance(0, 0)
+			: UintBalance({
+				stake: recent_profit.stake * (profit_diffusion_period - elapsed) / profit_diffusion_period,
+				image: recent_profit.image * (profit_diffusion_period - elapsed) / profit_diffusion_period
+			});
+	}
+
+	function addRecentProfit(uint new_stake_profit, uint new_image_profit) internal {
+		UintBalance memory unavailableProfit = getUnavailableProfit();
+		recent_profit.stake = unavailableProfit.stake + new_stake_profit;
+		recent_profit.image = unavailableProfit.image + new_image_profit;
+		recent_profit_ts = block.timestamp;
+	}
 	
 
 	function claim(string memory txid, uint32 txts, uint amount, int reward, string memory sender_address, address payable recipient_address, string memory data) onlyManager nonReentrant external {
@@ -168,10 +192,11 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 	function receiveFromClaim(uint claim_num, uint claimed_amount, uint won_stake, UintBalance storage invested) private {
 		updateMFAndGetBalances(won_stake, claimed_amount, true); // this is already added to our balance
 
+		uint stake_profit;
 		if (won_stake >= invested.stake){
-			uint this_profit = won_stake - invested.stake;
-			require(this_profit < uint(type(int).max), "stake profit too large");
-			profit.stake += int(this_profit);
+			stake_profit = won_stake - invested.stake;
+			require(stake_profit < uint(type(int).max), "stake profit too large");
+			profit.stake += int(stake_profit);
 		}
 		else { // avoid negative values
 			uint loss = invested.stake - won_stake;
@@ -179,16 +204,19 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 			profit.stake -= int(loss);
 		}
 
+		uint image_profit;
 		if (claimed_amount >= invested.image){
-			uint this_profit = claimed_amount - invested.image;
-			require(this_profit < uint(type(int).max), "image profit too large");
-			profit.image += int(this_profit);
+			image_profit = claimed_amount - invested.image;
+			require(image_profit < uint(type(int).max), "image profit too large");
+			profit.image += int(image_profit);
 		}
 		else { // avoid negative values
 			uint loss = invested.image - claimed_amount;
 			require(loss < uint(type(int).max), "image loss too large");
 			profit.image -= int(loss);
 		}
+
+		addRecentProfit(stake_profit, image_profit);
 
 		balance_in_work.stake -= invested.stake;
 		balance_in_work.image -= invested.image;
@@ -290,6 +318,13 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 		(, IntBalance memory net_balance) = updateMFAndGetBalances(0, 0, true);
 		require(net_balance.stake > 0, "negative net balance in stake asset");
 		require(net_balance.image > 0, "negative net balance in image asset");
+
+		UintBalance memory unavailable_balance = getUnavailableProfit();
+		require(uint(net_balance.stake) > unavailable_balance.stake, "net balance too small in stake asset");
+		require(uint(net_balance.image) > unavailable_balance.image, "net balance too small in image asset");
+		net_balance.stake -= int(unavailable_balance.stake);
+		net_balance.image -= int(unavailable_balance.image);
+		
 		require(uint(net_balance.stake) > balance_in_work.stake, "negative risk-free net balance in stake asset");
 		require(uint(net_balance.image) > balance_in_work.image, "negative risk-free net balance in image asset");
 		
@@ -386,9 +421,18 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 		require(address(governance) == address(0), "already initialized");
 		governance = governanceFactory.createGovernance(address(this), address(this));
 
+		governance.addVotedValue("profit_diffusion_period", votedValueFactory.createVotedValueUint(governance, profit_diffusion_period, this.validateProfitDiffusionPeriod, this.setProfitDiffusionPeriod));
 		governance.addVotedValue("swap_fee10000", votedValueFactory.createVotedValueUint(governance, swap_fee10000, this.validateSwapFee, this.setSwapFee));
 	}
 
+
+	function validateProfitDiffusionPeriod(uint _profit_diffusion_period) pure external {
+		require(_profit_diffusion_period <= 365 days, "profit diffusion period too long");
+	}
+
+	function setProfitDiffusionPeriod(uint _profit_diffusion_period) onlyVotedValueContract external {
+		profit_diffusion_period = _profit_diffusion_period;
+	}
 
 
 	function validateSwapFee(uint _swap_fee10000) pure external {

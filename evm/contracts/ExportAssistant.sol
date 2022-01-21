@@ -19,12 +19,18 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 
 	uint8 public exponent;
 	
+	uint constant default_profit_diffusion_period = 10 days;
+	uint public profit_diffusion_period = default_profit_diffusion_period;
+
 	uint public ts;
 	int public profit;
 	uint public mf;
 	uint public balance_in_work;
 
 	mapping(uint => uint) public balances_in_work;
+
+	uint public recent_profit;
+	uint public recent_profit_ts;
 
 	Governance public governance;
 
@@ -74,6 +80,7 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 		if (tokenAddr != address(0))
 			IERC20(tokenAddr).approve(bridgeAddr, type(uint).max);
 		managerAddress = (managerAddr != address(0)) ? managerAddr : msg.sender;
+		profit_diffusion_period = default_profit_diffusion_period;
 	}
 
 
@@ -91,6 +98,19 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 			mf = new_mf;
 			ts = block.timestamp;
 		}
+	}
+
+	// part of the profit that has not diffused into the balance available for withdraw yet
+	function getUnavailableProfit() public view returns (uint) {
+		uint elapsed = block.timestamp - recent_profit_ts;
+		return (elapsed >= profit_diffusion_period) 
+			? 0
+			: recent_profit * (profit_diffusion_period - elapsed) / profit_diffusion_period;
+	}
+
+	function addRecentProfit(uint new_profit) internal {
+		recent_profit = getUnavailableProfit() + new_profit;
+		recent_profit_ts = block.timestamp;
 	}
 
 
@@ -150,6 +170,7 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 			uint this_profit = total - invested;
 			require(this_profit < uint(type(int).max), "this_profit too large");
 			profit += int(this_profit);
+			addRecentProfit(this_profit);
 		}
 		else { // avoid negative values
 			uint loss = invested - total;
@@ -247,6 +268,11 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 		_burn(msg.sender, shares_amount);
 		(, int net_balance) = updateMFAndGetBalances(0, true);
 		require(net_balance > 0, "negative net balance");
+		
+		uint unavailable_balance = getUnavailableProfit();
+		require(uint(net_balance) > unavailable_balance, "net balance too small");
+		net_balance -= int(unavailable_balance);
+
 		require(uint(net_balance) > balance_in_work, "negative risk-free net balance");
 
 		uint stake_asset_amount = (uint(net_balance) - balance_in_work) * (old_shares_supply**exponent - (old_shares_supply - shares_amount)**exponent) / old_shares_supply**exponent;
@@ -286,12 +312,21 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 	}
 
 	// would be happy to call this from the constructor but unfortunately `this` is not set at that time yet
-	function setupGovernance(GovernanceFactory governanceFactory, VotedValueFactory ) external {
+	function setupGovernance(GovernanceFactory governanceFactory, VotedValueFactory votedValueFactory) external {
 		require(address(governance) == address(0), "already initialized");
 		governance = governanceFactory.createGovernance(address(this), address(this));
 
+		governance.addVotedValue("profit_diffusion_period", votedValueFactory.createVotedValueUint(governance, profit_diffusion_period, this.validateProfitDiffusionPeriod, this.setProfitDiffusionPeriod));
 	}
 
+
+	function validateProfitDiffusionPeriod(uint _profit_diffusion_period) pure external {
+		require(_profit_diffusion_period <= 365 days, "profit diffusion period too long");
+	}
+
+	function setProfitDiffusionPeriod(uint _profit_diffusion_period) onlyVotedValueContract external {
+		profit_diffusion_period = _profit_diffusion_period;
+	}
 
 
 	// helper functions
