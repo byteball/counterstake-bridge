@@ -17,6 +17,8 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 	uint16 public management_fee10000;
 	uint16 public success_fee10000;
 
+	uint16 public exit_fee10000; // 0 by default
+
 	uint8 public exponent;
 	
 	uint constant default_profit_diffusion_period = 10 days;
@@ -276,6 +278,7 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 		require(uint(net_balance) > balance_in_work, "negative risk-free net balance");
 
 		uint stake_asset_amount = (uint(net_balance) - balance_in_work) * (old_shares_supply**exponent - (old_shares_supply - shares_amount)**exponent) / old_shares_supply**exponent;
+		stake_asset_amount -= stake_asset_amount * exit_fee10000/10000;
 		payStakeTokens(msg.sender, stake_asset_amount);
 	}
 
@@ -317,6 +320,7 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 		governance = governanceFactory.createGovernance(address(this), address(this));
 
 		governance.addVotedValue("profit_diffusion_period", votedValueFactory.createVotedValueUint(governance, profit_diffusion_period, this.validateProfitDiffusionPeriod, this.setProfitDiffusionPeriod));
+		governance.addVotedValue("exit_fee10000", votedValueFactory.createVotedValueUint(governance, exit_fee10000, this.validateExitFee, this.setExitFee));
 	}
 
 
@@ -326,6 +330,14 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 
 	function setProfitDiffusionPeriod(uint _profit_diffusion_period) onlyVotedValueContract external {
 		profit_diffusion_period = _profit_diffusion_period;
+	}
+
+	function validateExitFee(uint _exit_fee10000) pure external {
+		require(_exit_fee10000 < 10000, "bad exit fee");
+	}
+
+	function setExitFee(uint _exit_fee10000) onlyVotedValueContract external {
+		exit_fee10000 = uint16(_exit_fee10000);
 	}
 
 

@@ -27,12 +27,13 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 	uint16 public management_fee10000;
 	uint16 public success_fee10000;
 
+	uint16 public swap_fee10000;
+	uint16 public exit_fee10000; // 0 by default
+
 	uint8 public exponent;
 	
 	uint constant default_profit_diffusion_period = 10 days;
 	uint public profit_diffusion_period = default_profit_diffusion_period;
-
-	uint16 public swap_fee10000;
 
 	uint public ts;
 	IntBalance public profit;
@@ -327,12 +328,14 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 		
 		require(uint(net_balance.stake) > balance_in_work.stake, "negative risk-free net balance in stake asset");
 		require(uint(net_balance.image) > balance_in_work.image, "negative risk-free net balance in image asset");
+
+		// we charge a swap fee from redemptions, otherwise we leave an opportunity of free swaps by buying and instantly redeeming shares
 		
 		uint stake_asset_amount = (uint(net_balance.stake) - balance_in_work.stake) * (old_shares_supply**exponent - (old_shares_supply - shares_amount)**exponent) / old_shares_supply**exponent;
-		stake_asset_amount -= stake_asset_amount * swap_fee10000/10000;
+		stake_asset_amount -= stake_asset_amount * (swap_fee10000 + exit_fee10000)/10000;
 
 		uint image_asset_amount = (uint(net_balance.image) - balance_in_work.image) * (old_shares_supply**exponent - (old_shares_supply - shares_amount)**exponent) / old_shares_supply**exponent;
-		image_asset_amount -= image_asset_amount * swap_fee10000/10000;
+		image_asset_amount -= image_asset_amount * (swap_fee10000 + exit_fee10000)/10000;
 		
 		payStakeTokens(msg.sender, stake_asset_amount);
 		payImageTokens(msg.sender, image_asset_amount);
@@ -423,6 +426,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 
 		governance.addVotedValue("profit_diffusion_period", votedValueFactory.createVotedValueUint(governance, profit_diffusion_period, this.validateProfitDiffusionPeriod, this.setProfitDiffusionPeriod));
 		governance.addVotedValue("swap_fee10000", votedValueFactory.createVotedValueUint(governance, swap_fee10000, this.validateSwapFee, this.setSwapFee));
+		governance.addVotedValue("exit_fee10000", votedValueFactory.createVotedValueUint(governance, exit_fee10000, this.validateExitFee, this.setExitFee));
 	}
 
 
@@ -441,6 +445,14 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 
 	function setSwapFee(uint _swap_fee10000) onlyVotedValueContract external {
 		swap_fee10000 = uint16(_swap_fee10000);
+	}
+
+	function validateExitFee(uint _exit_fee10000) pure external {
+		require(_exit_fee10000 < 10000, "bad exit fee");
+	}
+
+	function setExitFee(uint _exit_fee10000) onlyVotedValueContract external {
+		exit_fee10000 = uint16(_exit_fee10000);
 	}
 
 
