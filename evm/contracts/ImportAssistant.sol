@@ -2,11 +2,12 @@
 pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "./ERC20.sol";
 import "./Import.sol";
 import "./CounterstakeLibrary.sol";
 
-contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
+contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165 {
 
 	using SafeERC20 for IERC20;
 
@@ -180,6 +181,10 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver {
 
 	receive() external payable onlyETH {
 		// silently receive Ether from claims
+	}
+
+	function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+		return interfaceId == type(CounterstakeReceiver).interfaceId || super.supportsInterface(interfaceId);
 	}
 
 	function onReceivedFromClaim(uint claim_num, uint claimed_amount, uint won_stake, string memory, address, string memory) onlyBridge override external {

@@ -367,7 +367,8 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 
 		let gas = await instance.withdrawTo.estimateGas(this.claim_id, assistant.address, { from: bobAccount });
 		console.log('gas estimation for withdrawal', gas);
-		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount, gas: gas - 1 });
+	//	gas--; // would OOG
+		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount, gas: gas });
 		console.log('withdraw res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
@@ -389,13 +390,19 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		expect(await instance.stakes(this.claim_num, yes, assistant.address)).to.be.bignumber.equal(bn0);
 		expect(await instance.stakes(this.claim_num, no, charlieAccount)).to.be.bignumber.equal(ether('0.1'));
 
-		// the onReceivedFromClaim callback should fail and the assistant's vars not updated
+		// the onReceivedFromClaim callback should fail and the assistant's vars not updated - no longer possible
 
-	//	const delta_stake_mf = ether('1').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
-	//	const delta_image_mf = ether('49').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
-	//	this.stake_mf = this.stake_mf.add(delta_stake_mf)
-	//	this.image_mf = this.image_mf.add(delta_image_mf)
-	//	this.ts = ts
+		const delta_stake_mf = ether('1').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
+		const delta_image_mf = ether('49').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
+		this.stake_mf = this.stake_mf.add(delta_stake_mf)
+		this.image_mf = this.image_mf.add(delta_image_mf)
+		this.ts = ts
+		this.recent_stake_profit = this.stake_profit
+		this.recent_image_profit = this.image_profit
+		this.recent_profit_ts = ts
+		
+		// onReceivedFromClaim() no longer can OOG without reverting the entire transaction
+		/*
 		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(this.stake_balance_in_work)
 		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(this.image_balance_in_work)
 		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(this.stake_balance_in_work)
@@ -405,9 +412,26 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
 		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+		*/
+
+		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(bn0)
+		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(bn0)
+		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(bn0)
+		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.eq(bn0)
+		expect((await assistant.profit())[0]).to.be.bignumber.eq(this.stake_profit)
+		expect((await assistant.profit())[1]).to.be.bignumber.eq(this.image_profit)
+		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
+		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
+		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+		expect((await assistant.recent_profit())[0]).to.be.bignumber.eq(this.recent_stake_profit)
+		expect((await assistant.recent_profit())[1]).to.be.bignumber.eq(this.recent_image_profit)
+		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
+
 	//	expect(0).to.eq(1)
 	});
 
+	// onReceivedFromClaim() no longer can OOG without reverting the entire transaction
+	/*
 	it("record win after withdraw", async () => {
 		let res = await assistant.recordWin(this.claim_num, { from: bobAccount });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
@@ -434,6 +458,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
 	//	expect(0).to.eq(1)
 	});
+	*/
 
 	it("failed record win 1: this claim is already accounted for", async () => {
 		let promise = assistant.recordWin(this.claim_num, { from: bobAccount });

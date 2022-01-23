@@ -3,6 +3,7 @@ pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "./Governance.sol";
 import "./GovernanceFactory.sol";
 import "./VotedValueFactory.sol";
@@ -261,30 +262,56 @@ abstract contract Counterstake is ReentrancyGuard {
 //	event ExternalCall(bool res, string errtype, uint initial_gas, uint gas, address payment_recipient_address);
 
 	function notifyPaymentRecipient(address payable payment_recipient_address, uint net_claimed_amount, uint won_stake, uint claim_num) private {
-		if (CounterstakeLibrary.isContract(payment_recipient_address)){
+		if (CounterstakeLibrary.isContract(payment_recipient_address) && _supportsERC165Interface(payment_recipient_address, type(CounterstakeReceiver).interfaceId)){
 			CounterstakeLibrary.Claim storage c = claims[claim_num];
+			CounterstakeReceiver(payment_recipient_address).onReceivedFromClaim(claim_num, net_claimed_amount, won_stake, c.sender_address, c.recipient_address, c.data);
 			/*
 			uint initial_gas = gasleft();
+			// Goal: ignore if the function does not exist, otherwise bubble up all errors.
+			// Unfortunately, there is no easy way to check if the function exists
+			// There are 4 possible outcomes:
+			// 1. The called function exists and succeeds.
+			// 2. The called function exists and reverts (failed require(), division by 0, etc). We revert.
+			// 3. The called function exists but runs out of gas. Otherwise it could succeed or revert. We revert.
+			// 4. The called function does not exist. We ignore the error.
 			try CounterstakeReceiver(payment_recipient_address).onReceivedFromClaim(claim_num, net_claimed_amount, won_stake, c.sender_address, c.recipient_address, c.data) {
-				emit ExternalCall(true, "", initial_gas, gasleft(), payment_recipient_address);
+				// all is good
+			//	emit ExternalCall(true, "", initial_gas, gasleft(), payment_recipient_address);
 			}
-			catch Error(string memory){
-				emit ExternalCall(false, "error", initial_gas, gasleft(), payment_recipient_address);
+			catch Error(string memory reason){
+			//	emit ExternalCall(false, "error", initial_gas, gasleft(), payment_recipient_address);
+				revert(reason);
 			}
 			catch Panic(uint){
-				emit ExternalCall(false, "panic", initial_gas, gasleft(), payment_recipient_address);
+			//	emit ExternalCall(false, "panic", initial_gas, gasleft(), payment_recipient_address);
+				revert("panic from onReceivedFromClaim");
 			}
 			catch{
 			//	emit ExternalCall(false, "catchall", initial_gas, gasleft(), payment_recipient_address);
+				// both OOG and non-existent function get us here
+				// if only 1/64th is left, all forwarded gas has been consumed, which indicates OOG
+				require(gasleft() > initial_gas/64, "probably out-of-gas");
+				// otherwise probably non-existent function - ignore
+				// Not perfect: the callee could make another external call (with 63/64 of gas), which OOGed, but our callee has retained 1/64 of its gas
 			}
 			*/
+			/*
 			(bool res, ) = payment_recipient_address.call(abi.encodeWithSignature("onReceivedFromClaim(uint256,uint256,uint256,string,address,string)", claim_num, net_claimed_amount, won_stake, c.sender_address, c.recipient_address, c.data));
 		//	emit ExternalCall(res, payment_recipient_address);
 		//	require(res || claim_num > 0, "unres");
 			if (!res){
 				// ignore
 			}
+			*/
 		}
+	}
+
+	// copied from OZ's ERC165Checker. No point calling ERC165Checker.supportsInterface() which makes 2 more calls to determine if EIP165 itself is supported
+	function _supportsERC165Interface(address account, bytes4 interfaceId) private view returns (bool) {
+		bytes memory encodedParams = abi.encodeWithSelector(IERC165.supportsInterface.selector, interfaceId);
+		(bool success, bytes memory result) = account.staticcall{gas: 30000}(encodedParams);
+		if (result.length < 32) return false;
+		return success && abi.decode(result, (bool));
 	}
 
 	function receiveStakeAsset(uint stake_asset_amount) internal {

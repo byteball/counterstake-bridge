@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "./ERC20.sol";
 import "./Export.sol";
 import "./CounterstakeLibrary.sol";
 
-contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver 
+contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 {
 
 	using SafeERC20 for IERC20;
@@ -150,6 +151,10 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver
 		balances_in_work[claim_num] += stake;
 		balance_in_work += stake;
 		emit AssistantChallenge(claim_num, stake_on, stake);
+	}
+
+	function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+		return interfaceId == type(CounterstakeReceiver).interfaceId || super.supportsInterface(interfaceId);
 	}
 
 	receive() external payable onlyETH {
