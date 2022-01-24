@@ -1,17 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./ERC20.sol";
 import "./IOracle.sol";
 import "./Counterstake.sol";
 import "./VotedValueAddress.sol";
 import "./CounterstakeLibrary.sol";
+import "./IERC20WithSymbol.sol";
 
-
-interface IERC20WithSymbol is IERC20 {
-	function symbol() external view returns (string memory);
-}
 
 contract Import is ERC20, Counterstake {
 

@@ -531,6 +531,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		const accepted_stake = ether('0.3')
 		const outcome = no;
 		const res = await assistant.challenge(this.claim_num, outcome, stake, { from: managerAccount });
+	//	console.log('challenge res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 		this.claim.expiry_ts = new BN(ts + 3 * 24 * 3600);
 		this.claim.period_number = bn1;
@@ -568,6 +569,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		expect((await assistant.recent_profit())[0]).to.be.bignumber.eq(this.recent_stake_profit)
 		expect((await assistant.recent_profit())[1]).to.be.bignumber.eq(this.recent_image_profit)
 		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
+	//	expect(1).to.eq(0)
 	});
 
 	it("failed withdraw by alice: you lost", async () => {
@@ -674,7 +676,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 
 		const stake_sf = this.stake_profit.mul(new BN(25)).div(new BN(100))
 		const image_sf = this.image_profit.mul(new BN(25)).div(new BN(100))
-		const stake_net_balance = assistant_stake_balance_before.sub(this.stake_mf).sub(stake_sf)
+		const stake_net_balance = assistant_stake_balance_before.sub(this.stake_mf).sub(stake_sf).sub(await assistant.network_fee_compensation())
 		const image_net_balance = assistant_image_balance_before.sub(this.image_mf).sub(image_sf)
 		const elapsed = ts - this.recent_profit_ts
 		const unavailable_stake_profit = this.recent_stake_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600))
@@ -721,7 +723,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 
 		const stake_sf = this.stake_profit.mul(new BN(25)).div(new BN(100))
 		const image_sf = this.image_profit.mul(new BN(25)).div(new BN(100))
-		const stake_net_balance = assistant_stake_balance_before.sub(this.stake_mf).sub(stake_sf)
+		const stake_net_balance = assistant_stake_balance_before.sub(this.stake_mf).sub(stake_sf).sub(await assistant.network_fee_compensation())
 		const image_net_balance = assistant_image_balance_before.sub(this.image_mf).sub(image_sf)
 
 		const new_stake_balance = stake_net_balance.add(eth_amount)
@@ -753,6 +755,8 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		let manager_stake_balance_before = await balance.current(managerAccount);
 		let manager_image_balance_before = await instance.balanceOf(managerAccount)
 
+		const network_fee_compensation = await assistant.network_fee_compensation()
+
 		const res = await assistant.withdrawManagementFee({ from: managerAccount });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
@@ -761,6 +765,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		this.stake_mf = this.stake_mf.add(delta_stake_mf)
 		this.image_mf = this.image_mf.add(delta_image_mf)
 		this.ts = ts
+		const full_withdrawn_stake = this.stake_mf.add(network_fee_compensation)
 
 		const tx = await web3.eth.getTransaction(res.tx);
 		const gasPrice = new BN(tx.gasPrice);
@@ -768,8 +773,8 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		let assistant_stake_balance_after = await balance.current(assistant.address);
 		let manager_stake_balance_after = await balance.current(managerAccount);
 		let manager_image_balance_after = await instance.balanceOf(managerAccount)
-		expect(assistant_stake_balance_before.sub(this.stake_mf)).to.be.bignumber.eq(assistant_stake_balance_after)
-		expect(manager_stake_balance_before.sub(gasCost).add(this.stake_mf)).to.be.bignumber.eq(manager_stake_balance_after)
+		expect(assistant_stake_balance_before.sub(full_withdrawn_stake)).to.be.bignumber.eq(assistant_stake_balance_after)
+		expect(manager_stake_balance_before.sub(gasCost).add(full_withdrawn_stake)).to.be.bignumber.eq(manager_stake_balance_after)
 		expect(manager_image_balance_before.add(this.image_mf)).to.be.bignumber.eq(manager_image_balance_after)
 		this.stake_mf = bn0
 		this.image_mf = bn0
@@ -957,6 +962,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		let assistant_image_balance_before = await instance.balanceOf(assistant.address)
 
 		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount });
+	//	console.log('withdraw res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
 		expectEvent(res, 'FinishedClaim', { claim_num: this.claim_num, outcome: this.claim.current_outcome });
@@ -993,6 +999,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
 		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+	//	expect(1).to.eq(0)
 	});
 
 
@@ -1013,6 +1020,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		const paid_amount = amount.sub(reward)
 		this.paid_amount = paid_amount
 		let res = await assistant.claim(txid, txts, amount, reward, sender_address, aliceAccount, data, { from: managerAccount });
+	//	console.log('claim 4 res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 		const expiry_ts = ts + 12 * 3600;
 		const expected_claim = {
@@ -1069,6 +1077,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		// alice received her 99% of the claimed amount
 		let balance_after = await instance.balanceOf(aliceAccount);
 		expect(balance_before.add(paid_amount)).to.be.bignumber.equal(balance_after);
+	//	expect(1).to.eq(0)
 	});
 
 	it("bob challenges the claim and overturns the outcome", async () => {
@@ -1316,7 +1325,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		expect(stake_sf).to.be.bignumber.lt(bn0)
 		expect(image_sf).to.be.bignumber.lt(bn0)
 
-		const net_stake_balance = assistant_stake_balance_before.sub(stake_mf)
+		const net_stake_balance = assistant_stake_balance_before.sub(stake_mf).sub(await assistant.network_fee_compensation())
 		const net_image_balance = assistant_image_balance_before.sub(image_mf)
 		let out_amount = amount.mul(net_image_balance).div(net_stake_balance.add(amount))
 		out_amount = out_amount.sub(out_amount.mul(new BN(30)).div(new BN(10000)))
@@ -1353,7 +1362,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 	//	this.image_mf = this.image_mf.add(delta_image_mf)
 	//	this.ts = ts
 
-		const net_stake_balance = assistant_stake_balance_before.sub(stake_mf)
+		const net_stake_balance = assistant_stake_balance_before.sub(stake_mf).sub(await assistant.network_fee_compensation())
 		const net_image_balance = assistant_image_balance_before.sub(image_mf)
 		let out_amount = amount.mul(net_stake_balance).div(net_image_balance.add(amount))
 		out_amount = out_amount.sub(out_amount.mul(new BN(30)).div(new BN(10000)))

@@ -26,10 +26,10 @@ contract AssistantFactory {
 	}
 
 	function createExportAssistant(
-		address bridgeAddr, address managerAddr, uint16 _management_fee10000, uint16 _success_fee10000, uint8 _exponent, string memory name, string memory symbol
+		address bridgeAddr, address managerAddr, uint16 _management_fee10000, uint16 _success_fee10000, address oracleAddr, uint8 _exponent, string memory name, string memory symbol
 	) external returns (ExportAssistant exportAssistant) {
 		exportAssistant = ExportAssistant(payable(Clones.clone(exportAssistantMaster)));
-		exportAssistant.initExportAssistant(bridgeAddr, managerAddr, _management_fee10000, _success_fee10000, _exponent, name, symbol);
+		exportAssistant.initExportAssistant(bridgeAddr, managerAddr, _management_fee10000, _success_fee10000, oracleAddr, _exponent, name, symbol);
 		exportAssistant.setupGovernance(governanceFactory, votedValueFactory);
 		emit NewExportAssistant(address(exportAssistant), bridgeAddr, managerAddr, symbol);
 	}

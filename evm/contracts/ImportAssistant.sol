@@ -46,6 +46,8 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 	UintBalance public recent_profit;
 	uint public recent_profit_ts;
 
+	uint public network_fee_compensation;
+
 	Governance public governance;
 
 
@@ -112,7 +114,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		gross_balance.image -= just_received_image_amount;
 		uint new_mf_stake = mf.stake + gross_balance.stake * management_fee10000 * (block.timestamp - ts)/(360*24*3600)/1e4;
 		uint new_mf_image = mf.image + gross_balance.image * management_fee10000 * (block.timestamp - ts)/(360*24*3600)/1e4;
-		net_balance.stake = int(gross_balance.stake) - int(new_mf_stake) - max(profit.stake * int16(success_fee10000)/1e4, 0);
+		net_balance.stake = int(gross_balance.stake) - int(new_mf_stake) - max(profit.stake * int16(success_fee10000)/1e4, 0) - int(network_fee_compensation);
 		net_balance.image = int(gross_balance.image) - int(new_mf_image) - max(profit.image * int16(success_fee10000)/1e4, 0);
 		// to save gas, we don't update mf when the balances don't change
 		if (update) {
@@ -141,7 +143,11 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 	}
 	
 
+//	event Gas(uint left, uint consumed);
+
 	function claim(string memory txid, uint32 txts, uint amount, int reward, string memory sender_address, address payable recipient_address, string memory data) onlyManager nonReentrant external {
+		uint initial_gas = gasleft();
+	//	emit Gas(initial_gas, 0);
 		require(reward >= 0, "negative reward");
 		uint claim_num = Import(bridgeAddress).last_claim_num() + 1;
 		uint required_stake = Import(bridgeAddress).getRequiredStake(amount);
@@ -162,9 +168,20 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		emit NewClaimFor(claim_num, recipient_address, txid, txts, amount, reward, required_stake);
 
 		Import(bridgeAddress).claim{value: tokenAddress == address(0) ? required_stake : 0}(txid, txts, amount, reward, required_stake, sender_address, recipient_address, data);
+
+		(uint num, uint den) = getOraclePriceOfNative(); // price of ETH in terms of stake token
+		uint remaining_gas = gasleft();
+	//	emit Gas(remaining_gas, initial_gas - remaining_gas);
+		network_fee_compensation += getGasCostInStakeTokens(
+			initial_gas - remaining_gas 
+			+ 29575 // entry and exit gas (it's larger when the initial network_fee_compensation is 0)
+			+ (tokenAddress == address(0) ? 120000 : 120000), // withdrawal gas
+			num, den
+		);
 	}
 
 	function challenge(uint claim_num, CounterstakeLibrary.Side stake_on, uint stake) onlyManager nonReentrant external {
+		uint initial_gas = gasleft();
 		(, IntBalance memory net_balance) = updateMFAndGetBalances(0, 0, false);
 		require(net_balance.stake > 0, "no net balance");
 
@@ -177,6 +194,11 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		balances_in_work[claim_num].stake += stake;
 		balance_in_work.stake += stake;
 		emit AssistantChallenge(claim_num, stake_on, stake);
+		
+		(uint num, uint den) = getOraclePriceOfNative(); // price of ETH in terms of stake token
+		uint remaining_gas = gasleft();
+	//	emit Gas(remaining_gas, initial_gas - remaining_gas);
+		network_fee_compensation += getGasCostInStakeTokens(initial_gas - remaining_gas + 29601, num, den);
 	}
 
 	receive() external payable onlyETH {
@@ -389,10 +411,11 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 	function withdrawManagementFee() onlyManager nonReentrant external {
 		updateMFAndGetBalances(0, 0, true);
-		payStakeTokens(msg.sender, mf.stake);
+		payStakeTokens(msg.sender, mf.stake + network_fee_compensation);
 		payImageTokens(msg.sender, mf.image);
 		mf.stake = 0;
 		mf.image = 0;
+		network_fee_compensation = 0;
 	}
 
 	function withdrawSuccessFee() onlyManager nonReentrant external {
@@ -462,6 +485,21 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 
 	// helper functions
+
+	function getOraclePriceOfNative() view private returns (uint, uint) {
+		if (tokenAddress == address(0))
+			return (1, 1);
+		address oracleAddr = Import(bridgeAddress).oracleAddress();
+		(uint num, uint den) = IOracle(oracleAddr).getPrice("_NATIVE_", IERC20WithSymbol(tokenAddress).symbol());
+		require(num > 0, "price num must be positive");
+		require(den > 0, "price den must be positive");
+		return (num, den);
+	}
+
+	function getGasCostInStakeTokens(uint gas, uint num, uint den) view internal returns (uint) {
+	//	(uint num, uint den) = getOraclePriceOfNative(); // price of ETH in terms of stake token
+		return gas * tx.gasprice * num/den;
+	}
 
 	function payStakeTokens(address to, uint amount) internal {
 		if (tokenAddress == address(0))

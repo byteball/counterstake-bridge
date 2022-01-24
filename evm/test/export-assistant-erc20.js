@@ -3,6 +3,7 @@ require('@openzeppelin/test-helpers/configure')({
 });
 
 const Export = artifacts.require("Export");
+const Oracle = artifacts.require("Oracle");
 const Token = artifacts.require("BadToken");
 //const Token = artifacts.require("Token");
 const Governance = artifacts.require("Governance");
@@ -57,6 +58,13 @@ contract("Exporting ERC20 with assistance", async accounts => {
 	before(async () => {
 		const factory = await CounterstakeFactory.deployed();
 		console.log('Factory address', factory.address);
+
+		const oracle = await Oracle.new();
+		console.log('oracle address', oracle.address);
+		await oracle.setPrice("_NATIVE_", "TKN", new BN(20), new BN(1), { from: aliceAccount });
+		const { num, den } = await oracle.getPrice("_NATIVE_", "TKN", { from: bobAccount });
+		expect(num).to.be.bignumber.equal(new BN(20))
+		expect(den).to.be.bignumber.equal(new BN(1))
 
 		token = await Token.new("Exportable token", "TKN");
 		console.log('ERC20 token address', token.address);
@@ -121,7 +129,7 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		const assistantFactory = await AssistantFactory.deployed();
 		console.log('assistant factory address', assistantFactory.address);
 
-		let assistant_res = await assistantFactory.createExportAssistant(instance.address, managerAccount, 100, 2500, 1, "TKN-to-Obyte export assistant", "TKNOA");
+		let assistant_res = await assistantFactory.createExportAssistant(instance.address, managerAccount, 100, 2500, oracle.address, 1, "TKN-to-Obyte export assistant", "TKNOA");
 		assistant = await ExportAssistant.at(assistant_res.logs[0].args.contractAddress);
 		console.log('TKN-to-Obyte export assistant address', assistant.address);
 
@@ -224,6 +232,7 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		let balance_after = await token.balanceOf(aliceAccount);
 		console.log('balance after claim', balance_after.toString())
 		expect(balance_before.add(paid_amount)).to.be.bignumber.equal(balance_after);
+		console.log('network_fee_compensation', (await assistant.network_fee_compensation()).toString()/1e18)
 	});
 
 	it("failed claim: same txid again", async () => {
@@ -449,7 +458,7 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		this.profit = this.profit.add(ether('4'));
 
 		const elapsed = ts - this.recent_profit_ts
-		expect(elapsed).to.be.closeTo(3600 + 3 * 24 * 3600 + 1, 10)
+		expect(elapsed).to.be.closeTo(3600 + 3 * 24 * 3600 + 1, 20)
 		this.recent_profit = this.recent_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600)).add(ether('4'))
 		this.recent_profit_ts = ts
 
@@ -484,7 +493,7 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		this.ts = ts
 
 		const sf = this.profit.mul(new BN(25)).div(new BN(100))
-		const net_balance = assistant_balance_before.sub(this.mf).sub(sf)
+		const net_balance = assistant_balance_before.sub(this.mf).sub(sf).sub(await assistant.network_fee_compensation())
 		const elapsed = ts - this.recent_profit_ts
 		const unavailable_profit = this.recent_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600))
 		const payout = net_balance.sub(unavailable_profit).mul(shares_amount).div(ether('20'))
@@ -513,7 +522,7 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		this.ts = ts
 
 		const sf = this.profit.mul(new BN(25)).div(new BN(100))
-		const net_balance = assistant_balance_before.sub(this.mf).sub(sf)
+		const net_balance = assistant_balance_before.sub(this.mf).sub(sf).sub(await assistant.network_fee_compensation())
 		const shares_amount = ether('15').mul(amount).div(net_balance)
 		expect(await assistant.balanceOf(aliceAccount)).to.be.bignumber.eq(shares_amount)
 
@@ -530,17 +539,20 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		let assistant_balance_before = await token.balanceOf(assistant.address);
 		let manager_balance_before = await token.balanceOf(managerAccount);
 
+		const network_fee_compensation = await assistant.network_fee_compensation()
+
 		const res = await assistant.withdrawManagementFee({ from: managerAccount });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
 		const delta_mf = assistant_balance_before.mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
 		this.mf = this.mf.add(delta_mf)
+		const full_withdrawn_amount = this.mf.add(network_fee_compensation)
 		this.ts = ts
 
 		let assistant_balance_after = await token.balanceOf(assistant.address);
 		let manager_balance_after = await token.balanceOf(managerAccount);
-		expect(assistant_balance_before.sub(this.mf)).to.be.bignumber.eq(assistant_balance_after)
-		expect(manager_balance_before.add(this.mf)).to.be.bignumber.eq(manager_balance_after)
+		expect(assistant_balance_before.sub(full_withdrawn_amount)).to.be.bignumber.eq(assistant_balance_after)
+		expect(manager_balance_before.add(full_withdrawn_amount)).to.be.bignumber.eq(manager_balance_after)
 		this.mf = bn0
 
 		expect(await assistant.balance_in_work()).to.be.bignumber.eq(bn0)
@@ -737,6 +749,7 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		const paid_amount = amount.sub(reward)
 		this.paid_amount = paid_amount
 		let res = await assistant.claim(txid, txts, amount, reward, sender_address, aliceAccount, data, { from: managerAccount });
+	//	console.log('claim 4 res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 		const expiry_ts = ts + 12 * 3600;
 		const expected_claim = {
@@ -786,6 +799,7 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		// alice received her 99% of the claimed amount
 		let balance_after = await token.balanceOf(aliceAccount);
 		expect(balance_before.add(paid_amount)).to.be.bignumber.equal(balance_after);
+	//	expect(1).to.eq(0)
 	});
 
 	it("bob challenges the claim and overturns the outcome", async () => {

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "./ERC20.sol";
 import "./Export.sol";
 import "./CounterstakeLibrary.sol";
+import "./IOracle.sol";
+import "./IERC20WithSymbol.sol";
 
 contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 {
@@ -14,6 +15,8 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 	address public bridgeAddress;
 	address public tokenAddress;
 	address public managerAddress;
+
+	address public oracleAddress;
 
 	uint16 public management_fee10000;
 	uint16 public success_fee10000;
@@ -34,6 +37,8 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 	uint public recent_profit;
 	uint public recent_profit_ts;
+
+	uint public network_fee_compensation;
 
 	Governance public governance;
 
@@ -64,11 +69,11 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
     }
 
 
-	constructor(address bridgeAddr, address managerAddr, uint16 _management_fee10000, uint16 _success_fee10000, uint8 _exponent, string memory name, string memory symbol) ERC20(name, symbol) {
-		initExportAssistant(bridgeAddr, managerAddr, _management_fee10000, _success_fee10000, _exponent, name, symbol);
+	constructor(address bridgeAddr, address managerAddr, uint16 _management_fee10000, uint16 _success_fee10000, address oracleAddr, uint8 _exponent, string memory name, string memory symbol) ERC20(name, symbol) {
+		initExportAssistant(bridgeAddr, managerAddr, _management_fee10000, _success_fee10000, oracleAddr, _exponent, name, symbol);
 	}
 
-	function initExportAssistant(address bridgeAddr, address managerAddr, uint16 _management_fee10000, uint16 _success_fee10000, uint8 _exponent, string memory _name, string memory _symbol) public {
+	function initExportAssistant(address bridgeAddr, address managerAddr, uint16 _management_fee10000, uint16 _success_fee10000, address oracleAddr, uint8 _exponent, string memory _name, string memory _symbol) public {
 		require(address(governance) == address(0), "already initialized");
 		name = _name;
 		symbol = _symbol;
@@ -80,8 +85,11 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		ts = block.timestamp;
 		(address tokenAddr, , , , , ) = Export(bridgeAddr).settings();
 		tokenAddress = tokenAddr;
-		if (tokenAddr != address(0))
+		if (tokenAddr != address(0)) {
 			IERC20(tokenAddr).approve(bridgeAddr, type(uint).max);
+			oracleAddress = oracleAddr;
+			validateOracle(oracleAddr);
+		}
 		managerAddress = (managerAddr != address(0)) ? managerAddr : msg.sender;
 		profit_diffusion_period = default_profit_diffusion_period;
 	}
@@ -95,7 +103,7 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 	function updateMFAndGetBalances(uint just_received_amount, bool update) internal returns (uint gross_balance, int net_balance) {
 		gross_balance = getGrossBalance() - just_received_amount;
 		uint new_mf = mf + gross_balance * management_fee10000 * (block.timestamp - ts)/(360*24*3600)/1e4;
-		net_balance = int(gross_balance) - int(new_mf) - max(profit * int16(success_fee10000)/1e4, 0);
+		net_balance = int(gross_balance) - int(new_mf) - max(profit * int16(success_fee10000)/1e4, 0) - int(network_fee_compensation);
 		// to save gas, we don't update mf when the balance doesn't change
 		if (update) {
 			mf = new_mf;
@@ -116,9 +124,12 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		recent_profit_ts = block.timestamp;
 	}
 
+//	event Gas(uint left, uint consumed);
 
 	// Export's claim() calls token functions before performing state changes therefore nonReentrant is necessary
 	function claim(string memory txid, uint32 txts, uint amount, int reward, string memory sender_address, address payable recipient_address, string memory data) onlyManager nonReentrant external {
+		uint initial_gas = gasleft();
+	//	emit Gas(initial_gas, 0);
 		require(reward >= 0, "negative reward");
 		uint claim_num = Export(bridgeAddress).last_claim_num() + 1;
 		uint required_stake = Export(bridgeAddress).getRequiredStake(amount);
@@ -136,9 +147,20 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		emit NewClaimFor(claim_num, recipient_address, txid, txts, amount, reward, required_stake);
 
 		Export(bridgeAddress).claim{value: tokenAddress == address(0) ? total : 0}(txid, txts, amount, reward, required_stake, sender_address, recipient_address, data);
+
+		(uint num, uint den) = getOraclePriceOfNative(oracleAddress); // price of ETH in terms of stake token
+		uint remaining_gas = gasleft();
+	//	emit Gas(remaining_gas, initial_gas - remaining_gas);
+		network_fee_compensation += getGasCostInStakeTokens(
+			initial_gas - remaining_gas 
+			+ 32926 // entry and exit gas (it's larger when the initial network_fee_compensation is 0)
+			+ (tokenAddress == address(0) ? 73000 : 78000), // withdrawal gas
+			num, den
+		);
 	}
 
 	function challenge(uint claim_num, CounterstakeLibrary.Side stake_on, uint stake) onlyManager nonReentrant external {
+		uint initial_gas = gasleft();
 		(, int net_balance) = updateMFAndGetBalances(0, false);
 		require(net_balance > 0, "no net balance");
 
@@ -151,6 +173,11 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		balances_in_work[claim_num] += stake;
 		balance_in_work += stake;
 		emit AssistantChallenge(claim_num, stake_on, stake);
+		
+		(uint num, uint den) = getOraclePriceOfNative(oracleAddress); // price of ETH in terms of stake token
+		uint remaining_gas = gasleft();
+	//	emit Gas(remaining_gas, initial_gas - remaining_gas);
+		network_fee_compensation += getGasCostInStakeTokens(initial_gas - remaining_gas + 29601, num, den);
 	}
 
 	function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
@@ -292,8 +319,9 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 	function withdrawManagementFee() onlyManager nonReentrant external {
 		updateMFAndGetBalances(0, true);
-		payStakeTokens(msg.sender, mf);
+		payStakeTokens(msg.sender, mf + network_fee_compensation);
 		mf = 0;
+		network_fee_compensation = 0;
 	}
 
 	function withdrawSuccessFee() onlyManager nonReentrant external {
@@ -326,6 +354,8 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 		governance.addVotedValue("profit_diffusion_period", votedValueFactory.createVotedValueUint(governance, profit_diffusion_period, this.validateProfitDiffusionPeriod, this.setProfitDiffusionPeriod));
 		governance.addVotedValue("exit_fee10000", votedValueFactory.createVotedValueUint(governance, exit_fee10000, this.validateExitFee, this.setExitFee));
+		if (tokenAddress != address(0))
+			governance.addVotedValue("oracleAddress", votedValueFactory.createVotedValueAddress(governance, oracleAddress, this.validateOracle, this.setOracle));
 	}
 
 
@@ -345,8 +375,32 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		exit_fee10000 = uint16(_exit_fee10000);
 	}
 
+	function validateOracle(address oracleAddr) view public {
+		require(CounterstakeLibrary.isContract(oracleAddr), "bad oracle");
+		(uint num, uint den) = getOraclePriceOfNative(oracleAddr);
+		require(num > 0 || den > 0, "no price from oracle");
+	}
+
+	function setOracle(address oracleAddr) onlyVotedValueContract external {
+		oracleAddress = oracleAddr;
+	}
+
 
 	// helper functions
+
+	function getOraclePriceOfNative(address oracleAddr) view private returns (uint, uint) {
+		if (tokenAddress == address(0))
+			return (1, 1);
+		(uint num, uint den) = IOracle(oracleAddr).getPrice("_NATIVE_", IERC20WithSymbol(tokenAddress).symbol());
+		require(num > 0, "price num must be positive");
+		require(den > 0, "price den must be positive");
+		return (num, den);
+	}
+
+	function getGasCostInStakeTokens(uint gas, uint num, uint den) view internal returns (uint) {
+	//	(uint num, uint den) = getOraclePriceOfNative(oracleAddress); // price of ETH in terms of stake token
+		return gas * tx.gasprice * num/den;
+	}
 
 	function payStakeTokens(address to, uint amount) internal {
 		if (tokenAddress == address(0))

@@ -61,6 +61,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		const oracle = await Oracle.new();
 		console.log('oracle address', oracle.address);
 		await oracle.setPrice("Obyte", "USDC", new BN(30), new BN(1), { from: aliceAccount });
+		await oracle.setPrice("_NATIVE_", "USDC", new BN(2000), new BN(1), { from: aliceAccount });
 		const { num, den } = await oracle.getPrice("Obyte", "USDC", { from: bobAccount });
 		expect(num).to.be.bignumber.equal(new BN(30))
 		expect(den).to.be.bignumber.equal(new BN(1))
@@ -379,7 +380,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		await expectRevert(promise, "the challenging period has expired");
 	});
 
-	it("withdraw", async () => {
+	it("withdraw to assistant", async () => {
 		let stake_balance_before = await token.balanceOf(assistant.address);
 		console.log('balance before withdrawal', stake_balance_before.toString())
 		let image_balance_before = await instance.balanceOf(assistant.address);
@@ -494,6 +495,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		const accepted_stake = ether('450')
 		const outcome = no;
 		const res = await assistant.challenge(this.claim_num, outcome, stake, { from: managerAccount });
+	//	console.log('challenge res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 		this.claim.expiry_ts = new BN(ts + 3 * 24 * 3600);
 		this.claim.period_number = bn1;
@@ -531,6 +533,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		expect((await assistant.recent_profit())[0]).to.be.bignumber.eq(this.recent_stake_profit)
 		expect((await assistant.recent_profit())[1]).to.be.bignumber.eq(this.recent_image_profit)
 		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
+	//	expect(1).to.eq(0)
 	});
 
 	it("failed withdraw by alice: you lost", async () => {
@@ -575,7 +578,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		this.stake_profit = this.stake_profit.add(ether('300'));
 
 		const elapsed = ts - this.recent_profit_ts
-		expect(elapsed).to.be.closeTo(3600 + 3 * 24 * 3600 + 1, 10)
+		expect(elapsed).to.be.closeTo(3600 + 3 * 24 * 3600 + 1, 20)
 		this.recent_stake_profit = this.recent_stake_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600)).add(ether('300'))
 		this.recent_image_profit = this.recent_image_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600))
 		this.recent_profit_ts = ts
@@ -623,7 +626,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 
 		const stake_sf = this.stake_profit.mul(new BN(25)).div(new BN(100))
 		const image_sf = this.image_profit.mul(new BN(25)).div(new BN(100))
-		const stake_net_balance = assistant_stake_balance_before.sub(this.stake_mf).sub(stake_sf)
+		const stake_net_balance = assistant_stake_balance_before.sub(this.stake_mf).sub(stake_sf).sub(await assistant.network_fee_compensation())
 		const image_net_balance = assistant_image_balance_before.sub(this.image_mf).sub(image_sf)
 		const elapsed = ts - this.recent_profit_ts
 		const unavailable_stake_profit = this.recent_stake_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600))
@@ -670,7 +673,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 
 		const stake_sf = this.stake_profit.mul(new BN(25)).div(new BN(100))
 		const image_sf = this.image_profit.mul(new BN(25)).div(new BN(100))
-		const stake_net_balance = assistant_stake_balance_before.sub(this.stake_mf).sub(stake_sf)
+		const stake_net_balance = assistant_stake_balance_before.sub(this.stake_mf).sub(stake_sf).sub(await assistant.network_fee_compensation())
 		const image_net_balance = assistant_image_balance_before.sub(this.image_mf).sub(image_sf)
 
 		const new_stake_balance = stake_net_balance.add(usdc_amount)
@@ -702,6 +705,8 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		let manager_stake_balance_before = await token.balanceOf(managerAccount);
 		let manager_image_balance_before = await instance.balanceOf(managerAccount)
 
+		const network_fee_compensation = await assistant.network_fee_compensation()
+
 		const res = await assistant.withdrawManagementFee({ from: managerAccount });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
@@ -710,12 +715,13 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		this.stake_mf = this.stake_mf.add(delta_stake_mf)
 		this.image_mf = this.image_mf.add(delta_image_mf)
 		this.ts = ts
+		const full_withdrawn_stake = this.stake_mf.add(network_fee_compensation)
 
 		let assistant_stake_balance_after = await token.balanceOf(assistant.address);
 		let manager_stake_balance_after = await token.balanceOf(managerAccount);
 		let manager_image_balance_after = await instance.balanceOf(managerAccount)
-		expect(assistant_stake_balance_before.sub(this.stake_mf)).to.be.bignumber.eq(assistant_stake_balance_after)
-		expect(manager_stake_balance_before.add(this.stake_mf)).to.be.bignumber.eq(manager_stake_balance_after)
+		expect(assistant_stake_balance_before.sub(full_withdrawn_stake)).to.be.bignumber.eq(assistant_stake_balance_after)
+		expect(manager_stake_balance_before.add(full_withdrawn_stake)).to.be.bignumber.eq(manager_stake_balance_after)
 		expect(manager_image_balance_before.add(this.image_mf)).to.be.bignumber.eq(manager_image_balance_after)
 		this.stake_mf = bn0
 		this.image_mf = bn0
@@ -900,6 +906,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		let assistant_image_balance_before = await instance.balanceOf(assistant.address)
 
 		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount });
+	//	console.log('withdraw res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
 		expectEvent(res, 'FinishedClaim', { claim_num: this.claim_num, outcome: this.claim.current_outcome });
@@ -1253,7 +1260,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		expect(stake_sf).to.be.bignumber.lt(bn0)
 		expect(image_sf).to.be.bignumber.lt(bn0)
 
-		const net_stake_balance = assistant_stake_balance_before.sub(stake_mf)
+		const net_stake_balance = assistant_stake_balance_before.sub(stake_mf).sub(await assistant.network_fee_compensation())
 		const net_image_balance = assistant_image_balance_before.sub(image_mf)
 		let out_amount = amount.mul(net_image_balance).div(net_stake_balance.add(amount))
 		out_amount = out_amount.sub(out_amount.mul(new BN(30)).div(new BN(10000)))
@@ -1290,7 +1297,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 	//	this.image_mf = this.image_mf.add(delta_image_mf)
 	//	this.ts = ts
 
-		const net_stake_balance = assistant_stake_balance_before.sub(stake_mf)
+		const net_stake_balance = assistant_stake_balance_before.sub(stake_mf).sub(await assistant.network_fee_compensation())
 		const net_image_balance = assistant_image_balance_before.sub(image_mf)
 		let out_amount = amount.mul(net_stake_balance).div(net_image_balance.add(amount))
 		out_amount = out_amount.sub(out_amount.mul(new BN(30)).div(new BN(10000)))

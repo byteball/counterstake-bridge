@@ -83,7 +83,7 @@ module.exports = async function (deployer, network, accounts) {
 	// Assistants
 
 	// export assistant
-	await deployer.deploy(ExportAssistant, ex.address, constants.ZERO_ADDRESS, 100, 2000, 1, "Export assistant template", "EXAS");
+	await deployer.deploy(ExportAssistant, ex.address, constants.ZERO_ADDRESS, 100, 2000, constants.ZERO_ADDRESS, 1, "Export assistant template", "EXAS");
 	const exas = await ExportAssistant.deployed();
 	console.log('export assistant master address', exas.address);
 

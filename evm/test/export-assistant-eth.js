@@ -98,7 +98,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		const assistantFactory = await AssistantFactory.deployed();
 		console.log('assistant factory address', assistantFactory.address);
 
-		let assistant_res = await assistantFactory.createExportAssistant(instance.address, managerAccount, 100, 2500, 1, "ETH-to-Obyte export assistant", "ETHOA");
+		let assistant_res = await assistantFactory.createExportAssistant(instance.address, managerAccount, 100, 2500, a0, 1, "ETH-to-Obyte export assistant", "ETHOA");
 		assistant = await ExportAssistant.at(assistant_res.logs[0].args.contractAddress);
 		console.log('ETH-to-Obyte export assistant address', assistant.address);
 
@@ -205,6 +205,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		let balance_after = await balance.current(aliceAccount);
 	//	console.log('balance after claim', balance_after.toString())
 		expect(balance_before.add(paid_amount)).to.be.bignumber.equal(balance_after);
+	//	expect(0).to.eq(1)
 	});
 
 	it("failed claim: same txid again", async () => {
@@ -310,6 +311,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		expect(await assistant.profit()).to.be.bignumber.eq(bn0)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		*/
+	//	expect(0).to.eq(1)
 	});
 
 	/*
@@ -428,6 +430,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
 		expect(await assistant.recent_profit()).to.be.bignumber.eq(this.recent_profit)
 		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
+	//	expect(0).to.eq(1)
 	});
 
 	it("failed withdraw by alice: you lost", async () => {
@@ -474,7 +477,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		this.profit = this.profit.add(ether('4'));
 
 		const elapsed = ts - this.recent_profit_ts
-		expect(elapsed).to.be.closeTo(3600 + 3 * 24 * 3600 + 1, 10)
+		expect(elapsed).to.be.closeTo(3600 + 3 * 24 * 3600 + 1, 40)
 		this.recent_profit = this.recent_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600)).add(ether('4'))
 		this.recent_profit_ts = ts
 
@@ -518,7 +521,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		this.ts = ts
 
 		const sf = this.profit.mul(new BN(25)).div(new BN(100))
-		const net_balance = assistant_balance_before.sub(this.mf).sub(sf)
+		const net_balance = assistant_balance_before.sub(this.mf).sub(sf).sub(await assistant.network_fee_compensation())
 		const elapsed = ts - this.recent_profit_ts
 		const unavailable_profit = this.recent_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600))
 		const payout = net_balance.sub(unavailable_profit).mul(shares_amount).div(ether('20'))
@@ -547,7 +550,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		this.ts = ts
 
 		const sf = this.profit.mul(new BN(25)).div(new BN(100))
-		const net_balance = assistant_balance_before.sub(this.mf).sub(sf)
+		const net_balance = assistant_balance_before.sub(this.mf).sub(sf).sub(await assistant.network_fee_compensation())
 		const shares_amount = ether('15').mul(amount).div(net_balance)
 		expect(await assistant.balanceOf(aliceAccount)).to.be.bignumber.eq(shares_amount)
 
@@ -564,11 +567,14 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		let assistant_balance_before = await balance.current(assistant.address);
 		let manager_balance_before = await balance.current(managerAccount);
 
+		const network_fee_compensation = await assistant.network_fee_compensation()
+
 		const res = await assistant.withdrawManagementFee({ from: managerAccount });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
 		const delta_mf = assistant_balance_before.mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
 		this.mf = this.mf.add(delta_mf)
+		const full_withdrawn_amount = this.mf.add(network_fee_compensation)
 		this.ts = ts
 
 		const tx = await web3.eth.getTransaction(res.tx);
@@ -576,8 +582,8 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		const gasCost = gasPrice.mul(new BN(res.receipt.cumulativeGasUsed));
 		let assistant_balance_after = await balance.current(assistant.address);
 		let manager_balance_after = await balance.current(managerAccount);
-		expect(assistant_balance_before.sub(this.mf)).to.be.bignumber.eq(assistant_balance_after)
-		expect(manager_balance_before.sub(gasCost).add(this.mf)).to.be.bignumber.eq(manager_balance_after)
+		expect(assistant_balance_before.sub(full_withdrawn_amount)).to.be.bignumber.eq(assistant_balance_after)
+		expect(manager_balance_before.sub(gasCost).add(full_withdrawn_amount)).to.be.bignumber.eq(manager_balance_after)
 		this.mf = bn0
 
 		expect(await assistant.balance_in_work()).to.be.bignumber.eq(bn0)
@@ -686,6 +692,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		// alice received her 99% of the claimed amount
 		let balance_after = await balance.current(aliceAccount);
 		expect(balance_before.add(paid_amount)).to.be.bignumber.equal(balance_after);
+	//	expect(0).to.eq(1)
 	});
 
 	it("Manager challenges his own claim and overturns the outcome", async () => {
@@ -696,6 +703,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		const accepted_stake = ether('3')
 		const outcome = no;
 		const res = await assistant.challenge(this.claim_num, outcome, stake, { from: managerAccount });
+	//	console.log('assistant challenge res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 		this.claim.expiry_ts = new BN(ts + 3 * 24 * 3600);
 		this.claim.period_number = bn1;
@@ -725,6 +733,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		expect(await assistant.profit()).to.be.bignumber.eq(bn0)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+	//	expect(0).to.eq(1)
 	});
 
 	it("withdraw to assistant", async () => {
@@ -732,6 +741,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		let balance_before = await balance.current(assistant.address);
 
 		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount });
+	//	console.log('withdraw 3 to assistant', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
 		expectEvent(res, 'FinishedClaim', { claim_num: this.claim_num, outcome: this.claim.current_outcome });
@@ -828,6 +838,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		// alice received her 99% of the claimed amount
 		let balance_after = await balance.current(aliceAccount);
 		expect(balance_before.add(paid_amount)).to.be.bignumber.equal(balance_after);
+	//	expect(1).to.eq(0)
 	});
 
 	it("bob challenges the claim and overturns the outcome", async () => {
@@ -953,6 +964,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		const stake = ether('0.1');
 		const outcome = no;
 		const res = await assistant.challenge(this.claim_num, outcome, stake, { from: managerAccount });
+	//	console.log('assistant challenge res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 		this.claim.no_stake = this.claim.no_stake.add(stake);
 	//	expectEvent(res, 'NewChallenge', { claim_num: this.claim_num, author_address: assistant.address, stake, outcome, current_outcome: this.claim.current_outcome, expiry_ts: this.claim.expiry_ts, yes_stake: this.claim.yes_stake, no_stake: this.claim.no_stake, challenging_target: this.challenging_target });
@@ -977,6 +989,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+	//	expect(0).to.eq(1)
 	});
 
 
