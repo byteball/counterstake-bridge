@@ -88,9 +88,9 @@ abstract contract Counterstake is ReentrancyGuard {
 	}
 
 	// would be happy to call this from the constructor but unfortunately `this` is not set at that time yet
-	function setupGovernance(GovernanceFactory governanceFactory, VotedValueFactory votedValueFactory) virtual public {
+	function setupCounterstakeGovernance(GovernanceFactory governanceFactory, VotedValueFactory votedValueFactory, address votingTokenAddress) internal {
 		require(address(governance) == address(0), "already initialized");
-		governance = governanceFactory.createGovernance(address(this), settings.tokenAddress);
+		governance = governanceFactory.createGovernance(address(this), votingTokenAddress);
 
 		governance.addVotedValue("ratio100", votedValueFactory.createVotedValueUint(governance, settings.ratio100, this.validateRatio, this.setRatio));
 		governance.addVotedValue("counterstake_coef100", votedValueFactory.createVotedValueUint(governance, settings.counterstake_coef100, this.validateCounterstakeCoef, this.setCounterstakeCoef));

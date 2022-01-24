@@ -27,6 +27,10 @@ contract Export is Counterstake {
 		foreign_asset = _foreign_asset;
 	}
 
+	function setupGovernance(GovernanceFactory governanceFactory, VotedValueFactory votedValueFactory) external {
+		setupCounterstakeGovernance(governanceFactory, votedValueFactory, settings.tokenAddress);
+	}
+
 
 	function transferToForeignChain(string memory foreign_address, string memory data, uint amount, int reward) payable nonReentrant external {
 		receiveStakeAsset(amount);

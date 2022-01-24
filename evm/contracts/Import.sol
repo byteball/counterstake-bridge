@@ -46,8 +46,8 @@ contract Import is ERC20, Counterstake {
 		validateOracle(oracleAddr);
 	}
 
-	function setupGovernance(GovernanceFactory governanceFactory, VotedValueFactory votedValueFactory) override virtual public {
-		super.setupGovernance(governanceFactory, votedValueFactory);
+	function setupGovernance(GovernanceFactory governanceFactory, VotedValueFactory votedValueFactory) external {
+		setupCounterstakeGovernance(governanceFactory, votedValueFactory, address(this));
 		governance.addVotedValue("oracleAddress", votedValueFactory.createVotedValueAddress(governance, oracleAddress, this.validateOracle, this.setOracle));
 		governance.addVotedValue("min_price20", votedValueFactory.createVotedValueUint(governance, min_price20, this.validateMinPrice, this.setMinPrice));
 	}

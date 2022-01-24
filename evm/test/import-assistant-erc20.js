@@ -103,7 +103,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 
 		governance = await Governance.at(await instance.governance());
 		console.log('governance address', governance.address);
-		expect(await governance.votingTokenAddress()).to.be.equal(token.address);
+		expect(await governance.votingTokenAddress()).to.be.equal(instance.address);
 		expect(await governance.governedContractAddress()).to.be.equal(instance.address);
 
 		ratioVotedValue = await VotedValueUint.at(await governance.votedValuesMap('ratio100'));

@@ -67,7 +67,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		console.log('oracle2 address', oracle2.address);
 		await oracle2.setPrice("Obyte", "_NATIVE_", new BN(60), new BN(1500), { from: aliceAccount });
 
-		let res = await debug(factory.createImport("Obyte", "base", "Imported GBYTE", "GBYTE", a0, oracle.address, 150, 100, ether('100'), [12 * 3600, 3 * 24 * 3600, 7 * 24 * 3600, 30 * 24 * 3600], [3 * 24 * 3600, 7 * 24 * 3600, 30 * 24 * 3600]));
+		let res = await debug(factory.createImport("Obyte", "base", "Imported GBYTE", "GBYTE", a0, oracle.address, 150, 100, ether('10000'), [12 * 3600, 3 * 24 * 3600, 7 * 24 * 3600, 30 * 24 * 3600], [3 * 24 * 3600, 7 * 24 * 3600, 30 * 24 * 3600]));
 		console.log('create result', res)
 		instance = await Import.at(res.logs[0].args.contractAddress);
 		console.log('ETH-staked import address', instance.address);
@@ -75,11 +75,22 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		// shortcuts for overloaded functions
 		instance.getClaimById = instance.methods['getClaim(string)'];
 		instance.getClaimByNum = instance.methods['getClaim(uint256)'];
+		instance.withdrawById = instance.methods['withdraw(string)'];
 
 		governance = await Governance.at(await instance.governance());
 		console.log('governance address', governance.address);
-		expect(await governance.votingTokenAddress()).to.be.equal(constants.ZERO_ADDRESS);
+		expect(await governance.votingTokenAddress()).to.be.equal(instance.address);
 		expect(await governance.governedContractAddress()).to.be.equal(instance.address);
+
+		await instance.approve(governance.address, ether('80'), { from: aliceAccount });
+		expect(await instance.allowance(aliceAccount, governance.address)).to.be.bignumber.equal(ether('80'));
+
+		await instance.approve(governance.address, ether('80'), { from: bobAccount });
+		expect(await instance.allowance(bobAccount, governance.address)).to.be.bignumber.equal(ether('80'));
+
+		await instance.approve(governance.address, ether('80'), { from: charlieAccount });
+		expect(await instance.allowance(charlieAccount, governance.address)).to.be.bignumber.equal(ether('80'));
+
 
 		ratioVotedValue = await VotedValueUint.at(await governance.votedValuesMap('ratio100'));
 		console.log('ratio100 voted value address', ratioVotedValue.address);
@@ -105,8 +116,75 @@ contract("Governance for importing with ETH stakes", async accounts => {
 	});
 
 
+	it("the 1st claim", async () => {
+		const txid = 'transid0';
+		const txts = Math.floor(Date.now()/1000)
+		const amount = ether('50')
+		const stake = ether('1')
+		const sender_address = "SENDER"
+		const data = '{"max_fee":1}'
+		const reward = bn0
+		let res = await instance.claim(txid, txts, amount, reward, stake, sender_address, a0, data, { value: stake, from: aliceAccount });
+		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
+		const expiry_ts = ts + 12 * 3600;
+		const expected_claim = {
+			amount: amount,
+		//	reward,
+			recipient_address: aliceAccount,
+			claimant_address: aliceAccount,
+			sender_address,
+			data,
+		//	txid,
+			txts: new BN(txts),
+			yes_stake: stake,
+			no_stake: ether('0'),
+			current_outcome: yes,
+			is_large: false,
+			period_number: bn0,
+			ts: new BN(ts),
+			expiry_ts: new BN(expiry_ts),
+		//	challenging_target: stake.mul(new BN(150)).div(new BN(100)),
+			withdrawn: false,
+			finished: false,
+		};
+		this.challenging_target = stake.mul(new BN(150)).div(new BN(100));
+		const claim_id = [sender_address, aliceAccount.substr(2).toLowerCase(), txid, txts, amount.toString(), reward.toString(), data].join('_');
+		this.claim_id = claim_id;
+		this.claim_num = new BN(1)
+		this.txts = txts;
+		this.claim = expected_claim;
+		expectEvent(res, 'NewClaim', { claim_num: this.claim_num, txid, txts: new BN(txts), author_address: aliceAccount, sender_address, recipient_address: aliceAccount, amount, reward, stake, data, expiry_ts: new BN(expiry_ts) });
+		let claim = await instance.getClaimById(claim_id);
+		claim = removeNumericKeys(claim);
+		expect(bn2string(claim)).to.deep.equal(bn2string(expected_claim));
+		expect(await instance.stakes(this.claim_num, yes, aliceAccount)).to.be.bignumber.equal(stake);
+	});
+
+	it("withdraw", async () => {
+		await time.increase(12 * 3600 + 1);
+
+		let res = await instance.withdrawById(this.claim_id, { from: aliceAccount });
+		console.log('withdraw res', res)
+
+		expectEvent(res, 'FinishedClaim', { claim_num: this.claim_num, outcome: this.claim.current_outcome });
+
+		// check the balance in E-GBYTE
+		expect(await instance.balanceOf(aliceAccount)).to.be.bignumber.equal(ether('50'))
+
+		this.claim.withdrawn = true;
+		this.claim.finished = true
+		let claim = await instance.getClaimById(this.claim_id);
+		claim = removeNumericKeys(claim);
+		expect(bn2string(claim)).to.deep.equal(bn2string(this.claim));
+
+		expect(await instance.stakes(this.claim_num, yes, aliceAccount)).to.be.bignumber.equal(bn0);
+
+		await instance.transfer(bobAccount, ether('7'), { from: aliceAccount });
+		await instance.transfer(charlieAccount, ether('7'), { from: aliceAccount });
+	});
+
 	it("alice suggests decreasing the counterstake coef to 0.9 and fails", async () => {
-		let promise = counterstakeCoefVotedValue.voteAndDeposit(new BN(90), ether('10'), { value: ether('10'), from: aliceAccount });
+		let promise = counterstakeCoefVotedValue.voteAndDeposit(new BN(90), ether('10'), { from: aliceAccount });
 		await expectRevert(promise, "bad counterstake coef");
 	});
 
@@ -116,7 +194,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 
 		const new_value = new BN(120);
 		const votes_amount = ether('10');
-		let res = await ratioVotedValue.voteAndDeposit(new_value, votes_amount, { value: votes_amount, from: aliceAccount });
+		let res = await ratioVotedValue.voteAndDeposit(new_value, votes_amount, { from: aliceAccount });
 		expect(await ratioVotedValue.choices(aliceAccount)).to.be.bignumber.equal(new_value);
 		expect(await ratioVotedValue.votesByValue(new_value)).to.be.bignumber.equal(votes_amount);
 		expect(await ratioVotedValue.votesByValueAddress(new_value, aliceAccount)).to.be.bignumber.equal(votes_amount);
@@ -126,12 +204,12 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		expect(await governance.balances(aliceAccount)).to.be.bignumber.equal(votes_amount);
 		expect(await governance.balances(bobAccount)).to.be.bignumber.equal(bn0);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(votes_amount);
-		expect(await balance.current(ratioVotedValue.address)).to.be.bignumber.equal(bn0);
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(votes_amount);
+		expect(await instance.balanceOf(ratioVotedValue.address)).to.be.bignumber.equal(bn0);
 	})
 
 	it("alice suggests decreasing the counterstake coef to 1 and fails", async () => {
-		let promise = counterstakeCoefVotedValue.voteAndDeposit(new BN(100), ether('10'), { value: ether('10'), from: aliceAccount });
+		let promise = counterstakeCoefVotedValue.voteAndDeposit(new BN(100), ether('10'), { from: aliceAccount });
 		await expectRevert(promise, "bad counterstake coef");
 	});
 
@@ -141,7 +219,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 	});
 
 	it("alice suggests increasing the ratio over 640 and fails", async () => {
-		let promise = ratioVotedValue.voteAndDeposit(new BN(64000), ether('10'), { value: ether('10'), from: aliceAccount });
+		let promise = ratioVotedValue.voteAndDeposit(new BN(64000), ether('10'), { from: aliceAccount });
 		await expectRevert(promise, "bad ratio");
 	});
 
@@ -151,17 +229,17 @@ contract("Governance for importing with ETH stakes", async accounts => {
 	// });
 
 	it("alice suggests setting challenging periods that get shorter and fails", async () => {
-		let promise = challengingPeriodsVotedValue.voteAndDeposit([new BN(3600), new BN(1800)], ether('10'), { value: ether('10'), from: aliceAccount });
+		let promise = challengingPeriodsVotedValue.voteAndDeposit([new BN(3600), new BN(1800)], ether('10'), { from: aliceAccount });
 		await expectRevert(promise, "subsequent periods cannot get shorter");
 	});
 
 	it("alice suggests setting too long challenging periods and fails", async () => {
-		let promise = largeChallengingPeriodsVotedValue.voteAndDeposit([new BN(3600), new BN(3 * 365 * 24 * 3600 + 1)], ether('10'), { value: ether('10'), from: aliceAccount });
+		let promise = largeChallengingPeriodsVotedValue.voteAndDeposit([new BN(3600), new BN(3 * 365 * 24 * 3600 + 1)], ether('10'), { from: aliceAccount });
 		await expectRevert(promise, "some periods are longer than 3 years");
 	});
 
 	it("alice suggests setting empty challenging periods and fails", async () => {
-		let promise = largeChallengingPeriodsVotedValue.voteAndDeposit([], ether('10'), { value: ether('10'), from: aliceAccount });
+		let promise = largeChallengingPeriodsVotedValue.voteAndDeposit([], ether('10'), { from: aliceAccount });
 		await expectRevert(promise, "empty periods");
 	});
 
@@ -176,7 +254,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 	});
 
 	it("alice suggests another ratio while her value is already the leader and fails", async () => {
-		let promise = ratioVotedValue.voteAndDeposit(new BN(130), ether('10'), { value: ether('10'), from: aliceAccount });
+		let promise = ratioVotedValue.voteAndDeposit(new BN(130), ether('10'), { from: aliceAccount });
 		await expectRevert(promise, "you cannot change your vote yet");
 	});
 
@@ -222,7 +300,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 	});
 
 	it("alice suggests another ratio while her value is already the leader again and fails", async () => {
-		let promise = ratioVotedValue.voteAndDeposit(new BN(130), ether('10'), { value: ether('10'), from: aliceAccount });
+		let promise = ratioVotedValue.voteAndDeposit(new BN(130), ether('10'), { from: aliceAccount });
 		await expectRevert(promise, "you cannot change your vote yet");
 	});
 
@@ -251,21 +329,18 @@ contract("Governance for importing with ETH stakes", async accounts => {
 	})
 
 	it("alice withdraws successfully", async () => {
-		let balance_before = await balance.current(aliceAccount);
+		let balance_before = await instance.balanceOf(aliceAccount);
 		const votes_amount = ether('10');
 		let res = await governance.withdrawAll({ from: aliceAccount });
 		expect(await governance.balances(aliceAccount)).to.be.bignumber.equal(bn0);
 		expect(await governance.balances(bobAccount)).to.be.bignumber.equal(bn0);
 
 		// check the balance
-		const tx = await web3.eth.getTransaction(res.tx);
-		const gasPrice = new BN(tx.gasPrice);
-		const gasCost = gasPrice.mul(new BN(res.receipt.cumulativeGasUsed));
-		let balance_after = await balance.current(aliceAccount);
+		let balance_after = await instance.balanceOf(aliceAccount);
 		console.log('balance after withdrawal', balance_after.toString())
-		expect(balance_before.sub(gasCost).add(votes_amount)).to.be.bignumber.equal(balance_after);
+		expect(balance_before.add(votes_amount)).to.be.bignumber.equal(balance_after);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(bn0);
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(bn0);
 	})
 
 	it("failed claim: low stake because of the new ratio", async () => {
@@ -314,7 +389,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		};
 		const claim_id = [sender_address, aliceAccount.substr(2).toLowerCase(), txid, txts, amount.toString(), reward.toString(), data].join('_');
 		this.claim_id = claim_id;
-		this.claim_num = new BN(1)
+		this.claim_num = new BN(2)
 		this.claim = expected_claim;
 		expectEvent(res, 'NewClaim', { claim_num: this.claim_num, txid, txts: new BN(txts), author_address: aliceAccount, sender_address, recipient_address: aliceAccount, amount, reward, stake, data, expiry_ts: new BN(expiry_ts) });
 		let claim = await instance.getClaimById(claim_id);
@@ -330,7 +405,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		this.alices_value = [15 * 3600, 4 * 24 * 3600, 10 * 24 * 3600, 60 * 24 * 3600];
 		const votes_amount = ether('6');
 		const key = await challengingPeriodsVotedValue.getKey(this.alices_value);
-		let res = await challengingPeriodsVotedValue.voteAndDeposit(this.alices_value, votes_amount, { value: votes_amount, from: aliceAccount });
+		let res = await challengingPeriodsVotedValue.voteAndDeposit(this.alices_value, votes_amount, { from: aliceAccount });
 		const alicesChoice = await Promise.all([0, 1, 2, 3].map(async n => (await challengingPeriodsVotedValue.choices(aliceAccount, n)).toNumber()));
 		expect(alicesChoice).to.be.deep.equal(this.alices_value);
 		expect(await challengingPeriodsVotedValue.votesByValue(key)).to.be.bignumber.equal(votes_amount);
@@ -343,8 +418,8 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		expect(await governance.balances(aliceAccount)).to.be.bignumber.equal(votes_amount);
 		expect(await governance.balances(bobAccount)).to.be.bignumber.equal(bn0);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(votes_amount);
-		expect(await balance.current(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(votes_amount);
+		expect(await instance.balanceOf(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
 
 		this.alice_votes = votes_amount;
 	});
@@ -353,7 +428,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		this.bobs_value = [16 * 3600, 5 * 24 * 3600, 11 * 24 * 3600, 66 * 24 * 3600];
 		const votes_amount = ether('5');
 		const key = await challengingPeriodsVotedValue.getKey(this.bobs_value);
-		let res = await challengingPeriodsVotedValue.voteAndDeposit(this.bobs_value, votes_amount, { value: votes_amount, from: bobAccount });
+		let res = await challengingPeriodsVotedValue.voteAndDeposit(this.bobs_value, votes_amount, { from: bobAccount });
 		const alicesChoice = await Promise.all([0, 1, 2, 3].map(async n => (await challengingPeriodsVotedValue.choices(aliceAccount, n)).toNumber()));
 		expect(alicesChoice).to.be.deep.equal(this.alices_value);
 		const bobsChoice = await Promise.all([0, 1, 2, 3].map(async n => (await challengingPeriodsVotedValue.choices(bobAccount, n)).toNumber()));
@@ -368,8 +443,8 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		expect(await governance.balances(aliceAccount)).to.be.bignumber.equal(this.alice_votes);
 		expect(await governance.balances(bobAccount)).to.be.bignumber.equal(votes_amount);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(votes_amount.add(this.alice_votes));
-		expect(await balance.current(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(votes_amount.add(this.alice_votes));
+		expect(await instance.balanceOf(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
 
 		this.bob_votes = votes_amount;
 	});
@@ -381,7 +456,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		this.bob_votes = this.bob_votes.add(votes_amount);
 		const old_key = await challengingPeriodsVotedValue.getKey(old_bobs_value);
 		const key = await challengingPeriodsVotedValue.getKey(this.bobs_value);
-		let res = await challengingPeriodsVotedValue.voteAndDeposit(this.bobs_value, votes_amount, { value: votes_amount, from: bobAccount });
+		let res = await challengingPeriodsVotedValue.voteAndDeposit(this.bobs_value, votes_amount, { from: bobAccount });
 		
 		const alicesChoice = await Promise.all([0, 1, 2, 3].map(async n => (await challengingPeriodsVotedValue.choices(aliceAccount, n)).toNumber()));
 		expect(alicesChoice).to.be.deep.equal(this.alices_value);
@@ -404,8 +479,8 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		expect(await governance.balances(aliceAccount)).to.be.bignumber.equal(this.alice_votes);
 		expect(await governance.balances(bobAccount)).to.be.bignumber.equal(this.bob_votes);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes));
-		expect(await balance.current(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes));
+		expect(await instance.balanceOf(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
 	});
 
 	it("alice deposits more but her vote weight doesn't change", async () => {
@@ -413,7 +488,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		const new_votes_amount = ether('4');
 		const key = await challengingPeriodsVotedValue.getKey(this.alices_value);
 
-		let res = await governance.deposit(new_votes_amount, { value: new_votes_amount, from: aliceAccount });
+		let res = await governance.deposit(new_votes_amount, { from: aliceAccount });
 
 		const alicesChoice = await Promise.all([0, 1, 2, 3].map(async n => (await challengingPeriodsVotedValue.choices(aliceAccount, n)).toNumber()));
 		expect(alicesChoice).to.be.deep.equal(this.alices_value);
@@ -433,8 +508,8 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		expect(await governance.balances(aliceAccount)).to.be.bignumber.equal(this.alice_votes);
 		expect(await governance.balances(bobAccount)).to.be.bignumber.equal(this.bob_votes);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(this.alice_votes.add(this.bob_votes));
-		expect(await balance.current(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(this.alice_votes.add(this.bob_votes));
+		expect(await instance.balanceOf(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
 
 	});
 
@@ -459,8 +534,8 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		expect(await governance.balances(aliceAccount)).to.be.bignumber.equal(this.alice_votes);
 		expect(await governance.balances(bobAccount)).to.be.bignumber.equal(this.bob_votes);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(this.alice_votes.add(this.bob_votes));
-		expect(await balance.current(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(this.alice_votes.add(this.bob_votes));
+		expect(await instance.balanceOf(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
 
 		// alice: 6 + 4 = 10
 		// bob: 5 + 2 = 7
@@ -470,7 +545,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 	it("charlie supports bob", async () => {
 		this.charlie_votes = ether('4');
 		const key = await challengingPeriodsVotedValue.getKey(this.bobs_value);
-		let res = await challengingPeriodsVotedValue.voteAndDeposit(this.bobs_value, this.charlie_votes, { value: this.charlie_votes, from: charlieAccount });
+		let res = await challengingPeriodsVotedValue.voteAndDeposit(this.bobs_value, this.charlie_votes, { from: charlieAccount });
 		
 		const alicesChoice = await Promise.all([0, 1, 2, 3].map(async n => (await challengingPeriodsVotedValue.choices(aliceAccount, n)).toNumber()));
 		expect(alicesChoice).to.be.deep.equal(this.alices_value);
@@ -494,8 +569,8 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		expect(await governance.balances(bobAccount)).to.be.bignumber.equal(this.bob_votes);
 		expect(await governance.balances(charlieAccount)).to.be.bignumber.equal(this.charlie_votes);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes).add(this.charlie_votes));
-		expect(await balance.current(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes).add(this.charlie_votes));
+		expect(await instance.balanceOf(challengingPeriodsVotedValue.address)).to.be.bignumber.equal(bn0);
 	});
 
 	it("alice waits and commits the bobs value", async () => {
@@ -533,7 +608,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 	});
 
 	it("alice withdraws successfully", async () => {
-		let balance_before = await balance.current(aliceAccount);
+		let balance_before = await instance.balanceOf(aliceAccount);
 		const amount = ether('8');
 		this.alice_votes = this.alice_votes.sub(amount);
 		expect(this.alice_votes).to.be.bignumber.equal(ether('2'));
@@ -541,24 +616,21 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		expect(await governance.balances(aliceAccount)).to.be.bignumber.equal(this.alice_votes);
 
 		// check the balance
-		const tx = await web3.eth.getTransaction(res.tx);
-		const gasPrice = new BN(tx.gasPrice);
-		const gasCost = gasPrice.mul(new BN(res.receipt.cumulativeGasUsed));
-		let balance_after = await balance.current(aliceAccount);
+		let balance_after = await instance.balanceOf(aliceAccount);
 		console.log('balance after withdrawal', balance_after.toString())
-		expect(balance_before.sub(gasCost).add(amount)).to.be.bignumber.equal(balance_after);
+		expect(balance_before.add(amount)).to.be.bignumber.equal(balance_after);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes).add(this.charlie_votes));
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes).add(this.charlie_votes));
 	})
 
 
 	it("Episode 3: alice suggests changing oracle to bob and fails", async () => {
-		let promise = oracleVotedValue.voteAndDeposit(bobAccount, ether('10'), { value: ether('10'), from: aliceAccount });
+		let promise = oracleVotedValue.voteAndDeposit(bobAccount, ether('10'), { from: aliceAccount });
 		await expectRevert(promise, "bad oracle");
 	});
 
 	it("alice suggests changing oracle to token and fails", async () => {
-		let promise = oracleVotedValue.voteAndDeposit(token.address, ether('10'), { value: ether('10'), from: aliceAccount });
+		let promise = oracleVotedValue.voteAndDeposit(token.address, ether('10'), { from: aliceAccount });
 	//	await expectRevert(promise, "no price from oracle");
 		await expectRevert(promise, "revert");
 	});
@@ -580,8 +652,8 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		expect(await governance.balances(aliceAccount)).to.be.bignumber.equal(this.alice_votes);
 		expect(await governance.balances(bobAccount)).to.be.bignumber.equal(this.bob_votes);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes).add(this.charlie_votes));
-		expect(await balance.current(oracleVotedValue.address)).to.be.bignumber.equal(bn0);
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes).add(this.charlie_votes));
+		expect(await instance.balanceOf(oracleVotedValue.address)).to.be.bignumber.equal(bn0);
 	})
 
 	it("bob defends the old oracle and takes the lead", async () => {
@@ -597,8 +669,8 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		expect(await governance.balances(aliceAccount)).to.be.bignumber.equal(this.alice_votes);
 		expect(await governance.balances(bobAccount)).to.be.bignumber.equal(this.bob_votes);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes).add(this.charlie_votes));
-		expect(await balance.current(oracleVotedValue.address)).to.be.bignumber.equal(bn0);
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes).add(this.charlie_votes));
+		expect(await instance.balanceOf(oracleVotedValue.address)).to.be.bignumber.equal(bn0);
 	})
 
 	it("alice tries to commit the old value and fails", async () => {
@@ -613,7 +685,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		const new_charlie_votes = ether('3')
 		this.charlie_votes = this.charlie_votes.add(new_charlie_votes);
 
-		let res = await oracleVotedValue.voteAndDeposit(oracle2.address, new_charlie_votes, { value: new_charlie_votes, from: charlieAccount });
+		let res = await oracleVotedValue.voteAndDeposit(oracle2.address, new_charlie_votes, { from: charlieAccount });
 
 		expect(await oracleVotedValue.choices(charlieAccount)).to.be.equal(oracle2.address);
 		expect(await oracleVotedValue.votesByValue(oracle2.address)).to.be.bignumber.equal(this.charlie_votes.add(this.alice_votes));
@@ -623,8 +695,8 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		expect(await oracleVotedValue.hasVote(charlieAccount)).to.be.true;
 		expect(await governance.balances(charlieAccount)).to.be.bignumber.equal(this.charlie_votes);
 
-		expect(await balance.current(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes).add(this.charlie_votes));
-		expect(await balance.current(oracleVotedValue.address)).to.be.bignumber.equal(bn0);
+		expect(await instance.balanceOf(governance.address)).to.be.bignumber.equal(this.bob_votes.add(this.alice_votes).add(this.charlie_votes));
+		expect(await instance.balanceOf(oracleVotedValue.address)).to.be.bignumber.equal(bn0);
 	})
 
 	it("alice waits and commits the new oracle", async () => {
@@ -682,7 +754,7 @@ contract("Governance for importing with ETH stakes", async accounts => {
 		};
 		const claim_id = [sender_address, aliceAccount.substr(2).toLowerCase(), txid, txts, amount.toString(), reward.toString(), data].join('_');
 		this.claim_id = claim_id;
-		this.claim_num = new BN(2)
+		this.claim_num = new BN(3)
 		this.claim = expected_claim;
 		expectEvent(res, 'NewClaim', { claim_num: this.claim_num, txid, txts: new BN(txts), author_address: aliceAccount, sender_address, recipient_address: aliceAccount, amount, reward, stake, data, expiry_ts: new BN(expiry_ts) });
 		let claim = await instance.getClaimById(claim_id);
