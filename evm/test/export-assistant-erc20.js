@@ -61,9 +61,9 @@ contract("Exporting ERC20 with assistance", async accounts => {
 
 		const oracle = await Oracle.new();
 		console.log('oracle address', oracle.address);
-		await oracle.setPrice("_NATIVE_", "TKN", new BN(20), new BN(1), { from: aliceAccount });
+		await oracle.setPrice("_NATIVE_", "TKN", new BN(2), new BN(1), { from: aliceAccount });
 		const { num, den } = await oracle.getPrice("_NATIVE_", "TKN", { from: bobAccount });
-		expect(num).to.be.bignumber.equal(new BN(20))
+		expect(num).to.be.bignumber.equal(new BN(2))
 		expect(den).to.be.bignumber.equal(new BN(1))
 
 		token = await Token.new("Exportable token", "TKN");
@@ -604,7 +604,7 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		const stake = ether('2')
 		const sender_address = "SENDER"
 		const data = ""
-		const reward = amount.div(new BN(100))
+		const reward = amount.div(new BN(10))
 		const paid_amount = amount.sub(reward)
 		this.paid_amount = paid_amount
 		let res = await assistant.claim(txid, txts, amount, reward, sender_address, aliceAccount, data, { from: managerAccount });
@@ -745,7 +745,7 @@ contract("Exporting ERC20 with assistance", async accounts => {
 		const stake = ether('1')
 		const sender_address = "SENDER"
 		const data = ""
-		const reward = amount.div(new BN(100))
+		const reward = amount.div(new BN(10))
 		const paid_amount = amount.sub(reward)
 		this.paid_amount = paid_amount
 		let res = await assistant.claim(txid, txts, amount, reward, sender_address, aliceAccount, data, { from: managerAccount });

@@ -269,7 +269,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		const stake = ether('150')
 		const sender_address = "SENDER"
 		const data = ""
-		const reward = amount.div(new BN(100))
+		const reward = amount.div(new BN(4))
 		const paid_amount = amount.sub(reward)
 		this.image_profit = amount.sub(paid_amount)
 		let res = await assistant.claim(txid, txts, amount, reward, sender_address, aliceAccount, data, { from: managerAccount });
@@ -333,7 +333,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		const amount = ether('5')
 		const sender_address = "SENDER"
 		const data = ""
-		const reward = amount.div(new BN(100))
+		const reward = amount.div(new BN(4))
 		let promise = assistant.claim(txid, this.txts, amount, reward, sender_address, aliceAccount, data, { from: managerAccount });
 		await expectRevert(promise, "this transfer has already been claimed");
 	});
@@ -578,7 +578,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		this.stake_profit = this.stake_profit.add(ether('300'));
 
 		const elapsed = ts - this.recent_profit_ts
-		expect(elapsed).to.be.closeTo(3600 + 3 * 24 * 3600 + 1, 20)
+		expect(elapsed).to.be.closeTo(3600 + 3 * 24 * 3600 + 1, 40)
 		this.recent_stake_profit = this.recent_stake_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600)).add(ether('300'))
 		this.recent_image_profit = this.recent_image_profit.mul(new BN(10 * 24 * 3600 - elapsed)).div(new BN(10 * 24 * 3600))
 		this.recent_profit_ts = ts
@@ -659,7 +659,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		let assistant_image_balance_before = await instance.balanceOf(assistant.address)
 		let alice_image_balance_before = await instance.balanceOf(aliceAccount)
 
-		const gbyte_amount = ether('4')
+		const gbyte_amount = ether('3')
 		const usdc_amount = ether('120')
 
 		const res = await assistant.buyShares(usdc_amount, gbyte_amount, { from: aliceAccount });
@@ -792,7 +792,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		const stake = ether('360')
 		const sender_address = "SENDER"
 		const data = ""
-		const reward = amount.div(new BN(100))
+		const reward = amount.div(new BN(10))
 		const paid_amount = amount.sub(reward)
 		this.paid_amount = paid_amount
 		let res = await assistant.claim(txid, txts, amount, reward, sender_address, aliceAccount, data, { from: managerAccount });
@@ -959,7 +959,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		const stake = ether('30')
 		const sender_address = "SENDER"
 		const data = ""
-		const reward = amount.div(new BN(100))
+		const reward = amount.mul(new BN(80)).div(new BN(100))
 		const paid_amount = amount.sub(reward)
 		this.paid_amount = paid_amount
 		let res = await assistant.claim(txid, txts, amount, reward, sender_address, aliceAccount, data, { from: managerAccount });

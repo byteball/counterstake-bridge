@@ -154,16 +154,15 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		uint paid_amount = amount - uint(reward);
 		require(required_stake < uint(type(int).max), "required_stake too large");
 		require(paid_amount < uint(type(int).max), "paid_amount too large");
-		{ // stack too deep
-			(, IntBalance memory net_balance) = updateMFAndGetBalances(0, 0, false);
-			require(net_balance.stake > 0, "no net balance in stake asset");
-			require(net_balance.image > 0, "no net balance in image asset");
-			require(required_stake <= uint(net_balance.stake), "not enough balance in stake asset");
-			require(paid_amount <= uint(net_balance.image), "not enough balance in image asset");
-			balances_in_work[claim_num] = UintBalance({stake: required_stake, image: paid_amount});
-			balance_in_work.stake += required_stake;
-			balance_in_work.image += paid_amount;
-		}
+		
+		(, IntBalance memory net_balance) = updateMFAndGetBalances(0, 0, false);
+		require(net_balance.stake > 0, "no net balance in stake asset");
+		require(net_balance.image > 0, "no net balance in image asset");
+		require(required_stake <= uint(net_balance.stake), "not enough balance in stake asset");
+		require(paid_amount <= uint(net_balance.image), "not enough balance in image asset");
+		balances_in_work[claim_num] = UintBalance({stake: required_stake, image: paid_amount});
+		balance_in_work.stake += required_stake;
+		balance_in_work.image += paid_amount;
 
 		emit NewClaimFor(claim_num, recipient_address, txid, txts, amount, reward, required_stake);
 
@@ -172,12 +171,15 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		(uint num, uint den) = getOraclePriceOfNative(); // price of ETH in terms of stake token
 		uint remaining_gas = gasleft();
 	//	emit Gas(remaining_gas, initial_gas - remaining_gas);
-		network_fee_compensation += getGasCostInStakeTokens(
+		uint network_fee = getGasCostInStakeTokens(
 			initial_gas - remaining_gas 
 			+ 29575 // entry and exit gas (it's larger when the initial network_fee_compensation is 0)
 			+ (tokenAddress == address(0) ? 120000 : 120000), // withdrawal gas
 			num, den
 		);
+		// use the AMM pool price of stake asset in terms of image asset
+		require(reward > int(network_fee) * net_balance.image / net_balance.stake, "network fee would exceed reward");
+		network_fee_compensation += network_fee;
 	}
 
 	function challenge(uint claim_num, CounterstakeLibrary.Side stake_on, uint stake) onlyManager nonReentrant external {

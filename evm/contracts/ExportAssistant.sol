@@ -151,12 +151,14 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		(uint num, uint den) = getOraclePriceOfNative(oracleAddress); // price of ETH in terms of stake token
 		uint remaining_gas = gasleft();
 	//	emit Gas(remaining_gas, initial_gas - remaining_gas);
-		network_fee_compensation += getGasCostInStakeTokens(
+		uint network_fee = getGasCostInStakeTokens(
 			initial_gas - remaining_gas 
 			+ 32926 // entry and exit gas (it's larger when the initial network_fee_compensation is 0)
 			+ (tokenAddress == address(0) ? 73000 : 78000), // withdrawal gas
 			num, den
 		);
+		require(uint(reward) > network_fee, "network fee would exceed reward");
+		network_fee_compensation += network_fee;
 	}
 
 	function challenge(uint claim_num, CounterstakeLibrary.Side stake_on, uint stake) onlyManager nonReentrant external {
