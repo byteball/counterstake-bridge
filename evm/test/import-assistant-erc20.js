@@ -199,7 +199,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		expect(await instance.stakes(this.claim_num, yes, bobAccount)).to.be.bignumber.equal(stake);
 	});
 
-	it("withdraw", async () => {
+	it("withdraw 0", async () => {
 		await time.increase(12 * 3600 + 1);
 
 		let balance_before = await token.balanceOf(bobAccount);
@@ -313,9 +313,9 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 	//	this.image_mf = ether('40').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
 	//	this.ts = ts
 		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(stake)
-		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(paid_amount)
+		expect((await assistant.balance_in_work())[1]).to.be.bignumber.gt(paid_amount)
 		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(stake)
-		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.eq(paid_amount)
+		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.gt(paid_amount)
 		expect((await assistant.profit())[0]).to.be.bignumber.eq(bn0)
 		expect((await assistant.profit())[1]).to.be.bignumber.eq(bn0)
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
@@ -380,7 +380,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		await expectRevert(promise, "the challenging period has expired");
 	});
 
-	it("withdraw to assistant", async () => {
+	it("withdraw 1 to assistant", async () => {
 		let stake_balance_before = await token.balanceOf(assistant.address);
 		console.log('balance before withdrawal', stake_balance_before.toString())
 		let image_balance_before = await instance.balanceOf(assistant.address);
@@ -420,10 +420,17 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(bn0)
 		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.eq(bn0)
 		expect((await assistant.profit())[0]).to.be.bignumber.eq(this.stake_profit)
-		expect((await assistant.profit())[1]).to.be.bignumber.eq(this.image_profit)
+		expect((await assistant.profit())[1]).to.be.bignumber.lt(this.image_profit)
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
-		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
+		expect((await assistant.mf())[1]).to.be.bignumber.gt(this.image_mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+
+		this.image_profit = (await assistant.profit())[1]
+		this.image_mf = (await assistant.mf())[1]
+
+		this.recent_stake_profit = this.stake_profit
+		this.recent_image_profit = this.image_profit
+		this.recent_profit_ts = ts
 		expect((await assistant.recent_profit())[0]).to.be.bignumber.eq(this.recent_stake_profit)
 		expect((await assistant.recent_profit())[1]).to.be.bignumber.eq(this.recent_image_profit)
 		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
@@ -521,9 +528,9 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 
 		this.stake_balance_in_work = accepted_stake
 
-		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(accepted_stake)
+		expect((await assistant.balance_in_work())[0]).to.be.bignumber.gt(accepted_stake)
 		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(bn0)
-		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(accepted_stake)
+		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.gt(accepted_stake)
 		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.eq(bn0)
 		expect((await assistant.profit())[0]).to.be.bignumber.eq(this.stake_profit)
 		expect((await assistant.profit())[1]).to.be.bignumber.eq(this.image_profit)
@@ -547,7 +554,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		await expectRevert(promise, "have a winning stake in this claim");
 	});
 
-	it("withdraw to assistant", async () => {
+	it("withdraw 2 to assistant", async () => {
 		let stake_balance_before = await token.balanceOf(assistant.address);
 		let image_balance_before = await instance.balanceOf(assistant.address);
 
@@ -587,14 +594,18 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(bn0)
 		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(bn0)
 		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.eq(bn0)
-		expect((await assistant.profit())[0]).to.be.bignumber.eq(this.stake_profit)
+		expect((await assistant.profit())[0]).to.be.bignumber.lt(this.stake_profit)
 		expect((await assistant.profit())[1]).to.be.bignumber.eq(this.image_profit)
-		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
+		expect((await assistant.mf())[0]).to.be.bignumber.gt(this.stake_mf)
 		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
-		expect((await assistant.recent_profit())[0]).to.be.bignumber.eq(this.recent_stake_profit)
+		expect((await assistant.recent_profit())[0]).to.be.bignumber.lt(this.recent_stake_profit)
 		expect((await assistant.recent_profit())[1]).to.be.bignumber.eq(this.recent_image_profit)
 		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
+
+		this.recent_stake_profit = (await assistant.recent_profit())[0]
+		this.stake_profit = (await assistant.profit())[0]
+		this.stake_mf = (await assistant.mf())[0]
 	});
 
 	it("alice trigers a loss and fails because there is no loss to the assistant", async () => {
@@ -840,9 +851,9 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		this.image_balance_in_work = paid_amount
 
 		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(this.stake_balance_in_work)
-		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(this.image_balance_in_work)
+		expect((await assistant.balance_in_work())[1]).to.be.bignumber.gt(this.image_balance_in_work)
 		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(this.stake_balance_in_work)
-		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.eq(this.image_balance_in_work)
+		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.gt(this.image_balance_in_work)
 		expect((await assistant.profit())[0]).to.be.bignumber.eq(this.stake_profit)
 		expect((await assistant.profit())[1]).to.be.bignumber.eq(this.image_profit)
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
@@ -889,10 +900,10 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 
 		this.stake_balance_in_work = this.stake_balance_in_work.add(accepted_stake)
 
-		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(this.stake_balance_in_work)
-		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(this.image_balance_in_work)
-		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(this.stake_balance_in_work)
-		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.eq(this.image_balance_in_work)
+		expect((await assistant.balance_in_work())[0]).to.be.bignumber.gt(this.stake_balance_in_work)
+		expect((await assistant.balance_in_work())[1]).to.be.bignumber.gt(this.image_balance_in_work)
+		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.gt(this.stake_balance_in_work)
+		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.gt(this.image_balance_in_work)
 		expect((await assistant.profit())[0]).to.be.bignumber.eq(this.stake_profit)
 		expect((await assistant.profit())[1]).to.be.bignumber.eq(this.image_profit)
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
@@ -900,7 +911,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
 	});
 
-	it("withdraw to assistant", async () => {
+	it("withdraw 3 to assistant", async () => {
 		await time.increase(3 * 24 * 3600 + 1);
 		let assistant_stake_balance_before = await token.balanceOf(assistant.address);
 		let assistant_image_balance_before = await instance.balanceOf(assistant.address)
@@ -938,11 +949,16 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(this.image_balance_in_work)
 		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(this.stake_balance_in_work)
 		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.eq(this.image_balance_in_work)
-		expect((await assistant.profit())[0]).to.be.bignumber.eq(this.stake_profit)
-		expect((await assistant.profit())[1]).to.be.bignumber.eq(this.image_profit)
-		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
-		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
+		expect((await assistant.profit())[0]).to.be.bignumber.lt(this.stake_profit)
+		expect((await assistant.profit())[1]).to.be.bignumber.lt(this.image_profit)
+		expect((await assistant.mf())[0]).to.be.bignumber.gt(this.stake_mf)
+		expect((await assistant.mf())[1]).to.be.bignumber.gt(this.image_mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+
+		this.stake_profit = (await assistant.profit())[0]
+		this.image_profit = (await assistant.profit())[1]
+		this.stake_mf = (await assistant.mf())[0]
+		this.image_mf = (await assistant.mf())[1]
 	});
 
 
@@ -1007,14 +1023,16 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		this.image_balance_in_work = paid_amount
 
 		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(this.stake_balance_in_work)
-		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(this.image_balance_in_work)
+		expect((await assistant.balance_in_work())[1]).to.be.bignumber.gt(this.image_balance_in_work)
 		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(this.stake_balance_in_work)
-		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.eq(this.image_balance_in_work)
+		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.gt(this.image_balance_in_work)
 		expect((await assistant.profit())[0]).to.be.bignumber.eq(this.stake_profit)
 		expect((await assistant.profit())[1]).to.be.bignumber.eq(this.image_profit)
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
 		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+
+		this.image_balance_in_work = (await assistant.balance_in_work())[1]
 
 		// alice received her 99% of the claimed amount
 		let balance_after = await instance.balanceOf(aliceAccount);
@@ -1171,15 +1189,18 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 
 		this.stake_balance_in_work = stake
 
-		expect((await assistant.balance_in_work())[0]).to.be.bignumber.eq(this.stake_balance_in_work)
+		expect((await assistant.balance_in_work())[0]).to.be.bignumber.gt(this.stake_balance_in_work)
 		expect((await assistant.balance_in_work())[1]).to.be.bignumber.eq(this.image_balance_in_work)
-		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.eq(this.stake_balance_in_work)
+		expect((await assistant.balances_in_work(this.claim_num))[0]).to.be.bignumber.gt(this.stake_balance_in_work)
 		expect((await assistant.balances_in_work(this.claim_num))[1]).to.be.bignumber.eq(this.image_balance_in_work)
 		expect((await assistant.profit())[0]).to.be.bignumber.eq(this.stake_profit)
 		expect((await assistant.profit())[1]).to.be.bignumber.eq(this.image_profit)
 		expect((await assistant.mf())[0]).to.be.bignumber.eq(this.stake_mf)
 		expect((await assistant.mf())[1]).to.be.bignumber.eq(this.image_mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+		
+		this.stake_balance_in_work = (await assistant.balance_in_work())[0]
+
 	});
 
 

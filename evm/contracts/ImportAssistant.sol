@@ -160,9 +160,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		require(net_balance.image > 0, "no net balance in image asset");
 		require(required_stake <= uint(net_balance.stake), "not enough balance in stake asset");
 		require(paid_amount <= uint(net_balance.image), "not enough balance in image asset");
-		balances_in_work[claim_num] = UintBalance({stake: required_stake, image: paid_amount});
 		balance_in_work.stake += required_stake;
-		balance_in_work.image += paid_amount;
 
 		emit NewClaimFor(claim_num, recipient_address, txid, txts, amount, reward, required_stake);
 
@@ -173,13 +171,16 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 	//	emit Gas(remaining_gas, initial_gas - remaining_gas);
 		uint network_fee = getGasCostInStakeTokens(
 			initial_gas - remaining_gas 
-			+ 29575 // entry and exit gas (it's larger when the initial network_fee_compensation is 0)
+			+ 91008 // entry and exit gas (it's larger when the initial network_fee_compensation is 0)
 			+ (tokenAddress == address(0) ? 120000 : 120000), // withdrawal gas
 			num, den
 		);
 		// use the AMM pool price of stake asset in terms of image asset
-		require(reward > int(network_fee) * net_balance.image / net_balance.stake, "network fee would exceed reward");
+		uint network_fee_in_image_asset = network_fee * uint(net_balance.image) / uint(net_balance.stake);
+		require(uint(reward) > network_fee_in_image_asset, "network fee would exceed reward");
 		network_fee_compensation += network_fee;
+		balances_in_work[claim_num] = UintBalance({stake: required_stake, image: paid_amount + network_fee_in_image_asset});
+		balance_in_work.image += paid_amount + network_fee_in_image_asset;
 	}
 
 	function challenge(uint claim_num, CounterstakeLibrary.Side stake_on, uint stake) onlyManager nonReentrant external {
@@ -193,14 +194,15 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 		require(stake <= uint(net_balance.stake), "not enough balance");
 		Import(bridgeAddress).challenge{value: tokenAddress == address(0) ? stake : 0}(claim_num, stake_on, stake);
-		balances_in_work[claim_num].stake += stake;
-		balance_in_work.stake += stake;
 		emit AssistantChallenge(claim_num, stake_on, stake);
 		
 		(uint num, uint den) = getOraclePriceOfNative(); // price of ETH in terms of stake token
 		uint remaining_gas = gasleft();
 	//	emit Gas(remaining_gas, initial_gas - remaining_gas);
-		network_fee_compensation += getGasCostInStakeTokens(initial_gas - remaining_gas + 29601, num, den);
+		uint network_fee = getGasCostInStakeTokens(initial_gas - remaining_gas + 71641 - 15000, num, den);
+		network_fee_compensation += network_fee;
+		balances_in_work[claim_num].stake += stake + network_fee;
+		balance_in_work.stake += stake + network_fee;
 	}
 
 	receive() external payable onlyETH {
@@ -272,7 +274,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		
 		uint my_losing_stake = Import(bridgeAddress).stakes(claim_num, opposite_outcome, address(this));
 		require(my_losing_stake > 0, "no losing stake in this claim");
-		require(invested.stake == my_losing_stake, "BUG: losing stake mismatch");
+		require(invested.stake >= my_losing_stake, "BUG: losing stake mismatch"); // >= due to network fee
 
 		require(invested.stake < uint(type(int).max), "stake loss too large");
 		require(invested.image < uint(type(int).max), "image loss too large");

@@ -140,8 +140,6 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 			require(total < uint(type(int).max), "total too large");
 			require(net_balance > 0, "no net balance");
 			require(total <= uint(net_balance), "not enough balance");
-			balances_in_work[claim_num] = total;
-			balance_in_work += total;
 		}
 
 		emit NewClaimFor(claim_num, recipient_address, txid, txts, amount, reward, required_stake);
@@ -153,12 +151,14 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 	//	emit Gas(remaining_gas, initial_gas - remaining_gas);
 		uint network_fee = getGasCostInStakeTokens(
 			initial_gas - remaining_gas 
-			+ 32926 // entry and exit gas (it's larger when the initial network_fee_compensation is 0)
+			+ 74920 // entry and exit gas (it's larger when the initial network_fee_compensation is 0)
 			+ (tokenAddress == address(0) ? 73000 : 78000), // withdrawal gas
 			num, den
 		);
 		require(uint(reward) > network_fee, "network fee would exceed reward");
 		network_fee_compensation += network_fee;
+		balances_in_work[claim_num] = total + network_fee; // network_fee will decrease the profit
+		balance_in_work += total + network_fee;
 	}
 
 	function challenge(uint claim_num, CounterstakeLibrary.Side stake_on, uint stake) onlyManager nonReentrant external {
@@ -172,14 +172,15 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 		require(stake <= uint(net_balance), "not enough balance");
 		Export(bridgeAddress).challenge{value: tokenAddress == address(0) ? stake : 0}(claim_num, stake_on, stake);
-		balances_in_work[claim_num] += stake;
-		balance_in_work += stake;
 		emit AssistantChallenge(claim_num, stake_on, stake);
 		
 		(uint num, uint den) = getOraclePriceOfNative(oracleAddress); // price of ETH in terms of stake token
 		uint remaining_gas = gasleft();
 	//	emit Gas(remaining_gas, initial_gas - remaining_gas);
-		network_fee_compensation += getGasCostInStakeTokens(initial_gas - remaining_gas + 29601, num, den);
+		uint network_fee = getGasCostInStakeTokens(initial_gas - remaining_gas + 71616, num, den);
+		network_fee_compensation += network_fee;
+		balances_in_work[claim_num] += stake + network_fee;
+		balance_in_work += stake + network_fee;
 	}
 
 	function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {

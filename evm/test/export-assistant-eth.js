@@ -195,8 +195,8 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 	//	this.mf = ether('20').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
 	//	this.ts = ts
 		this.balance_in_work = paid_amount.add(stake)
-		expect(await assistant.balance_in_work()).to.be.bignumber.eq(paid_amount.add(stake))
-		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(paid_amount.add(stake))
+		expect(await assistant.balance_in_work()).to.be.bignumber.gt(paid_amount.add(stake))
+		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.gt(paid_amount.add(stake))
 		expect(await assistant.profit()).to.be.bignumber.eq(bn0)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
@@ -265,7 +265,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		await expectRevert(promise, "not finished yet");
 	});
 	
-	it("withdraw", async () => {
+	it("withdraw 1 to assistant", async () => {
 		let balance_before = await balance.current(assistant.address);
 	//	console.log('balance before withdrawal', balance_before.toString())
 
@@ -294,13 +294,17 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		const delta_mf = ether('20').mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
 		this.mf = this.mf.add(delta_mf)
 		this.ts = ts
-		this.recent_profit = this.profit
-		this.recent_profit_ts = ts
 		expect(await assistant.balance_in_work()).to.be.bignumber.eq(bn0)
 		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(bn0)
-		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
-		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
+		expect(await assistant.profit()).to.be.bignumber.lt(this.profit)
+		expect(await assistant.mf()).to.be.bignumber.gt(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+
+		this.profit = await assistant.profit()
+		this.mf = await assistant.mf()
+
+		this.recent_profit = this.profit
+		this.recent_profit_ts = ts
 		expect(await assistant.recent_profit()).to.be.bignumber.eq(this.recent_profit)
 		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
 
@@ -423,8 +427,8 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 	//	this.mf = this.mf.add(delta_mf)
 	//	this.ts = ts
 
-		expect(await assistant.balance_in_work()).to.be.bignumber.eq(accepted_stake)
-		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(accepted_stake)
+		expect(await assistant.balance_in_work()).to.be.bignumber.gt(accepted_stake)
+		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.gt(accepted_stake)
 		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
@@ -449,7 +453,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		await expectRevert(promise, "not finished yet");
 	});
 	
-	it("withdraw to assistant", async () => {
+	it("withdraw 2 to assistant", async () => {
 		let balance_before = await balance.current(assistant.address);
 
 		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount });
@@ -483,11 +487,15 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 
 		expect(await assistant.balance_in_work()).to.be.bignumber.eq(bn0)
 		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(bn0)
-		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
-		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
+		expect(await assistant.profit()).to.be.bignumber.lt(this.profit)
+		expect(await assistant.mf()).to.be.bignumber.gt(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
-		expect(await assistant.recent_profit()).to.be.bignumber.eq(this.recent_profit)
+		expect(await assistant.recent_profit()).to.be.bignumber.lt(this.recent_profit)
 		expect(await assistant.recent_profit_ts()).to.be.bignumber.eq(new BN(this.recent_profit_ts))
+
+		this.recent_profit = await assistant.recent_profit()
+		this.profit = await assistant.profit()
+		this.mf = await assistant.mf()
 	});
 
 	it("failed record win 2: this claim is already accounted for", async () => {
@@ -683,8 +691,8 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 
 		this.balance_in_work = paid_amount.add(stake)
 
-		expect(await assistant.balance_in_work()).to.be.bignumber.eq(this.balance_in_work)
-		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(this.balance_in_work)
+		expect(await assistant.balance_in_work()).to.be.bignumber.gt(this.balance_in_work)
+		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.gt(this.balance_in_work)
 		expect(await assistant.profit()).to.be.bignumber.eq(bn0)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
@@ -728,15 +736,15 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 
 		this.balance_in_work = this.balance_in_work.add(accepted_stake)
 
-		expect(await assistant.balance_in_work()).to.be.bignumber.eq(this.balance_in_work)
-		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(this.balance_in_work)
+		expect(await assistant.balance_in_work()).to.be.bignumber.gt(this.balance_in_work)
+		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.gt(this.balance_in_work)
 		expect(await assistant.profit()).to.be.bignumber.eq(bn0)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
 	//	expect(0).to.eq(1)
 	});
 
-	it("withdraw to assistant", async () => {
+	it("withdraw 3 to assistant", async () => {
 		await time.increase(3 * 24 * 3600 + 1);
 		let balance_before = await balance.current(assistant.address);
 
@@ -766,9 +774,12 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 
 		expect(await assistant.balance_in_work()).to.be.bignumber.eq(bn0)
 		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(bn0)
-		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
-		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
+		expect(await assistant.profit()).to.be.bignumber.lt(this.profit)
+		expect(await assistant.mf()).to.be.bignumber.gt(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+
+		this.profit = await assistant.profit()
+		this.mf = await assistant.mf()
 	});
 
 
@@ -829,11 +840,13 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 
 		this.balance_in_work = paid_amount.add(stake)
 
-		expect(await assistant.balance_in_work()).to.be.bignumber.eq(this.balance_in_work)
-		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(this.balance_in_work)
+		expect(await assistant.balance_in_work()).to.be.bignumber.gt(this.balance_in_work)
+		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.gt(this.balance_in_work)
 		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+
+		this.balance_in_work = await assistant.balance_in_work()
 
 		// alice received her 99% of the claimed amount
 		let balance_after = await balance.current(aliceAccount);
@@ -984,11 +997,14 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 
 		this.balance_in_work = stake
 
-		expect(await assistant.balance_in_work()).to.be.bignumber.eq(stake)
-		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.eq(stake)
+		expect(await assistant.balance_in_work()).to.be.bignumber.gt(stake)
+		expect(await assistant.balances_in_work(this.claim_num)).to.be.bignumber.gt(stake)
 		expect(await assistant.profit()).to.be.bignumber.eq(this.profit)
 		expect(await assistant.mf()).to.be.bignumber.eq(this.mf)
 		expect(await assistant.ts()).to.be.bignumber.eq(new BN(this.ts))
+		
+		this.balance_in_work = await assistant.balance_in_work()
+
 	//	expect(0).to.eq(1)
 	});
 
