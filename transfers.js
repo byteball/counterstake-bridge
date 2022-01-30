@@ -372,7 +372,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		// it might be not confirmed yet
 	//	const tx = await networkApi[opposite_network].getTransaction(txid);
 		const stable_ts = await networkApi[opposite_network].getLastStableTimestamp();
-		const bTooYoung = txts > stable_ts;
+		const bTooYoung = txts >= stable_ts;
 		if (txts < Date.now() / 1000 + conf.max_ts_error && (bTooYoung || bCatchingUp)) {
 			// schedule another check
 			const timeout = bTooYoung ? (txts - stable_ts + 60) : 60;
@@ -384,6 +384,10 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 			console.log(`will try to find the transfer ${txid} again`);
 			// if we see a new transfer after refresh, we'll try to claim it but the destination network is still locked by mutex here. We'll finish here first, insert this claim, unlock the mutex, and our claim attempt will see that a claim already exists
 			transfers = await findTransfers();
+			if (transfers.length === 0) { // events might be emitted but not handled yet
+				await wait(30000);
+				transfers = await findTransfers();
+			}
 		}
 	}
 
