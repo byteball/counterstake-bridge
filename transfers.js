@@ -502,7 +502,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 		if (!bCompleteBridge)
 			return unlock(`will not attack challenge ${challenge_txid} of claim ${claim_num} on bridge ${bridge_id} as the bridge is still incomplete`);
 		if (!conf.bAttack)
-			return console.log(`will skip challenge ${challenge_txid} as attacking function is off`);
+			return unlock(`will skip challenge ${challenge_txid} as attacking function is off`);
 		const asset = type === 'expatriation' ? stake_asset : home_asset;
 		if (!asset)
 			throw Error(`null asset in challenge ${challenge_txid} on claim ${claim_num}`);
