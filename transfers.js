@@ -867,7 +867,7 @@ async function handleNewAssistantAA(side, assistant_aa, bridge_aa, network, mana
 	const meIsManager = networkApi[network].getMyAddress() === manager;
 	if (meIsManager)
 		await db.query(`UPDATE bridges SET ${side}_assistant_aa=? WHERE bridge_id=?`, [assistant_aa, bridge_id]);
-	await db.query(`INSERT INTO pooled_assistants (assistant_aa, bridge_id, bridge_aa, network, side, manager, shares_asset, shares_symbol) VALUES(?, ?,?, ?,?,?, ?,?)`, [assistant_aa, bridge_id, bridge_aa, network, side, manager, assistant_shares_asset, assistant_shares_symbol]);
+	await db.query(`INSERT ${db.getIgnore()} INTO pooled_assistants (assistant_aa, bridge_id, bridge_aa, network, side, manager, shares_asset, shares_symbol) VALUES(?, ?,?, ?,?,?, ?,?)`, [assistant_aa, bridge_id, bridge_aa, network, side, manager, assistant_shares_asset, assistant_shares_symbol]);
 	return meIsManager;
 }
 
