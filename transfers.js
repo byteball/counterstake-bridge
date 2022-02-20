@@ -527,39 +527,42 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 
 
 async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
-	const { bridge_id, export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_asset, foreign_asset, stake_asset, home_network, foreign_network } = bridge;
+	const { bridge_id, export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_asset, foreign_asset, stake_asset, home_symbol, home_network, foreign_network } = bridge;
 	const network = type === 'expatriation' ? foreign_network : home_network;
 	const unlock = await mutex.lock(network);
-	console.log(`handling withdrawal from claim ${claim_num} in tx ${withdrawal_txid}`);
 	const claim_info = { claim_num, bridge_id, type };
 
 	const bridge_aa = type === 'expatriation' ? import_aa : export_aa;
 	if (!bridge_aa)
 		throw Error(`null aa in withdrawal ${withdrawal_txid} on claim ${claim_num}`);
+	const desc = `claim ${claim_num} on ${network} bridge ${bridge_id} AA ${bridge_aa} for ${home_symbol}`;
+	console.log(`handling withdrawal tx ${withdrawal_txid} from ${desc}`);
 	let assistant_aa = type === 'expatriation' ? import_assistant_aa : export_assistant_aa;
 	const api = networkApi[network];
 	const valid_outcome = await getValidOutcome({ claim_num, bridge_id, type }, false);
 	if (valid_outcome === null) {
 		if (!bCatchingUpOrHandlingPostponedEvents)
-			throw Error(`withdrawn claim ${claim_num} not found`);
+			throw Error(`withdrawn ${desc} not found`);
 		setTimeout(() => {
 			console.log(`retrying withdrawal ${withdrawal_txid}`);
 			handleWithdrawal(bridge, type, claim_num, withdrawal_txid);
 		}, 3 * 60 * 1000);
-		return unlock(`withdrawn claim ${claim_num} not found while catching up, will retry later`);
+		return unlock(`withdrawn ${desc} not found while catching up, will retry later`);
 	}
 	const claim = await api.getClaim(bridge_aa, claim_num, true, true);
 	if (claim.current_outcome === valid_outcome) {
-		console.log(`claim ${claim_num} finished as expected`);
+		console.log(`${desc} finished as expected`);
 		if (!isZero(claim.stakes.no)) { // it was challenged
 			if (assistant_aa && api.isMyAddress(claim.claimant_address)) // claimed myself
 				assistant_aa = undefined;
 			if (network !== 'Obyte')
 				await wait(3000); // getMyStake() might go to a different node that is not perfectly synced
 			const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome, assistant_aa);
-			console.log(`my stake on claim ${claim_num} was ${my_stake}`); // duplicates are harmless
-			if (!isZero(my_stake))
+			console.log(`my stake on ${desc} was ${my_stake}`); // duplicates are harmless
+			if (!isZero(my_stake)) {
+				console.log(`will withdraw from ${desc}`);
 				await sendWithdrawalRequest(network, bridge_aa, claim_info, assistant_aa);
+			}
 			else
 				await finishClaim(claim_info);
 		}
@@ -567,7 +570,7 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 			await finishClaim(claim_info);
 	}
 	else {
-		notifications.notifyAdmin(`claim ${claim_num} finished as "${claim.current_outcome}" in ${withdrawal_txid}, expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
+		notifications.notifyAdmin(`${desc} finished as "${claim.current_outcome}" in ${withdrawal_txid}, expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
 		await finishClaim(claim_info);
 		eventBus.emit('finished_as_fraud', bridge, type, claim_num, withdrawal_txid, claim, valid_outcome);
 	}
@@ -743,11 +746,13 @@ async function checkUnfinishedClaims() {
 			if (claim.current_outcome === valid_outcome) {
 				console.log(`checkUnfinishedClaims: ${desc} finished as expected`);
 				const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome, assistant_aa);
-				console.log(`my stake on claim ${claim_num} was ${my_stake}`);
+				console.log(`my stake on ${desc} was ${my_stake}`);
 				if (isZero(my_stake))
 					await finishClaim(claim_info);
-				else
+				else {
+					console.log(`checkUnfinishedClaims: will withdraw from ${desc}`);
 					await sendWithdrawalRequest(network, bridge_aa, claim_info, assistant_aa);
+				}
 			}
 			else {
 				notifications.notifyAdmin(`checkUnfinishedClaims: ${desc} finished as "${claim.current_outcome}", expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
