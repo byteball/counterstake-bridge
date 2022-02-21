@@ -722,6 +722,13 @@ class EvmChain {
 		this.#wallet = wallet.connect(provider);
 
 		if (bWebsocket && !process.env.devnet) {
+			let closed = false;
+			const forgetAndEmitDisconnected = () => {
+				closed = true;
+				this.forget();
+				console.log(`will wait before emitting disconnection event on`, this.network);
+				setTimeout(() => eventBus.emit('network_disconnected', this.network), 60 * 1000);
+			};
 			provider.on('block', (blockNumber) => {
 				console.log('new block', this.network, blockNumber);
 				provider._websocket.ping();
@@ -729,9 +736,17 @@ class EvmChain {
 			provider._websocket.on('pong', () => console.log('pong', this.network));
 			provider._websocket.on('close', () => {
 				console.log('====== !!!!! websocket connection closed', this.network);
-				this.forget();
-				eventBus.emit('network_disconnected', this.network);
+				if (closed)
+					return console.log('close event: ws already closed');
+				forgetAndEmitDisconnected();
 			});
+			provider._websocket.on('error', (error) => {
+				console.log('====== !!!!! websocket error', this.network, error);
+				if (closed)
+					return console.log('error event: ws already closed');
+				forgetAndEmitDisconnected();
+			});
+			console.log(`${this.network} constructor done`);
 		}
 
 		watchForDeadlock(this.network + 'Event');
