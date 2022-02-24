@@ -260,7 +260,7 @@ class EvmChain {
 		try {
 			let opts = (staked_asset === AddressZero) ? { value: total } : { value: 0 };
 			if (this.getGasPriceMultiplier())
-				opts.gasPrice = Math.round(1e9 * this.getGasPrice());
+				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 			const res = await contract.claim(txid, txts, amount, reward, stake, sender_address, dest_address, data, opts);
 			const claim_txid = res.hash;
 			console.log(`sent claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
@@ -301,7 +301,7 @@ class EvmChain {
 		try {
 			let opts = {};
 			if (this.getGasPriceMultiplier())
-				opts.gasPrice = Math.round(1e9 * this.getGasPrice());
+				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 			const res = await contract.claim(txid, txts, amount, reward, sender_address, dest_address, data, opts);
 			const claim_txid = res.hash;
 			console.log(`sent assistant claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
@@ -325,7 +325,7 @@ class EvmChain {
 		const contract = this.#contractsByAddress[bridge_aa];
 		let opts = { value: (asset === AddressZero) ? counterstake : 0 };
 		if (this.getGasPriceMultiplier())
-			opts.gasPrice = Math.round(1e9 * this.getGasPrice());
+			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 		const res = await contract['challenge(uint256,uint8,uint256)'](claim_num, side, counterstake, opts);
 		const txid = res.hash;
 		console.log(`sent counterstake ${counterstake} for "${stake_on}" to challenge claim ${claim_num}: ${txid}`);
@@ -343,7 +343,7 @@ class EvmChain {
 		const contract = this.#contractsByAddress[assistant_aa];
 		let opts = {};
 		if (this.getGasPriceMultiplier())
-			opts.gasPrice = Math.round(1e9 * this.getGasPrice());
+			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 		const res = await contract.challenge(claim_num, side, counterstake, opts);
 		const txid = res.hash;
 		console.log(`sent assistant counterstake ${counterstake} for "${stake_on}" to challenge claim ${claim_num}: ${txid}`);
@@ -360,7 +360,7 @@ class EvmChain {
 		const contract = this.#contractsByAddress[bridge_aa];
 		let opts = {};
 		if (this.getGasPriceMultiplier())
-			opts.gasPrice = Math.round(1e9 * this.getGasPrice());
+			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 		const res = to_address
 			? await contract['withdraw(uint256,address)'](claim_num, to_address, opts)
 			: await contract['withdraw(uint256)'](claim_num, opts);
@@ -378,14 +378,14 @@ class EvmChain {
 		if (asset === AddressZero) {
 			let opts = { to: address, value: amount };
 			if (this.getGasPriceMultiplier())
-				opts.gasPrice = Math.round(1e9 * this.getGasPrice());
+				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 			res = await this.#wallet.sendTransaction(opts);
 		}
 		else {
 			const contract = new ethers.Contract(asset, erc20Json.abi, this.#wallet);
 			let opts = {};
 			if (this.getGasPriceMultiplier())
-				opts.gasPrice = Math.round(1e9 * this.getGasPrice());
+				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 			res = await contract.transfer(address, amount, opts);
 		}
 		const txid = res.hash;
