@@ -42,6 +42,10 @@ class Polygon extends EvmChain {
 		return 1000; // moralis
 	}
 
+	getGasPriceMultiplier() {
+		return 1.3;
+	}
+
 	async getAddressBlocks(address, startblock, startts) {
 		return await getAddressBlocks({ base_url: etherscan_base_url, address, startblock, startts });
 	}
