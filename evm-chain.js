@@ -712,7 +712,7 @@ class EvmChain {
 		await this.updateLastBlock(await this.#provider.getBlockNumber());
 	}
 
-	constructor(network, factory_contract_address, assistant_factory_contract_address, provider, bWebsocket){
+	constructor(network, factory_contract_address, assistant_factory_contract_address, provider){
 		this.network = network;
 		this.#factory_contract_address = factory_contract_address;
 		this.#assistant_factory_contract_address = assistant_factory_contract_address;
@@ -721,7 +721,7 @@ class EvmChain {
 		console.log(`====== my ${network} address: `, wallet.address);
 		this.#wallet = wallet.connect(provider);
 
-		if (bWebsocket && !process.env.devnet) {
+		if (provider._websocket && !process.env.devnet) {
 			let closed = false;
 			const forgetAndEmitDisconnected = () => {
 				closed = true;

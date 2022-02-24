@@ -16,7 +16,7 @@ class BSC extends EvmChain {
 		bCreated = true;
 		
 		const provider = getProvider('BSC');
-		super('BSC', conf.bsc_factory_contract_address, conf.bsc_assistant_factory_contract_address, provider, true);
+		super('BSC', conf.bsc_factory_contract_address, conf.bsc_assistant_factory_contract_address, provider);
 	}
 
 	forget() {
