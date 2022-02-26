@@ -2,6 +2,9 @@
 const { ethers } = require("ethers");
 const conf = require('ocore/conf.js');
 const EvmChain = require('./evm-chain.js');
+const { getAddressBlocks } = require("./etherscan.js");
+
+const etherscan_base_url = process.env.testnet ? 'https://api-rinkeby.etherscan.io/' : 'https://api.etherscan.io';
 
 let bCreated = false;
 
@@ -15,7 +18,8 @@ class Ethereum extends EvmChain {
 	//	const provider = new ethers.providers.JsonRpcProvider("http://0.0.0.0:8545"); // default
 		const provider = process.env.devnet
 			? new ethers.providers.JsonRpcProvider("http://0.0.0.0:7545") // ganache
-			: ethers.providers.InfuraProvider.getWebSocketProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id);
+			: new ethers.providers.WebSocketProvider(process.env.testnet ? `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/eth/rinkeby/ws` : `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/eth/mainnet/ws`);
+		//	: ethers.providers.InfuraProvider.getWebSocketProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id);
 		super('Ethereum', conf.ethereum_factory_contract_address, conf.ethereum_assistant_factory_contract_address, provider);
 
 	}
@@ -30,6 +34,13 @@ class Ethereum extends EvmChain {
 		return 'ETH';
 	}
 
+	getMaxBlockRange() {
+		return 1000;
+	}
+
+	async getAddressBlocks(address, startblock, startts) {
+		return await getAddressBlocks({ base_url: etherscan_base_url, address, startblock, startts });
+	}
 
 }
 
