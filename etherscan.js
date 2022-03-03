@@ -51,9 +51,20 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 	return history;
 }
 
-async function getAddressBlocks({ base_url, address, startblock, startts, api_key }) {
-	const history = await getAddressHistory({ base_url, address, startblock, startts, api_key });
-	return history.map(tx => parseInt(tx.blockNumber));
+async function getAddressBlocks({ base_url, address, startblock, startts, api_key, count = 0 }) {
+	try {
+		const history = await getAddressHistory({ base_url, address, startblock, startts, api_key });
+		return history.map(tx => parseInt(tx.blockNumber));
+	}
+	catch (e) {
+		console.log(`getAddressBlocks ${base_url} failed`, e);
+		if (count > 5)
+			throw e;
+		console.log(`will retry getAddressBlocks ${base_url} in 60 sec`);
+		await wait(60 * 1000);
+		count++;
+		return await getAddressBlocks({ base_url, address, startblock, startts, api_key, count });
+	}
 }
 
 async function test() {
