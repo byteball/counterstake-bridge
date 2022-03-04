@@ -95,7 +95,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		(address tokenAddr, , , , , ) = Import(bridgeAddr).settings();
 		tokenAddress = tokenAddr;
 		if (tokenAddr != address(0))
-			IERC20(tokenAddr).approve(bridgeAddr, type(uint).max);
+			IERC20(tokenAddr).safeApprove(bridgeAddr, type(uint).max);
 		managerAddress = (managerAddr != address(0)) ? managerAddr : msg.sender;
 		profit_diffusion_period = default_profit_diffusion_period;
 	}

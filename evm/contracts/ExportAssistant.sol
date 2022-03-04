@@ -86,7 +86,7 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		(address tokenAddr, , , , , ) = Export(bridgeAddr).settings();
 		tokenAddress = tokenAddr;
 		if (tokenAddr != address(0)) {
-			IERC20(tokenAddr).approve(bridgeAddr, type(uint).max);
+			IERC20(tokenAddr).safeApprove(bridgeAddr, type(uint).max);
 			oracleAddress = oracleAddr;
 			validateOracle(oracleAddr);
 		}
