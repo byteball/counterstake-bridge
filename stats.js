@@ -23,6 +23,7 @@ async function calcTransferredAmounts() {
 	const bridges = await db.query("SELECT * FROM bridges WHERE import_aa IS NOT NULL AND export_aa IS NOT NULL");
 	for (let bridge of bridges) {
 		const { bridge_id, home_symbol, home_asset, foreign_asset, home_network, foreign_network, export_aa, import_aa, home_asset_decimals, foreign_asset_decimals } = bridge;
+		console.log(`getting transferred amounts for bridge ${home_symbol} ${home_network}->${foreign_network}`);
 		let exported_amount, imported_amount;
 		try {
 			exported_amount = toDisplayUnits(await getExportedAmount(home_network, home_asset, export_aa), home_asset_decimals);
@@ -44,6 +45,7 @@ async function calcTransferredAmounts() {
 		const rate = await fetchExchangeRateInUSD(home_network, home_asset, true);
 		if (imported_amount)
 			total += rate * imported_amount;
+		console.log(`done transferred amounts for bridge ${home_symbol} ${home_network}->${foreign_network}`);
 	}
 	console.log(`total traveling amount ${total}`, { bExportsIncomplete, bImportsIncomplete });
 	return total;
@@ -121,7 +123,30 @@ async function processPastEvents(contract, filter, since_block, thisArg, handler
 	}
 }
 
+async function calcTotalTransferred() {
+	console.log(`calcTotalTransferred`);
+	let grand_total_usd = { expatriation: 0, repatriation: 0 };
+	const sums = await db.query(`
+		SELECT bridge_id, type, home_network, foreign_network, home_asset, home_symbol, home_asset_decimals, foreign_asset_decimals, SUM(amount) AS total
+		FROM transfers
+		LEFT JOIN bridges USING(bridge_id)
+		GROUP BY transfers.bridge_id, type`
+	);
+	for (let { bridge_id, type, home_network, foreign_network, home_asset, home_symbol, home_asset_decimals, foreign_asset_decimals, total } of sums) {
+		total /= 10 ** (type === 'expatriation' ? home_asset_decimals : foreign_asset_decimals);
+		const rate = await fetchExchangeRateInUSD(home_network, home_asset, true);
+		const total_usd = total * rate;
+		console.log(`total ${type} of ${home_symbol} ${home_network}->${foreign_network} (bridge ${bridge_id}): ${total} or $${total_usd}`);
+		grand_total_usd[type] += total_usd;
+	}
+	grand_total_usd.net = grand_total_usd.expatriation - grand_total_usd.repatriation;
+	console.log(`total transferred in USD`, grand_total_usd);
+}
+
 async function start() {
+	await wait(3 * 60 * 1000);
+	calcTotalTransferred();
+	setInterval(calcTotalTransferred, 3600 * 1000);
 	await wait(3 * 60 * 1000);
 	calcTransferredAmounts();
 	setInterval(calcTransferredAmounts, 3600 * 1000);
