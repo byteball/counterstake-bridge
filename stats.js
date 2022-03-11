@@ -127,13 +127,12 @@ async function calcTotalTransferred() {
 	console.log(`calcTotalTransferred`);
 	let grand_total_usd = { expatriation: 0, repatriation: 0 };
 	const sums = await db.query(`
-		SELECT bridge_id, type, home_network, foreign_network, home_asset, home_symbol, home_asset_decimals, foreign_asset_decimals, SUM(amount) AS total
+		SELECT bridge_id, type, home_network, foreign_network, home_asset, home_symbol, SUM(amount / SUBSTR(10000000000000000000000000000000, 1, IIF(type='expatriation', home_asset_decimals, foreign_asset_decimals)+1)) AS total
 		FROM transfers
 		LEFT JOIN bridges USING(bridge_id)
 		GROUP BY transfers.bridge_id, type`
 	);
-	for (let { bridge_id, type, home_network, foreign_network, home_asset, home_symbol, home_asset_decimals, foreign_asset_decimals, total } of sums) {
-		total /= 10 ** (type === 'expatriation' ? home_asset_decimals : foreign_asset_decimals);
+	for (let { bridge_id, type, home_network, foreign_network, home_asset, home_symbol, total } of sums) {
 		const rate = await fetchExchangeRateInUSD(home_network, home_asset, true);
 		const total_usd = total * rate;
 		console.log(`total ${type} of ${home_symbol} ${home_network}->${foreign_network} (bridge ${bridge_id}): ${total} or $${total_usd}`);
