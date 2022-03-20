@@ -7,7 +7,7 @@
 		if(!is_valid_address($assistant))
 			bounce("invalid assistant address: " || $assistant);
 
-		$import_assistant_factory = "BRDUWQBFJZ277E3QUQXTMDGP3LLLGUO3";
+		$import_assistant_factory = "ZKI5XVX2HMK46CAQFNS37GI54ESKHXWY";
 		$forward_base_aa = "PS2K32VPW5L32HPNB2INUDQL7RQYC34C";
 		$received_base_amount = trigger.output[[asset=base]];
 		$assistant_info = var[$import_assistant_factory]["assistant_" || $assistant];

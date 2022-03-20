@@ -537,6 +537,10 @@
 						$stake_amount = floor($risk_free_stake_balance * ( 1 - ($image_balance/($image_balance + $received_image_amount))^($image_share/$stake_share) ) * $net_of_swap_fee);
 					else if ($stake2image)
 						$image_amount = floor($risk_free_image_balance * ( 1 - ($stake_balance/($stake_balance + $received_stake_amount))^($stake_share/$image_share) ) * $net_of_swap_fee);
+					if (trigger.data.min_amount_out){
+						$amount_out = $image2stake ? $stake_amount : $image_amount;
+						require($amount_out >= trigger.data.min_amount_out, "output amount "||$amount_out||" would be less than min "||trigger.data.min_amount_out);
+					}
 				}`,
 				messages: [
 					{
