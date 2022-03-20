@@ -119,6 +119,9 @@
 					$reward = trigger.data.reward OTHERWISE 0;
 					if ($reward >= trigger.data.amount)
 						bounce("reward too large");
+
+					require(is_integer(trigger.data.amount) AND trigger.data.amount > 0, "amount must be positive integer");
+					require(is_integer($reward), "reward must be integer");
 					
 					// can claim and stake for somebody else by immediately paying their claimed amount minus the reward
 					$address = trigger.data.address OTHERWISE trigger.address;
@@ -335,6 +338,8 @@
 						app: 'state',
 						state: `{
 							$amount = trigger.output[[asset=$asset]];
+							if (trigger.data.reward AND !is_integer(trigger.data.reward))
+								bounce("reward must be integer");
 							if (trigger.data.reward AND trigger.data.reward >= $amount)
 								bounce("the claim reward is bigger than your transfer");
 							response['foreign_address'] = trigger.data.foreign_address;

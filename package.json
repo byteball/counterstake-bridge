@@ -39,7 +39,8 @@
     "truffle-contract-size": "^2.0.1"
   },
   "resolutions": {
-    "level-rocksdb": "^4.0.0",
+    "level-rocksdb": "^5.0.0",
+    "sqlite3": "^5.0.0",
     "chalk": "^3.0.0",
     "cli-width": "^2.2.1"
   }

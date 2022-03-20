@@ -1,7 +1,7 @@
 {
 	doc_url: "https://counterstake.org/bridge-import-factory.json",
 	init: `{
-		$import_base_aa = 'HNAFSLWSZDU2B2PLFIUNRZLGS4F2AUIL';
+		$import_base_aa = 'DFMD744IOZQFN2MUCQFTSBEALINHZMXO';
 		$governance_base_aa = 'KDHCTQOTKTO6MLYOCU6OCBI7KK72DV3P';
 	}`,
 	messages: {
