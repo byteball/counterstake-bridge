@@ -11,6 +11,7 @@
 
 		// the fee charged for claiming a transfer on behalf of a client
 		$get_swap_fee = () => $get_param('swap_fee', 0.003); // 0.3%
+		$get_exit_fee = () => $get_param('exit_fee', 0);
 
 		$get_manager = () => var['manager'] OTHERWISE params.manager;
 
@@ -151,7 +152,7 @@
 		if (!params.manager)
 			bounce("no initial manager");
 
-		$governance_base_aa = 'VIKQXIULRJF7WATTAID2BB6YD6FRMZCF';
+		$governance_base_aa = 'J4K3FYBJL3I5O23EIKABRNDRSJWELEPR';
 	}",
 	messages: {
 		cases: [
@@ -485,12 +486,13 @@
 			{
 				if: `{ $shares_asset AND $received_shares_amount > 0 AND $received_stake_amount <= $min_stake_asset_amount AND $received_image_amount == 0 }`,
 				init: `{
+					$exit_fee = $get_exit_fee();
 					$share_of_shares = $received_shares_amount / $shares_supply;
 					$remaining_share_of_shares = 1 - $share_of_shares;
 					$remaining_share_of_assets = $remaining_share_of_shares^$exponent;
 					$share_of_assets = 1 - $remaining_share_of_assets;
-					$stake_amount = floor($share_of_assets * $risk_free_stake_balance * $net_of_swap_fee);
-					$image_amount = floor($share_of_assets * $risk_free_image_balance * $net_of_swap_fee);
+					$stake_amount = floor($share_of_assets * $risk_free_stake_balance * ($net_of_swap_fee - $exit_fee));
+					$image_amount = floor($share_of_assets * $risk_free_image_balance * ($net_of_swap_fee - $exit_fee));
 				}`,
 				messages: [
 					{
