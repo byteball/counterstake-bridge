@@ -10,8 +10,15 @@
 		};
 
 		$get_exit_fee = () => $get_param('exit_fee', 0);
+		$get_profit_diffusion_period = () => $get_param('profit_diffusion_period', 10*24*3600);
 
 		$get_manager = () => var['manager'] OTHERWISE params.manager;
+
+		$get_unavailable_profit = () => {
+			$elapsed = timestamp - var['recent_profit_ts'];
+			$profit_diffusion_period = $get_profit_diffusion_period();
+			($elapsed >= $profit_diffusion_period) ? 0 : var['recent_profit'] * ($profit_diffusion_period - $elapsed) / $profit_diffusion_period
+		};
 
 	}`,
 	init: "{
@@ -100,11 +107,18 @@
 		$asset_fee = ($stake_asset == 'base') ? $fee : 0;
 		$min_stake_asset_amount = ($stake_asset == 'base') ? 10000 : 0; // bounce fee
 
+		$add_recent_profit = ($new_profit) => {
+			if ($new_profit <= 0)
+				return;
+			var['recent_profit'] = $get_unavailable_profit() + $new_profit;
+			var['recent_profit_ts'] = timestamp;
+		};
+
 		$manager = $get_manager();
 		if (!params.manager)
 			bounce("no initial manager");
 
-		$governance_base_aa = 'J4K3FYBJL3I5O23EIKABRNDRSJWELEPR';
+		$governance_base_aa = '4EBJCXXWESRLDPH2LM7MDDQKOAG5P3PH';
 	}",
 	messages: {
 		cases: [
@@ -320,7 +334,9 @@
 							$balance_in_work_on_this_claim = var['claim_' || $claim_num];
 							if (!$balance_in_work_on_this_claim)
 								bounce("BUG: I didn't stake in this claim?");
-							var['profit'] += $received_stake_amount - $balance_in_work_on_this_claim;
+							$new_profit = $received_stake_amount - $balance_in_work_on_this_claim;
+							var['profit'] += $new_profit;
+							$add_recent_profit($new_profit);
 							var['balance_in_work'] -= $balance_in_work_on_this_claim;
 							if (var['balance_in_work'] < 0)
 								bounce("BUG: after received from bridge, balance in work would become negative");
@@ -404,11 +420,13 @@
 				if: `{ $shares_asset AND $received_shares_amount > 0 AND $received_stake_amount <= $min_stake_asset_amount }`,
 				init: `{
 					$check_balance();
+					$available_balance = $risk_free_balance - $get_unavailable_profit();
+					require($available_balance > 0, "negative available balance");
 					$share_of_shares = $received_shares_amount / $shares_supply;
 					$remaining_share_of_shares = 1 - $share_of_shares;
 					$remaining_share_of_assets = $remaining_share_of_shares^$exponent;
 					$share_of_assets = 1 - $remaining_share_of_assets;
-					$amount = floor($share_of_assets * $risk_free_balance * (1 - $get_exit_fee()));
+					$amount = floor($share_of_assets * $available_balance * (1 - $get_exit_fee()));
 				}`,
 				messages: [
 					{

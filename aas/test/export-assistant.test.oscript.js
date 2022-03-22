@@ -13,7 +13,7 @@ function round(n, precision) {
 	return parseFloat(n.toPrecision(precision));
 }
 
-describe('Creating export transaction', function () {
+describe('Export assistant', function () {
 	this.timeout(120000)
 
 	before(async () => {
@@ -96,6 +96,7 @@ describe('Creating export transaction', function () {
 	it('Bob defines a new export assistant', async () => {
 		this.management_fee = 0.01
 		this.success_fee = 0.2
+	//	this.profit_diffusion_period = 0
 		const { unit, error } = await this.bob.triggerAaWithData({
 			toAddress: this.network.agent.export_assistant_factory,
 			amount: 10000,
@@ -104,6 +105,7 @@ describe('Creating export transaction', function () {
 				manager: this.managerAddress,
 				management_fee: this.management_fee,
 				success_fee: this.success_fee,
+			//	profit_diffusion_period: this.profit_diffusion_period,
 			},
 		})
 		console.log(unit, error)
@@ -142,6 +144,7 @@ describe('Creating export transaction', function () {
 			success_fee: this.success_fee,
 			stake_asset: this.asset,
 			shares_asset: this.shares_asset,
+		//	profit_diffusion_period: this.profit_diffusion_period,
 		})
 	})
 
@@ -765,15 +768,17 @@ describe('Creating export transaction', function () {
 
 	})
 
-	it("After half a year, Bob redeems some shares", async () => {
-		const { time_error } = await this.network.timetravel({ shift: '180d' })
+	it("A day later, Bob redeems some shares", async () => {
+		const { time_error } = await this.network.timetravel({ shift: '1d' })
 		expect(time_error).to.be.undefined
 
 		const gross_assistant_balance = (await this.bob.getOutputsBalanceOf(this.assistant_aa)).base.total
-		this.mf += gross_assistant_balance * this.management_fee * 180 / 360 // fractional
+		this.mf += gross_assistant_balance * this.management_fee * 1 / 360 // fractional
 		const sf = Math.floor(this.profit * 0.2)
 		const net_assistant_balance = gross_assistant_balance - this.mf - sf
-		const amount = Math.floor(net_assistant_balance / 4)
+
+		// reward from the 1st claim was diffused for 3 (of 10) days before the amount2 from the 2nd claim joined. Then, they were diffusing for 1 (of 10) more day
+		const amount = Math.floor((net_assistant_balance - (this.reward * 7/10 + this.amount2) * 9/10) / 4)
 
 		const shares_amount = Math.ceil(this.shares_supply / 4)
 		this.shares_supply -= shares_amount
@@ -797,7 +802,7 @@ describe('Creating export transaction', function () {
 
 		const { vars } = await this.bob.readAAStateVars(this.assistant_aa)
 		expect(vars.profit).to.be.eq(this.profit)
-		expect(round(vars.mf, 14)).to.be.eq(round(this.mf, 14))
+		expect(round(vars.mf, 13)).to.be.eq(round(this.mf, 13))
 		expect(vars.ts).to.be.eq(response.timestamp)
 		expect(vars.shares_supply).to.be.eq(this.shares_supply)
 
@@ -1398,7 +1403,7 @@ describe('Creating export transaction', function () {
 
 		const { vars: assistant_vars } = await this.manager.readAAStateVars(this.assistant_aa)
 		expect(assistant_vars.profit).to.be.eq(this.profit)
-		expect(round(assistant_vars.mf, 14)).to.be.eq(round(this.mf, 14))
+		expect(round(assistant_vars.mf, 13)).to.be.eq(round(this.mf, 13))
 		expect(assistant_vars.ts).to.be.eq(response.timestamp)
 		expect(assistant_vars.shares_supply).to.be.eq(this.shares_supply)
 		expect(assistant_vars.balance_in_work).to.be.eq(0)
@@ -1447,7 +1452,7 @@ describe('Creating export transaction', function () {
 
 		const { vars: assistant_vars } = await this.manager.readAAStateVars(this.assistant_aa)
 		expect(assistant_vars.profit).to.be.eq(this.profit)
-		expect(round(assistant_vars.mf, 14)).to.be.eq(round(this.mf, 14))
+		expect(round(assistant_vars.mf, 13)).to.be.eq(round(this.mf, 13))
 		expect(assistant_vars.ts).to.be.eq(response.timestamp)
 		expect(assistant_vars.shares_supply).to.be.eq(this.shares_supply)
 		expect(assistant_vars.balance_in_work).to.be.eq(total)

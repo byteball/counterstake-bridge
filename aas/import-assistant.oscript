@@ -12,8 +12,22 @@
 		// the fee charged for claiming a transfer on behalf of a client
 		$get_swap_fee = () => $get_param('swap_fee', 0.003); // 0.3%
 		$get_exit_fee = () => $get_param('exit_fee', 0);
+		$get_profit_diffusion_period = () => $get_param('profit_diffusion_period', 10*24*3600);
 
 		$get_manager = () => var['manager'] OTHERWISE params.manager;
+
+		$get_unavailable_profit = () => {
+			$elapsed = timestamp - var['recent_profit_ts'];
+			$profit_diffusion_period = $get_profit_diffusion_period();
+			if ($elapsed >= $profit_diffusion_period)
+				return {stake: 0, image: 0};
+			$recent_profit = var['recent_profit'] OTHERWISE {stake: 0, image: 0};
+			$share = ($profit_diffusion_period - $elapsed) / $profit_diffusion_period;
+			{
+				stake: $recent_profit.stake * $share,
+				image: $recent_profit.image * $share,
+			}
+		};
 
 	}`,
 	init: "{
@@ -148,11 +162,26 @@
 		$asset_fee = ($stake_asset == 'base') ? $fee : 0;
 		$min_stake_asset_amount = ($stake_asset == 'base') ? 10000 : 0; // bounce fee
 
+		$add_recent_profit = ($new_profit) => {
+			if ($new_profit.stake < 0)
+				$new_profit.stake = 0;
+			if ($new_profit.image < 0)
+				$new_profit.image = 0;
+			if ($new_profit.stake == 0 AND $new_profit.image == 0)
+				return;
+			$unavailable_profit = $get_unavailable_profit();
+			var['recent_profit'] = {
+				stake: $unavailable_profit.stake + $new_profit.stake,
+				image: $unavailable_profit.image + $new_profit.image,
+			};
+			var['recent_profit_ts'] = timestamp;
+		};
+
 		$manager = $get_manager();
 		if (!params.manager)
 			bounce("no initial manager");
 
-		$governance_base_aa = 'J4K3FYBJL3I5O23EIKABRNDRSJWELEPR';
+		$governance_base_aa = '4EBJCXXWESRLDPH2LM7MDDQKOAG5P3PH';
 	}",
 	messages: {
 		cases: [
@@ -396,8 +425,11 @@
 								bounce("BUG: after received from bridge, stake balance in work would become negative");
 							if (var['image_balance_in_work'] < 0)
 								bounce("BUG: after received from bridge, image balance in work would become negative");
-							var['stake_profit'] += $received_stake_amount - $current_stakes.stake;
-							var['image_profit'] += $received_image_amount - $current_stakes.image;
+							$new_stake_profit = $received_stake_amount - $current_stakes.stake;
+							$new_image_profit = $received_image_amount - $current_stakes.image;
+							var['stake_profit'] += $new_stake_profit;
+							var['image_profit'] += $new_image_profit;
+							$add_recent_profit({stake: $new_stake_profit, image: $new_image_profit});
 							var['claim_' || $claim_num] = false;
 
 							$update_mf();
@@ -491,8 +523,11 @@
 					$remaining_share_of_shares = 1 - $share_of_shares;
 					$remaining_share_of_assets = $remaining_share_of_shares^$exponent;
 					$share_of_assets = 1 - $remaining_share_of_assets;
-					$stake_amount = floor($share_of_assets * $risk_free_stake_balance * ($net_of_swap_fee - $exit_fee));
-					$image_amount = floor($share_of_assets * $risk_free_image_balance * ($net_of_swap_fee - $exit_fee));
+					$unavailable_profit = $get_unavailable_profit();
+					$available_stake_balance = max($risk_free_stake_balance - $unavailable_profit.stake, 0);
+					$available_image_balance = max($risk_free_image_balance - $unavailable_profit.image, 0);
+					$stake_amount = floor($share_of_assets * $available_stake_balance * ($net_of_swap_fee - $exit_fee));
+					$image_amount = floor($share_of_assets * $available_image_balance * ($net_of_swap_fee - $exit_fee));
 				}`,
 				messages: [
 					{

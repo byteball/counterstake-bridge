@@ -1,7 +1,7 @@
 {
 	doc_url: "https://counterstake.org/bridge-import-assistant-factory.json",
 	init: `{
-		$assistant_base_aa = 'LXPGMWWXQ4BAT3OAFBWCNZ7G2SS6VAW3';
+		$assistant_base_aa = 'AKZNFCFYJVNMM6WD4A2ZFNLM4EYXUZ2Q';
 	}`,
 	messages: {
 		cases: [
@@ -67,6 +67,12 @@
 						if (typeof(trigger.data.exit_fee) != 'number' OR trigger.data.exit_fee < 0 OR trigger.data.exit_fee >= 1)
 							bounce("invalid exit_fee");
 						$params.exit_fee = trigger.data.exit_fee;
+					}
+
+					if (exists(trigger.data.profit_diffusion_period)){
+						if (!is_integer(trigger.data.profit_diffusion_period) OR trigger.data.profit_diffusion_period < 0)
+							bounce("invalid profit_diffusion_period");
+						$params.profit_diffusion_period = trigger.data.profit_diffusion_period;
 					}
 
 					if (exists(trigger.data.governance_challenging_period)){

@@ -31,7 +31,7 @@ function roundObj(obj, precision) {
   return roundedObj;
 }
 
-describe('Creating import transaction', function () {
+describe('Import assistant forward', function () {
   this.timeout(120000)
 
   before(async () => {

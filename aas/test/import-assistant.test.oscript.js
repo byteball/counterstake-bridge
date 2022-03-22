@@ -31,7 +31,7 @@ function roundObj(obj, precision) {
 	return roundedObj;
 }
 
-describe('Creating import transaction', function () {
+describe('Import assistant', function () {
 	this.timeout(120000)
 
 	before(async () => {
@@ -161,6 +161,7 @@ describe('Creating import transaction', function () {
 		this.management_fee = 0.01
 		this.success_fee = 0.2
 		this.swap_fee = 0.003
+	//	this.profit_diffusion_period = 0
 		const { unit, error } = await this.bob.triggerAaWithData({
 			toAddress: this.network.agent.import_assistant_factory,
 			amount: 10000,
@@ -169,6 +170,7 @@ describe('Creating import transaction', function () {
 				manager: this.managerAddress,
 				management_fee: this.management_fee,
 				success_fee: this.success_fee,
+			//	profit_diffusion_period: this.profit_diffusion_period,
 			},
 		})
 		expect(error).to.be.null
@@ -217,6 +219,7 @@ describe('Creating import transaction', function () {
 			asset: this.asset,
 			stake_asset: this.stake_asset,
 			shares_asset: this.shares_asset,
+		//	profit_diffusion_period: this.profit_diffusion_period,
 		})
 
 	})
@@ -927,17 +930,17 @@ describe('Creating import transaction', function () {
 
 	})
 
-	it("After half a year, Bob redeems some shares", async () => {
-		const { time_error } = await this.network.timetravel({ shift: '180d' })
+	it("A day later, Bob redeems some shares", async () => {
+		const { time_error } = await this.network.timetravel({ shift: '1d' })
 		expect(time_error).to.be.undefined
 
-		await this.updateMF(0, 0, 180)
+		await this.updateMF(0, 0, 1)
 		const gross_assistant_balance = await this.bob.getOutputsBalanceOf(this.assistant_aa)
 		const sf = { stake: Math.floor(this.stake_profit * this.success_fee), image: Math.floor(this.image_profit * this.success_fee) }
 		const net_assistant_stake_balance = gross_assistant_balance.base.total - this.mf.stake - sf.stake
 		const net_assistant_image_balance = gross_assistant_balance[this.asset].total - this.mf.image - sf.image
-		const stake_amount = Math.floor(net_assistant_stake_balance / 4 * (1 - this.swap_fee))
-		const image_amount = Math.floor(net_assistant_image_balance / 4 * (1 - this.swap_fee))
+		const stake_amount = Math.floor((net_assistant_stake_balance - this.stake_profit * 9/10) / 4 * (1 - this.swap_fee))
+		const image_amount = Math.floor((net_assistant_image_balance - this.reward * 7/10 * 9/10) / 4 * (1 - this.swap_fee))
 
 		const shares_amount = Math.ceil(this.shares_supply / 4)
 		this.shares_supply -= shares_amount

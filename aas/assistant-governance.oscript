@@ -12,7 +12,7 @@
 			bounce("no assistant_aa");
 		$asset = var[$assistant_aa]['shares_asset'];
 		
-		$names = ['swap_fee', 'exit_fee'];
+		$names = ['swap_fee', 'exit_fee', 'profit_diffusion_period'];
 		
 		$is_allowed_name = $name => {
 			length(filter($names, 20, $n => $n == $name)) == 1
@@ -78,6 +78,8 @@
 						if ($name == 'swap_fee' AND !(typeof($value) == 'number' AND $value >= 0 AND $value < 1))
 							bounce("invalid value");
 						if ($name == 'exit_fee' AND !(typeof($value) == 'number' AND $value >= 0 AND $value < 1))
+							bounce("invalid value");
+						if ($name == 'profit_diffusion_period' AND !(is_integer($value) AND $value >= 0))
 							bounce("invalid value");
 					}
 				}`,
