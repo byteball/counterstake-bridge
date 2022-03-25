@@ -106,6 +106,8 @@ async function handleTransfer(transfer) {
 	const fDstReward = parseFloat(dst_reward.toString()) / 10 ** dst_asset_decimals;
 	const src_api = networkApi[src_network];
 	const dst_api = networkApi[dst_network];
+	if (!dst_api && conf['disable' + dst_network])
+		return console.log(`${dst_network} disabled, will not claim transfer ${txid}`);
 
 	if (!dst_api.isValidAddress(dest_address))
 		return console.log(`invalid dest address ${dest_address} in transfer ${txid}, will not claim`);
@@ -158,7 +160,7 @@ async function handleTransfer(transfer) {
 		
 		let stake = await dst_api.getRequiredStake(bridge_aa, dst_amount);
 		stake = BigNumber.from(stake);
-		if (type === 'expatriation') // we use oracle price, which might change, add 10%
+		if (type === 'expatriation' && dst_network === 'Obyte') // we use oracle price, which might change, add 10%
 			stake = stake.mul(110).div(100);
 		let bClaimFromPooledAssistant = !!assistant_aa;
 		if (bClaimFromPooledAssistant) {
@@ -370,7 +372,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		// it might be not confirmed yet
 	//	const tx = await networkApi[opposite_network].getTransaction(txid);
 		const stable_ts = await networkApi[opposite_network].getLastStableTimestamp();
-		const bTooYoung = txts > stable_ts;
+		const bTooYoung = txts >= stable_ts;
 		if (txts < Date.now() / 1000 + conf.max_ts_error && (bTooYoung || bCatchingUp)) {
 			// schedule another check
 			const timeout = bTooYoung ? (txts - stable_ts + 60) : 60;
@@ -382,6 +384,10 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 			console.log(`will try to find the transfer ${txid} again`);
 			// if we see a new transfer after refresh, we'll try to claim it but the destination network is still locked by mutex here. We'll finish here first, insert this claim, unlock the mutex, and our claim attempt will see that a claim already exists
 			transfers = await findTransfers();
+			if (transfers.length === 0) { // events might be emitted but not handled yet
+				await wait(30000);
+				transfers = await findTransfers();
+			}
 		}
 	}
 
@@ -496,7 +502,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 		if (!bCompleteBridge)
 			return unlock(`will not attack challenge ${challenge_txid} of claim ${claim_num} on bridge ${bridge_id} as the bridge is still incomplete`);
 		if (!conf.bAttack)
-			return console.log(`will skip challenge ${challenge_txid} as attacking function is off`);
+			return unlock(`will skip challenge ${challenge_txid} as attacking function is off`);
 		const asset = type === 'expatriation' ? stake_asset : home_asset;
 		if (!asset)
 			throw Error(`null asset in challenge ${challenge_txid} on claim ${claim_num}`);
@@ -521,39 +527,42 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 
 
 async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
-	const { bridge_id, export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_asset, foreign_asset, stake_asset, home_network, foreign_network } = bridge;
+	const { bridge_id, export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_asset, foreign_asset, stake_asset, home_symbol, home_network, foreign_network } = bridge;
 	const network = type === 'expatriation' ? foreign_network : home_network;
 	const unlock = await mutex.lock(network);
-	console.log(`handling withdrawal from claim ${claim_num} in tx ${withdrawal_txid}`);
 	const claim_info = { claim_num, bridge_id, type };
 
 	const bridge_aa = type === 'expatriation' ? import_aa : export_aa;
 	if (!bridge_aa)
 		throw Error(`null aa in withdrawal ${withdrawal_txid} on claim ${claim_num}`);
+	const desc = `claim ${claim_num} on ${network} bridge ${bridge_id} AA ${bridge_aa} for ${home_symbol}`;
+	console.log(`handling withdrawal tx ${withdrawal_txid} from ${desc}`);
 	let assistant_aa = type === 'expatriation' ? import_assistant_aa : export_assistant_aa;
 	const api = networkApi[network];
 	const valid_outcome = await getValidOutcome({ claim_num, bridge_id, type }, false);
 	if (valid_outcome === null) {
 		if (!bCatchingUpOrHandlingPostponedEvents)
-			throw Error(`withdrawn claim ${claim_num} not found`);
+			throw Error(`withdrawn ${desc} not found`);
 		setTimeout(() => {
 			console.log(`retrying withdrawal ${withdrawal_txid}`);
 			handleWithdrawal(bridge, type, claim_num, withdrawal_txid);
 		}, 3 * 60 * 1000);
-		return unlock(`withdrawn claim ${claim_num} not found while catching up, will retry later`);
+		return unlock(`withdrawn ${desc} not found while catching up, will retry later`);
 	}
 	const claim = await api.getClaim(bridge_aa, claim_num, true, true);
 	if (claim.current_outcome === valid_outcome) {
-		console.log(`claim ${claim_num} finished as expected`);
+		console.log(`${desc} finished as expected`);
 		if (!isZero(claim.stakes.no)) { // it was challenged
 			if (assistant_aa && api.isMyAddress(claim.claimant_address)) // claimed myself
 				assistant_aa = undefined;
 			if (network !== 'Obyte')
 				await wait(3000); // getMyStake() might go to a different node that is not perfectly synced
 			const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome, assistant_aa);
-			console.log(`my stake on claim ${claim_num} was ${my_stake}`); // duplicates are harmless
-			if (!isZero(my_stake))
+			console.log(`my stake on ${desc} was ${my_stake}`); // duplicates are harmless
+			if (!isZero(my_stake)) {
+				console.log(`will withdraw from ${desc}`);
 				await sendWithdrawalRequest(network, bridge_aa, claim_info, assistant_aa);
+			}
 			else
 				await finishClaim(claim_info);
 		}
@@ -561,7 +570,7 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 			await finishClaim(claim_info);
 	}
 	else {
-		notifications.notifyAdmin(`claim ${claim_num} finished as "${claim.current_outcome}" in ${withdrawal_txid}, expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
+		notifications.notifyAdmin(`${desc} finished as "${claim.current_outcome}" in ${withdrawal_txid}, expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
 		await finishClaim(claim_info);
 		eventBus.emit('finished_as_fraud', bridge, type, claim_num, withdrawal_txid, claim, valid_outcome);
 	}
@@ -737,11 +746,13 @@ async function checkUnfinishedClaims() {
 			if (claim.current_outcome === valid_outcome) {
 				console.log(`checkUnfinishedClaims: ${desc} finished as expected`);
 				const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome, assistant_aa);
-				console.log(`my stake on claim ${claim_num} was ${my_stake}`);
+				console.log(`my stake on ${desc} was ${my_stake}`);
 				if (isZero(my_stake))
 					await finishClaim(claim_info);
-				else
+				else {
+					console.log(`checkUnfinishedClaims: will withdraw from ${desc}`);
 					await sendWithdrawalRequest(network, bridge_aa, claim_info, assistant_aa);
+				}
 			}
 			else {
 				notifications.notifyAdmin(`checkUnfinishedClaims: ${desc} finished as "${claim.current_outcome}", expected "${valid_outcome}"`, JSON.stringify(claim, null, 2));
@@ -763,6 +774,7 @@ async function recheckOldTransfers() {
 		`SELECT transfers.* FROM transfers LEFT JOIN claims USING(transfer_id)
 		WHERE claim_num IS NULL AND is_confirmed=1 AND transfers.reward>=0
 			AND transfers.creation_date < ${db.addTime('-1 MINUTE')}
+			${process.env.testnet ? `AND transfers.creation_date > ${db.addTime('-30 DAY')}` : ''}
 		ORDER BY transfer_id`
 	);
 	console.error('----- transfers', transfers.length)
@@ -775,14 +787,15 @@ async function recheckOldTransfers() {
 
 
 async function handleNewExportAA(export_aa, home_network, home_asset, home_asset_decimals, foreign_network, foreign_asset) {
+	const unlock = await mutex.lock('new_bridge');
 	console.log('new export', { export_aa, home_network, home_asset, home_asset_decimals, foreign_network, foreign_asset });
 	const [existing_bridge] = await db.query("SELECT bridge_id FROM bridges WHERE export_aa=?", [export_aa]);
 	if (existing_bridge)
-		return console.log(`export AA ${export_aa} already belongs to bridge ${existing_bridge.bridge_id}`);
+		return unlock(`export AA ${export_aa} already belongs to bridge ${existing_bridge.bridge_id}`);
 	if (!networkApi[home_network])
-		return console.log(`skipping export AA ${export_aa} because network ${home_network} is disabled`);
+		return unlock(`skipping export AA ${export_aa} because network ${home_network} is disabled`);
 	if (!networkApi[foreign_network])
-		return console.log(`skipping export AA ${export_aa} because network ${foreign_network} is disabled`);
+		return unlock(`skipping export AA ${export_aa} because network ${foreign_network} is disabled`);
 
 	const home_symbol = await networkApi[home_network].getSymbol(home_asset);
 	const foreign_symbol = await networkApi[foreign_network].getSymbol(foreign_asset);
@@ -794,34 +807,35 @@ async function handleNewExportAA(export_aa, home_network, home_asset, home_asset
 		if (bridge.export_aa)
 			throw Error(`foreign asset ${foreign_asset} is already connected to another export AA ${bridge.export_aa} on bridge ${bridge_id}`);
 		if (bridge.home_network !== home_network)
-			return console.log(`home network mismatch: existing half-bridge ${bridge_id}: ${bridge.home_network}, new export: ${home_network}`);
+			return unlock(`home network mismatch: existing half-bridge ${bridge_id}: ${bridge.home_network}, new export: ${home_network}`);
 		if (bridge.home_asset !== home_asset)
-			return console.log(`home asset mismatch: existing half-bridge ${bridge_id}: ${bridge.home_asset}, new export: ${home_asset}`);
+			return unlock(`home asset mismatch: existing half-bridge ${bridge_id}: ${bridge.home_asset}, new export: ${home_asset}`);
 		if (bridge.foreign_network !== foreign_network)
-			return console.log(`foreign network mismatch: existing half-bridge ${bridge_id}: ${bridge.foreign_network}, new export: ${foreign_network}`);
+			return unlock(`foreign network mismatch: existing half-bridge ${bridge_id}: ${bridge.foreign_network}, new export: ${foreign_network}`);
 		const [claim] = await db.query(`SELECT * FROM claims WHERE bridge_id=? AND transfer_id IS NULL LIMIT 1`);
 		if (claim)
-			return console.log(`already had at least one invalid claim ${claim.claim_num} on half-complete import-only bridge ${bridge_id}, will not complete the bridge`);
+			return unlock(`already had at least one invalid claim ${claim.claim_num} on half-complete import-only bridge ${bridge_id}, will not complete the bridge`);
 		await db.query(`UPDATE bridges SET export_aa=?, home_asset_decimals=?, home_symbol=?, foreign_symbol=? WHERE bridge_id=?`, [export_aa, home_asset_decimals, home_symbol, foreign_symbol, bridge_id]);
-		console.log(`completed bridge ${bridge_id} by adding export AA ${export_aa}`);
+		unlock(`completed bridge ${bridge_id} by adding export AA ${export_aa}`);
 		return true;
 	}
 	const params = [export_aa, home_network, home_asset, home_asset_decimals, home_symbol, foreign_network, foreign_asset, foreign_symbol];
 	await db.query(`INSERT INTO bridges (export_aa, home_network, home_asset, home_asset_decimals, home_symbol, foreign_network, foreign_asset, foreign_symbol) VALUES (${Array(params.length).fill('?').join(', ')})`, params);
-	console.log(`created a new half-bridge with only export end`);
+	unlock(`created a new half-bridge with only export end`);
 	return true;
 }
 
 
 async function handleNewImportAA(import_aa, home_network, home_asset, foreign_network, foreign_asset, foreign_asset_decimals, stake_asset) {
+	const unlock = await mutex.lock('new_bridge');
 	console.log('new import', { import_aa, home_network, home_asset, foreign_network, foreign_asset, foreign_asset_decimals, stake_asset });
 	const [existing_bridge] = await db.query("SELECT bridge_id FROM bridges WHERE import_aa=?", [import_aa]);
 	if (existing_bridge)
-		return console.log(`import AA ${import_aa} already belongs to bridge ${existing_bridge.bridge_id}`);
+		return unlock(`import AA ${import_aa} already belongs to bridge ${existing_bridge.bridge_id}`);
 	if (!networkApi[home_network])
-		return console.log(`skipping import AA ${import_aa} because network ${home_network} is disabled`);
+		return unlock(`skipping import AA ${import_aa} because network ${home_network} is disabled`);
 	if (!networkApi[foreign_network])
-		return console.log(`skipping import AA ${import_aa} because network ${foreign_network} is diabled`);
+		return unlock(`skipping import AA ${import_aa} because network ${foreign_network} is diabled`);
 
 	const home_symbol = await networkApi[home_network].getSymbol(home_asset);
 	const foreign_symbol = await networkApi[foreign_network].getSymbol(foreign_asset);
@@ -833,34 +847,36 @@ async function handleNewImportAA(import_aa, home_network, home_asset, foreign_ne
 		if (bridge.import_aa)
 			throw Error(`foreign asset ${foreign_asset} is already connected to another import AA ${bridge.import_aa} on bridge ${bridge_id}`);
 		if (bridge.home_network !== home_network)
-			return console.log(`home network mismatch: existing half-bridge ${bridge_id}: ${bridge.home_network}, new import: ${home_network}`);
+			return unlock(`home network mismatch: existing half-bridge ${bridge_id}: ${bridge.home_network}, new import: ${home_network}`);
 		if (bridge.home_asset !== home_asset)
-			return console.log(`home asset mismatch: existing half-bridge ${bridge_id}: ${bridge.home_asset}, new import: ${home_asset}`);
+			return unlock(`home asset mismatch: existing half-bridge ${bridge_id}: ${bridge.home_asset}, new import: ${home_asset}`);
 		if (bridge.foreign_network !== foreign_network)
-			return console.log(`foreign network mismatch: existing half-bridge ${bridge_id}: ${bridge.foreign_network}, new import: ${foreign_network}`);
+			return unlock(`foreign network mismatch: existing half-bridge ${bridge_id}: ${bridge.foreign_network}, new import: ${foreign_network}`);
 		const [claim] = await db.query(`SELECT * FROM claims WHERE bridge_id=? AND transfer_id IS NULL LIMIT 1`);
 		if (claim)
-			return console.log(`already had at least one invalid claim ${claim.claim_num} on half-complete export-only bridge ${bridge_id}, will not complete the bridge`);
+			return unlock(`already had at least one invalid claim ${claim.claim_num} on half-complete export-only bridge ${bridge_id}, will not complete the bridge`);
 		await db.query(`UPDATE bridges SET import_aa=?, foreign_asset_decimals=?, stake_asset=?, home_symbol=?, foreign_symbol=? WHERE bridge_id=?`, [import_aa, foreign_asset_decimals, stake_asset, home_symbol, foreign_symbol, bridge_id]);
-		console.log(`completed bridge ${bridge_id} by adding import AA ${import_aa}`);
+		unlock(`completed bridge ${bridge_id} by adding import AA ${import_aa}`);
 		return true;
 	}
 	const params = [import_aa, home_network, home_asset, home_symbol, foreign_network, foreign_asset, foreign_asset_decimals, foreign_symbol, stake_asset];
 	await db.query(`INSERT INTO bridges (import_aa, home_network, home_asset, home_symbol, foreign_network, foreign_asset, foreign_asset_decimals, foreign_symbol, stake_asset) VALUES (${Array(params.length).fill('?').join(', ')})`, params);
-	console.log(`created a new half-bridge with only import end`);
+	unlock(`created a new half-bridge with only import end`);
 	return true;
 }
 
 async function handleNewAssistantAA(side, assistant_aa, bridge_aa, network, manager, assistant_shares_asset, assistant_shares_symbol) {
+	const unlock = await mutex.lock('new_bridge');
 	console.log(`new assistant`, { side, assistant_aa, bridge_aa, manager, assistant_shares_asset, assistant_shares_symbol });
 	const [bridge] = await db.query(`SELECT * FROM bridges WHERE ${side}_aa=? AND ${side === 'export' ? 'home_network' : 'foreign_network'}=?`, [bridge_aa, network]);
 	if (!bridge)
-		return console.log(`got new ${side} assistant for AA ${bridge_aa} but the bridge not found`);
+		return unlock(`got new ${side} assistant for AA ${bridge_aa} but the bridge not found`);
 	const { bridge_id } = bridge;
 	const meIsManager = networkApi[network].getMyAddress() === manager;
 	if (meIsManager)
 		await db.query(`UPDATE bridges SET ${side}_assistant_aa=? WHERE bridge_id=?`, [assistant_aa, bridge_id]);
-	await db.query(`INSERT INTO pooled_assistants (assistant_aa, bridge_id, bridge_aa, network, side, manager, shares_asset, shares_symbol) VALUES(?, ?,?, ?,?,?, ?,?)`, [assistant_aa, bridge_id, bridge_aa, network, side, manager, assistant_shares_asset, assistant_shares_symbol]);
+	await db.query(`INSERT ${db.getIgnore()} INTO pooled_assistants (assistant_aa, bridge_id, bridge_aa, network, side, manager, shares_asset, shares_symbol) VALUES(?, ?,?, ?,?,?, ?,?)`, [assistant_aa, bridge_id, bridge_aa, network, side, manager, assistant_shares_asset, assistant_shares_symbol]);
+	unlock();
 	return meIsManager;
 }
 
@@ -892,8 +908,13 @@ async function populatePooledAssistantsTable() {
 }
 
 async function getActiveClaimants() {
-	const claimant_rows = await db.query(`SELECT DISTINCT claimant_address FROM claims WHERE claimant_address != dest_address AND creation_date > ` + db.addTime('-7 DAY'));
-	const claimants = claimant_rows.map(row => row.claimant_address);
+	const claimant_rows = await db.query(`SELECT DISTINCT claimant_address FROM claims WHERE claimant_address != dest_address AND creation_date > ` + db.addTime('-30 DAY'));
+	let claimants = claimant_rows.map(row => row.claimant_address);
+	const manager_rows = await db.query(`SELECT DISTINCT manager FROM pooled_assistants WHERE assistant_aa IN(${claimants.map(db.escape).join(', ')})`);
+	const managers = manager_rows.map(row => row.manager);
+	for (let manager of managers)
+		if (!claimants.includes(manager))
+			claimants.push(manager);
 	return claimants;
 }
 
@@ -1013,6 +1034,8 @@ async function start() {
 		console.log('will reconnect to', network);
 		if (network === 'Ethereum')
 			networkApi.Ethereum = new Ethereum();
+		else if (network === 'BSC')
+			networkApi.BSC = new BSC();
 		else if (network === 'Polygon')
 			networkApi.Polygon = new Polygon();
 		else
@@ -1046,6 +1069,7 @@ async function start() {
 		// called after adding watched addresses so that they are included in the first history request
 		if (net === 'Obyte')
 			network.start();
+		console.log(`started`, net);
 	}
 
 //	await populatePooledAssistantsTable();

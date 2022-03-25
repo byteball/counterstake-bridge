@@ -30,6 +30,9 @@ exports.socksPort = 9050;
 exports.bNoPassphrase = true;
 exports.explicitStart = true;
 
+exports.MAX_UNSPENT_OUTPUTS = 10;
+exports.CONSOLIDATION_INTERVAL = 12 * 3600 * 1000;
+
 const bTest = process.env.devnet || process.env.testnet;
 
 exports.max_ts_error = 60; // how far txts can be into the future due to clock difference

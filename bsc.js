@@ -19,12 +19,18 @@ class BSC extends EvmChain {
 		super('BSC', conf.bsc_factory_contract_address, conf.bsc_assistant_factory_contract_address, provider);
 	}
 
+	forget() {
+		console.log(`removing ${this.getProvider().listenerCount()} listeners on ${this.network}`);
+		this.getProvider().removeAllListeners();
+		bCreated = false;
+	}
+
 	getNativeSymbol() {
 		return 'BNB';
 	}
 
 	getMaxBlockRange() {
-		return 5000;
+		return 1000;
 	}
 
 	async getAddressBlocks(address, startblock, startts) {

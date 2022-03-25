@@ -20,9 +20,10 @@ class Polygon extends EvmChain {
 		
 	//	const provider = getProvider('Polygon', bFree);
 	//	const provider = new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://polygon-mumbai.g.alchemy.com/v2/${conf.alchemy_keys.polygon.testnet}` : `wss://polygon-mainnet.g.alchemy.com/v2/${conf.alchemy_keys.polygon.mainnet}`);
-		const provider = new ethers.providers.JsonRpcProvider((process.env.testnet ? `https://polygon-mumbai.infura.io/v3/${conf.infura_project_id}` : `https://polygon-mainnet.infura.io/v3/${conf.infura_project_id}`));
-		provider.pollingInterval = conf.polygon_polling_interval * 1000;
-		super('Polygon', conf.polygon_factory_contract_address, conf.polygon_assistant_factory_contract_address, provider, false);
+	//	const provider = new ethers.providers.JsonRpcProvider((process.env.testnet ? `https://polygon-mumbai.infura.io/v3/${conf.infura_project_id}` : `https://polygon-mainnet.infura.io/v3/${conf.infura_project_id}`));
+	//	provider.pollingInterval = conf.polygon_polling_interval * 1000;
+		const provider = getProvider('Polygon');
+		super('Polygon', conf.polygon_factory_contract_address, conf.polygon_assistant_factory_contract_address, provider);
 		this.#bFree = bFree;
 	}
 
@@ -37,7 +38,12 @@ class Polygon extends EvmChain {
 	}
 
 	getMaxBlockRange() {
-		return 100000; // infura
+	//	return 100000; // infura
+		return 1000; // moralis
+	}
+
+	getGasPriceMultiplier() {
+		return 1.3;
 	}
 
 	async getAddressBlocks(address, startblock, startts) {

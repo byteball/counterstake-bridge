@@ -535,6 +535,8 @@ class Obyte {
 		watchForDeadlock('onAAResponse');
 		watchForDeadlock(this.network);
 
+		consolidate();
+		setInterval(consolidate, 4 * 3600 * 1000);	
 	}
 }
 
@@ -542,5 +544,27 @@ function startWatchingAA(aa) {
 	network.addLightWatchedAa(aa);
 	walletGeneral.addWatchedAddress(aa);
 }
+
+async function consolidateAsset(asset) {
+	console.log(`consolidating ${asset}`);
+	const rows = await db.query("SELECT amount FROM outputs WHERE is_spent=0 AND address=? AND asset" + (asset === 'base' ? ' IS NULL' : '=' + db.escape(asset)) + " ORDER BY amount DESC LIMIT 100", [operator.getAddress()]);
+	if (rows.length < 10)
+		return console.log(`${rows.length} outputs in ${asset}, no need to consolidate`);
+	console.log(`${rows.length} outputs in ${asset}`);
+	const total = rows.reduce((acc, row) => acc + row.amount, 0);
+	const unit = await dag.sendPayment({ to_address: operator.getAddress(), amount: total, asset });
+	if (!unit)
+		throw Error(`consolidation of ${asset} failed`);
+	console.log(`consolidated ${asset} in ${unit}`);
+	await consolidateAsset(asset);
+}
+
+async function consolidate() {
+	const operator_balances = await operator.readBalances();
+	for (let asset in operator_balances)
+		if (asset !== 'base')
+			await consolidateAsset(asset);
+}
+
 
 module.exports = Obyte;

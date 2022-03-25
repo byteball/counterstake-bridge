@@ -44,6 +44,10 @@ class EvmChain {
 		return 0;
 	}
 
+	getGasPriceMultiplier() {
+		return 0;
+	}
+
 	async getAddressBlocks(address, startblock, startts) {
 		throw Error(`getAddressBlocks() unimplemented on ${this.network}`);
 	}
@@ -81,7 +85,7 @@ class EvmChain {
 		const top_available_block = await this.getTopAvailableBlock();
 		if (last_block > top_available_block)
 			return last_block;
-		notifications.notifyAdmin(`missed ${top_available_block - last_block} blocks`, `${this.network} last block ${last_block}, top available block ${top_available_block}`);
+		console.log(`getSinceBlock() missed ${top_available_block - last_block} blocks`, `${this.network} last block ${last_block}, top available block ${top_available_block}`);
 		return top_available_block;
 	}
 
@@ -136,6 +140,8 @@ class EvmChain {
 		console.log('provider getGasPrice', this.network)
 		try {
 			this.#cached_gas_price = (await this.#provider.getGasPrice()).toNumber() / 1e9;
+			if (this.getGasPriceMultiplier())
+				this.#cached_gas_price *= this.getGasPriceMultiplier();
 		}
 		catch (e) {
 			if (!this.#cached_gas_price)
@@ -252,7 +258,10 @@ class EvmChain {
 		if (!contract)
 			throw Error(`no contract by bridge AA ${bridge_aa}`);
 		try {
-			const res = await contract.claim(txid, txts, amount, reward, stake, sender_address, dest_address, data, (staked_asset === AddressZero) ? { value: total } : { value: 0 });
+			let opts = (staked_asset === AddressZero) ? { value: total } : { value: 0 };
+			if (this.getGasPriceMultiplier())
+				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
+			const res = await contract.claim(txid, txts, amount, reward, stake, sender_address, dest_address, data, opts);
 			const claim_txid = res.hash;
 			console.log(`sent claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
 			this.#last_tx_ts = Date.now();
@@ -290,7 +299,10 @@ class EvmChain {
 		await this.waitBetweenTransactions();
 		const contract = this.#contractsByAddress[assistant_aa];
 		try {
-			const res = await contract.claim(txid, txts, amount, reward, sender_address, dest_address, data);
+			let opts = {};
+			if (this.getGasPriceMultiplier())
+				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
+			const res = await contract.claim(txid, txts, amount, reward, sender_address, dest_address, data, opts);
 			const claim_txid = res.hash;
 			console.log(`sent assistant claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
 			this.#last_tx_ts = Date.now();
@@ -311,7 +323,10 @@ class EvmChain {
 		await this.waitBetweenTransactions();
 		const side = stake_on === 'yes' ? 1 : 0;
 		const contract = this.#contractsByAddress[bridge_aa];
-		const res = await contract['challenge(uint256,uint8,uint256)'](claim_num, side, counterstake, { value: (asset === AddressZero) ? counterstake : 0 });
+		let opts = { value: (asset === AddressZero) ? counterstake : 0 };
+		if (this.getGasPriceMultiplier())
+			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
+		const res = await contract['challenge(uint256,uint8,uint256)'](claim_num, side, counterstake, opts);
 		const txid = res.hash;
 		console.log(`sent counterstake ${counterstake} for "${stake_on}" to challenge claim ${claim_num}: ${txid}`);
 		this.#last_tx_ts = Date.now();
@@ -326,7 +341,10 @@ class EvmChain {
 		await this.waitBetweenTransactions();
 		const side = stake_on === 'yes' ? 1 : 0;
 		const contract = this.#contractsByAddress[assistant_aa];
-		const res = await contract.challenge(claim_num, side, counterstake);
+		let opts = {};
+		if (this.getGasPriceMultiplier())
+			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
+		const res = await contract.challenge(claim_num, side, counterstake, opts);
 		const txid = res.hash;
 		console.log(`sent assistant counterstake ${counterstake} for "${stake_on}" to challenge claim ${claim_num}: ${txid}`);
 		this.#last_tx_ts = Date.now();
@@ -340,9 +358,12 @@ class EvmChain {
 		const unlock = await mutex.lock(this.network + 'Tx');
 		await this.waitBetweenTransactions();
 		const contract = this.#contractsByAddress[bridge_aa];
+		let opts = {};
+		if (this.getGasPriceMultiplier())
+			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 		const res = to_address
-			? await contract['withdraw(uint256,address)'](claim_num, to_address)
-			: await contract['withdraw(uint256)'](claim_num);
+			? await contract['withdraw(uint256,address)'](claim_num, to_address, opts)
+			: await contract['withdraw(uint256)'](claim_num, opts);
 		const txid = res.hash;
 		console.log(`sent withdrawal request on claim ${claim_num} to ${to_address || 'self'}: ${txid}`);
 		this.#last_tx_ts = Date.now();
@@ -354,11 +375,18 @@ class EvmChain {
 
 	async sendPayment(asset, address, amount, recipient_device_address) {
 		let res;
-		if (asset === AddressZero)
-			res = await this.#wallet.sendTransaction({ to: address, value: amount });
+		if (asset === AddressZero) {
+			let opts = { to: address, value: amount };
+			if (this.getGasPriceMultiplier())
+				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
+			res = await this.#wallet.sendTransaction(opts);
+		}
 		else {
 			const contract = new ethers.Contract(asset, erc20Json.abi, this.#wallet);
-			res = await contract.transfer(address, amount);
+			let opts = {};
+			if (this.getGasPriceMultiplier())
+				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
+			res = await contract.transfer(address, amount, opts);
 		}
 		const txid = res.hash;
 		console.log(`sent payment ${amount} ${asset} to ${address}: ${txid}`);
@@ -712,7 +740,7 @@ class EvmChain {
 		await this.updateLastBlock(await this.#provider.getBlockNumber());
 	}
 
-	constructor(network, factory_contract_address, assistant_factory_contract_address, provider, bWebsocket){
+	constructor(network, factory_contract_address, assistant_factory_contract_address, provider){
 		this.network = network;
 		this.#factory_contract_address = factory_contract_address;
 		this.#assistant_factory_contract_address = assistant_factory_contract_address;
@@ -721,7 +749,14 @@ class EvmChain {
 		console.log(`====== my ${network} address: `, wallet.address);
 		this.#wallet = wallet.connect(provider);
 
-		if (bWebsocket && !process.env.devnet) {
+		if (provider._websocket && !process.env.devnet) {
+			let closed = false;
+			const forgetAndEmitDisconnected = () => {
+				closed = true;
+				this.forget();
+				console.log(`will wait before emitting disconnection event on`, this.network);
+				setTimeout(() => eventBus.emit('network_disconnected', this.network), 60 * 1000);
+			};
 			provider.on('block', (blockNumber) => {
 				console.log('new block', this.network, blockNumber);
 				provider._websocket.ping();
@@ -729,9 +764,17 @@ class EvmChain {
 			provider._websocket.on('pong', () => console.log('pong', this.network));
 			provider._websocket.on('close', () => {
 				console.log('====== !!!!! websocket connection closed', this.network);
-				this.forget();
-				eventBus.emit('network_disconnected', this.network);
+				if (closed)
+					return console.log('close event: ws already closed');
+				forgetAndEmitDisconnected();
 			});
+			provider._websocket.on('error', (error) => {
+				console.log('====== !!!!! websocket error', this.network, error);
+				if (closed)
+					return console.log('error event: ws already closed');
+				forgetAndEmitDisconnected();
+			});
+			console.log(`${this.network} constructor done`);
 		}
 
 		watchForDeadlock(this.network + 'Event');

@@ -1,6 +1,8 @@
 "use strict";
 const mutex = require('ocore/mutex.js');
 
+let watchedKeys = {};
+
 function wait(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -17,6 +19,9 @@ async function checkForDeadlock(key) {
 }
 
 function watchForDeadlock(key) {
+	if (watchedKeys[key])
+		return console.log('already watching for deadlock on ' + key);
+	watchedKeys[key] = true;
 	setInterval(() => checkForDeadlock(key), 10 * 60 * 1000);
 }
 
