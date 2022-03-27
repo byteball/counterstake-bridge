@@ -819,8 +819,8 @@ async function handleNewExportAA(export_aa, home_network, home_asset, home_asset
 		unlock(`completed bridge ${bridge_id} by adding export AA ${export_aa}`);
 		return true;
 	}
-	const params = [export_aa, home_network, home_asset, home_asset_decimals, home_symbol, foreign_network, foreign_asset, foreign_symbol, version];
-	await db.query(`INSERT INTO bridges (export_aa, home_network, home_asset, home_asset_decimals, home_symbol, foreign_network, foreign_asset, foreign_symbol, e_v) VALUES (${Array(params.length).fill('?').join(', ')})`, params);
+	const params = [export_aa, home_network, home_asset, home_asset_decimals, home_symbol, foreign_network, foreign_asset, foreign_symbol, version, '', '', ''];
+	await db.query(`INSERT INTO bridges (export_aa, home_network, home_asset, home_asset_decimals, home_symbol, foreign_network, foreign_asset, foreign_symbol, e_v, i_v, ea_v, ia_v) VALUES (${Array(params.length).fill('?').join(', ')})`, params);
 	unlock(`created a new half-bridge with only export end`);
 	return true;
 }
@@ -859,8 +859,8 @@ async function handleNewImportAA(import_aa, home_network, home_asset, foreign_ne
 		unlock(`completed bridge ${bridge_id} by adding import AA ${import_aa}`);
 		return true;
 	}
-	const params = [import_aa, home_network, home_asset, home_symbol, foreign_network, foreign_asset, foreign_asset_decimals, foreign_symbol, stake_asset, version];
-	await db.query(`INSERT INTO bridges (import_aa, home_network, home_asset, home_symbol, foreign_network, foreign_asset, foreign_asset_decimals, foreign_symbol, stake_asset, i_v) VALUES (${Array(params.length).fill('?').join(', ')})`, params);
+	const params = [import_aa, home_network, home_asset, home_symbol, foreign_network, foreign_asset, foreign_asset_decimals, foreign_symbol, stake_asset, '', version, '', ''];
+	await db.query(`INSERT INTO bridges (import_aa, home_network, home_asset, home_symbol, foreign_network, foreign_asset, foreign_asset_decimals, foreign_symbol, stake_asset, e_v, i_v, ea_v, ia_v) VALUES (${Array(params.length).fill('?').join(', ')})`, params);
 	unlock(`created a new half-bridge with only import end`);
 	return true;
 }
