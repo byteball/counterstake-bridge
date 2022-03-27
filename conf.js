@@ -102,27 +102,27 @@ if (process.env.devnet){
 else if (process.env.testnet) {
 	exports.ethereum_factory_contract_addresses = {
 		'v1': '0x13cF97EB9BF6245784f5FCfCC3Cb3Bd1B959A931',
-		'v1.1': '',
+		'v1.1': '0xE07311aDC6534E4F738795d7167Cb5b4CEAB90d3',
 	};
 	exports.ethereum_assistant_factory_contract_addresses = {
 		'v1': '0x39F9CC0a70a5327e129B1Aab6b3B265fA0C03C01',
-		'v1.1': '',
+		'v1.1': '0xcDF8316eCb6a56b7C6171a2dE112d1e749e41430',
 	};
 	exports.bsc_factory_contract_addresses = {
 		'v1': '0x154cEF0ef08f715B66531017E6c2712BB85ac0e5',
-		'v1.1': '',
+		'v1.1': '0xD3462bA04D8FC76791F30fc433e4Da808eA8Fa59',
 	};
 	exports.bsc_assistant_factory_contract_addresses = {
 		'v1': '0x426D200d3572febdc2C154A58043bF9f857fb7E6',
-		'v1.1': '',
+		'v1.1': '0x5BF8780E0A3b760690261EDAD5EE69A3200460AE',
 	};
 	exports.polygon_factory_contract_addresses = {
 		'v1': '0x5e4E4eA9C780b6dF0087b0052A7A1ad039F398bB',
-		'v1.1': '',
+		'v1.1': '0x1AF8d0955bcfb8e160E5FB19f00954FcBBA82cBD',
 	};
 	exports.polygon_assistant_factory_contract_addresses = {
 		'v1': '0xd8BF89335214Caf4724739F52621bC6D70eF87bF',
-		'v1.1': '',
+		'v1.1': '0xb8BC974b1DcC0cDDB54C9e5B3d04d736cb6113DE',
 	};
 }
 else {
