@@ -74,6 +74,7 @@ async function deploy() {
 	console.error('counterstake library', csLib.address);
 	link(Export, 'CounterstakeLibrary', csLib.address);
 	link(Import, 'CounterstakeLibrary', csLib.address);
+	link(ExportAssistant, 'CounterstakeLibrary', csLib.address);
 	await csLib.deployTransaction.wait();
 	console.log('mined');
 	await wait(2000);
