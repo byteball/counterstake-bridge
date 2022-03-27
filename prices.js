@@ -90,7 +90,7 @@ const fetchCryptocompareExchangeRate = async (in_currency, out_currency) => {
 }
 
 const fetchObyteTokenPrices = async () => {
-	const data = await request(`https://referrals.ostable.org/prices`)
+	const data = await request(process.env.testnet ? `https://testnet.ostable.org/r/prices` : `https://referrals.ostable.org/prices`)
 	const prices = data.data
 	if (!prices)
 		throw Error(`no prices from referrals ${data.error}`);
