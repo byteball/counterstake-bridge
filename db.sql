@@ -13,7 +13,11 @@ CREATE TABLE IF NOT EXISTS bridges (
 	stake_asset VARCHAR(50) NULL,
 	import_aa VARCHAR(50) NULL UNIQUE,
 	import_assistant_aa VARCHAR(50) NULL UNIQUE,
-	creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+	creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	e_v VARCHAR(6) NOT NULL DEFAULT 'v1', -- export version of ABI/AA
+	i_v VARCHAR(6) NOT NULL DEFAULT 'v1', -- import version
+	ea_v VARCHAR(6) NOT NULL DEFAULT 'v1', -- export assistant version
+	ia_v VARCHAR(6) NOT NULL DEFAULT 'v1' -- import assistant version
 );
 -- query separator
 
@@ -27,6 +31,7 @@ CREATE TABLE IF NOT EXISTS pooled_assistants (
 	shares_asset VARCHAR(50) NOT NULL,
 	shares_symbol VARCHAR(20) NULL,
 	creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`version` VARCHAR(6) NOT NULL DEFAULT 'v1',
 	FOREIGN KEY (bridge_id) REFERENCES bridges(bridge_id)
 );
 -- query separator

@@ -16,7 +16,7 @@ const dag = require('aabot/dag.js');
 const operator = require('aabot/operator.js');
 const notifications = require('./notifications.js');
 const transfers = require('./transfers.js');
-const { watchForDeadlock } = require('./utils.js');
+const { watchForDeadlock, getVersion } = require('./utils.js');
 
 let bCreated = false;
 
@@ -308,7 +308,8 @@ class Obyte {
 		}
 
 		// new export AA
-		if (aa_address === conf.export_factory_aa) {
+		if (getVersion(conf.export_factory_aas, aa_address)) {
+			const version = getVersion(conf.export_factory_aas, aa_address);
 			if (!responseVars)
 				throw Error(`no responseVars in response from export factory`);
 			const export_aa = responseVars.address;
@@ -316,14 +317,15 @@ class Obyte {
 				throw Error(`no address in response from export factory`);
 			console.log(`new export AA ${export_aa}`);
 		//	const params = await dag.readAAStateVar(aa_address, 'export_' + export_aa);
-			const bAdded = await transfers.handleNewExportAA(export_aa, this.network, trigger.data.asset || 'base', trigger.data.asset_decimals, trigger.data.foreign_network, trigger.data.foreign_asset);
+			const bAdded = await transfers.handleNewExportAA(export_aa, this.network, trigger.data.asset || 'base', trigger.data.asset_decimals, trigger.data.foreign_network, trigger.data.foreign_asset, version);
 			if (bAdded)
 				startWatchingAA(export_aa);
 			return unlock();
 		}
 		
 		// new import AA
-		if (aa_address === conf.import_factory_aa) {
+		if (getVersion(conf.import_factory_aas, aa_address)) {
+			const version = getVersion(conf.import_factory_aas, aa_address);
 			if (!responseVars)
 				return unlock(`no responseVars in response from import factory`);
 			const import_aa = responseVars.address;
@@ -331,15 +333,16 @@ class Obyte {
 				throw Error(`no address in response from import factory`);
 			console.log(`new import AA ${import_aa}`);
 			const params = await dag.readAAStateVar(aa_address, 'import_' + import_aa);
-			const bAdded = await transfers.handleNewImportAA(import_aa, trigger.data.home_network, trigger.data.home_asset, this.network, params.asset, trigger.data.asset_decimals, trigger.data.stake_asset || 'base');
+			const bAdded = await transfers.handleNewImportAA(import_aa, trigger.data.home_network, trigger.data.home_asset, this.network, params.asset, trigger.data.asset_decimals, trigger.data.stake_asset || 'base', version);
 			if (bAdded)
 				startWatchingAA(import_aa);
 			return unlock();
 		}
 
 		// new assistant AA
-		if (aa_address === conf.export_assistant_factory_aa || aa_address === conf.import_assistant_factory_aa) {
-			const side = aa_address === conf.export_assistant_factory_aa ? 'export' : 'import';
+		if (getVersion(conf.export_assistant_factory_aas, aa_address) || getVersion(conf.import_assistant_factory_aas, aa_address)) {
+			const side = getVersion(conf.export_assistant_factory_aas, aa_address) ? 'export' : 'import';
+			const version = getVersion(side === 'export' ? conf.export_assistant_factory_aas : conf.import_assistant_factory_aas, aa_address);
 			if (!responseVars)
 				return unlock(`no responseVars in response from ${side} assistant factory`);
 			const assistant_aa = responseVars.address;
@@ -349,7 +352,7 @@ class Obyte {
 			const params = await dag.readAAStateVar(aa_address, 'assistant_' + assistant_aa);
 		//	if (params.manager !== operator.getAddress())
 		//		return unlock(`new assistant ${assistant_aa} with another manager, will skip`);
-			const bAdded = await transfers.handleNewAssistantAA(side, assistant_aa, params.bridge_aa, this.network, params.manager, params.shares_asset, null);
+			const bAdded = await transfers.handleNewAssistantAA(side, assistant_aa, params.bridge_aa, this.network, params.manager, params.shares_asset, null, version);
 			if (bAdded)
 				startWatchingAA(assistant_aa);
 			return unlock();
@@ -494,13 +497,17 @@ class Obyte {
 	}
 
 	async startWatchingFactories() {
-		walletGeneral.addWatchedAddress(conf.export_factory_aa);
-		walletGeneral.addWatchedAddress(conf.import_factory_aa);
+		for (let v in conf.export_factory_aas)
+			walletGeneral.addWatchedAddress(conf.export_factory_aas[v]);
+		for (let v in conf.import_factory_aas)
+			walletGeneral.addWatchedAddress(conf.import_factory_aas[v]);
 	}
 
 	async startWatchingAssistantFactories() {
-		walletGeneral.addWatchedAddress(conf.export_assistant_factory_aa);
-		walletGeneral.addWatchedAddress(conf.import_assistant_factory_aa);
+		for (let v in conf.export_assistant_factory_aas)
+			walletGeneral.addWatchedAddress(conf.export_assistant_factory_aas[v]);
+		for (let v in conf.import_assistant_factory_aas)
+			walletGeneral.addWatchedAddress(conf.import_assistant_factory_aas[v]);
 	}
 
 	// called on start-up to handle missed transfers

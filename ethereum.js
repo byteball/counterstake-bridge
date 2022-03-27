@@ -20,7 +20,7 @@ class Ethereum extends EvmChain {
 			? new ethers.providers.JsonRpcProvider("http://0.0.0.0:7545") // ganache
 			: new ethers.providers.WebSocketProvider(process.env.testnet ? `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/eth/rinkeby/ws` : `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/eth/mainnet/ws`);
 		//	: ethers.providers.InfuraProvider.getWebSocketProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id);
-		super('Ethereum', conf.ethereum_factory_contract_address, conf.ethereum_assistant_factory_contract_address, provider);
+		super('Ethereum', conf.ethereum_factory_contract_addresses, conf.ethereum_assistant_factory_contract_addresses, provider);
 
 	}
 

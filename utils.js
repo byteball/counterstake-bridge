@@ -25,5 +25,13 @@ function watchForDeadlock(key) {
 	setInterval(() => checkForDeadlock(key), 10 * 60 * 1000);
 }
 
+function getVersion(versions, aa) {
+	for (let v in versions)
+		if (versions[v] === aa)
+			return v;
+	return null;
+}
+
 exports.wait = wait;
 exports.watchForDeadlock = watchForDeadlock;
+exports.getVersion = getVersion;

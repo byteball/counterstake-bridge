@@ -9,7 +9,7 @@ const desktopApp = require("ocore/desktop_app.js");
 const notifications = require('./notifications.js');
 const transfers = require('./transfers.js');
 const { fetchExchangeRateInNativeAsset } = require('./prices.js');
-const { wait, watchForDeadlock } = require('./utils.js');
+const { wait, watchForDeadlock, getVersion } = require('./utils.js');
 
 const exportJson = require('./evm/build/contracts/Export.json');
 const importJson = require('./evm/build/contracts/Import.json');
@@ -26,8 +26,8 @@ const TIMEOUT_BETWEEN_TRANSACTIONS = 3000;
 
 class EvmChain {
 	network = "AbstractEVMChain";
-	#factory_contract_address;
-	#assistant_factory_contract_address;
+	#factory_contract_addresses;
+	#assistant_factory_contract_addresses;
 	#provider;
 	#wallet;
 	#contractsByAddress = {};
@@ -602,7 +602,7 @@ class EvmChain {
 	}
 
 	async startWatchingFactories() {
-		const onNewExport = async (contractAddress, tokenAddress, foreign_network, foreign_asset) => {
+		const onNewExport = async (contractAddress, tokenAddress, foreign_network, foreign_asset, event) => {
 			const decimals = await this.getDecimals(tokenAddress);
 			if (decimals === null)
 				return console.log(`not adding new export contract ${contractAddress} as its token ${tokenAddress} didn't return decimals`);
@@ -612,36 +612,45 @@ class EvmChain {
 				if (!approval_res)
 					return console.log(`failed to approve new export contract ${contractAddress} to spend our token ${tokenAddress}, will not add`);
 			}*/
-			const bAdded = await transfers.handleNewExportAA(contractAddress, this.network, tokenAddress, decimals, foreign_network, foreign_asset);
+			const version = getVersion(this.#factory_contract_addresses, event.address);
+			if (!version)
+				throw Error(`undefined version of new export ${contractAddress} ${JSON.stringify(event)}`);
+			const bAdded = await transfers.handleNewExportAA(contractAddress, this.network, tokenAddress, decimals, foreign_network, foreign_asset, version);
 			if (bAdded)
 				this.startWatchingExportAA(contractAddress);
 		};
-		const onNewImport = async (contractAddress, home_network, home_asset, symbol, stakeTokenAddress) => {
-			const bAdded = await transfers.handleNewImportAA(contractAddress, home_network, home_asset, this.network, contractAddress, 18, stakeTokenAddress);
+		const onNewImport = async (contractAddress, home_network, home_asset, symbol, stakeTokenAddress, event) => {
+			const version = getVersion(this.#factory_contract_addresses, event.address);
+			if (!version)
+				throw Error(`undefined version of new import ${contractAddress} ${JSON.stringify(event)}`);
+			const bAdded = await transfers.handleNewImportAA(contractAddress, home_network, home_asset, this.network, contractAddress, 18, stakeTokenAddress, version);
 			if (bAdded)
 				this.startWatchingImportAA(contractAddress);
 		};
-		const contract = new ethers.Contract(this.#factory_contract_address, factoryJson.abi, this.#provider);
-		contract.on('NewExport', onNewExport);
-		contract.on('NewImport', onNewImport);
+		for (let v in this.#factory_contract_addresses) {
+			const factory_contract_address = this.#factory_contract_addresses[v];
+			const contract = new ethers.Contract(factory_contract_address, factoryJson.abi, this.#provider);
+			contract.on('NewExport', onNewExport);
+			contract.on('NewImport', onNewImport);
 
-		const processPastEventsOnContract = async (from_block, to_block) => {
-			await processPastEvents(contract, contract.filters.NewExport(), from_block, to_block, null, onNewExport);
-			await processPastEvents(contract, contract.filters.NewImport(), from_block, to_block, null, onNewImport);
-		};
+			const processPastEventsOnContract = async (from_block, to_block) => {
+				await processPastEvents(contract, contract.filters.NewExport(), from_block, to_block, null, onNewExport);
+				await processPastEvents(contract, contract.filters.NewImport(), from_block, to_block, null, onNewImport);
+			};
 		
-		// get factory events that are beyond the block range
-		const last_block = Math.max(await this.getLastBlock() - 100, 0);
-		const top_available_block = await this.getTopAvailableBlock();
-		if (top_available_block > last_block) {
-			const blocks = await this.getAddressBlocks(this.#factory_contract_address, last_block);
-			for (let blockNumber of blocks) {
-				await processPastEventsOnContract(blockNumber, blockNumber);
+			// get factory events that are beyond the block range
+			const last_block = Math.max(await this.getLastBlock() - 100, 0);
+			const top_available_block = await this.getTopAvailableBlock();
+			if (top_available_block > last_block) {
+				const blocks = await this.getAddressBlocks(factory_contract_address, last_block);
+				for (let blockNumber of blocks) {
+					await processPastEventsOnContract(blockNumber, blockNumber);
+				}
 			}
-		}
 
-		const since_block = await this.getSinceBlock();
-		await processPastEventsOnContract(since_block, 0);
+			const since_block = await this.getSinceBlock();
+			await processPastEventsOnContract(since_block, 0);
+		}
 	}
 
 	
@@ -658,43 +667,52 @@ class EvmChain {
 	}
 
 	async startWatchingAssistantFactories() {
-		const onNewExportAssistant = async (assistantAddress, bridgeAddress, manager, symbol) => {
+		const onNewExportAssistant = async (assistantAddress, bridgeAddress, manager, symbol, event) => {
 		//	if (manager !== this.#wallet.address)
 		//		return console.log(`new assistant ${assistantAddress} with another manager, will skip`);
 			console.log(`new export assistant ${assistantAddress}, shares ${symbol}`);
-			const bAdded = await transfers.handleNewAssistantAA('export', assistantAddress, bridgeAddress, this.network, manager, assistantAddress, symbol);
+			const version = getVersion(this.#assistant_factory_contract_addresses, event.address);
+			if (!version)
+				throw Error(`undefined version of new export assistant ${assistantAddress} ${JSON.stringify(event)}`);
+			const bAdded = await transfers.handleNewAssistantAA('export', assistantAddress, bridgeAddress, this.network, manager, assistantAddress, symbol, version);
 			if (bAdded)
 				this.startWatchingExportAssistantAA(assistantAddress);
 		};
-		const onNewImportAssistant = async (assistantAddress, bridgeAddress, manager, symbol) => {
+		const onNewImportAssistant = async (assistantAddress, bridgeAddress, manager, symbol, event) => {
 		//	if (manager !== this.#wallet.address)
 		//		return console.log(`new assistant ${assistantAddress} with another manager, will skip`);
 			console.log(`new import assistant ${assistantAddress}, shares ${symbol}`);
-			const bAdded = await transfers.handleNewAssistantAA('import', assistantAddress, bridgeAddress, this.network, manager, assistantAddress, symbol);
+			const version = getVersion(this.#assistant_factory_contract_addresses, event.address);
+			if (!version)
+				throw Error(`undefined version of new import assistant ${assistantAddress} ${JSON.stringify(event)}`);
+			const bAdded = await transfers.handleNewAssistantAA('import', assistantAddress, bridgeAddress, this.network, manager, assistantAddress, symbol, version);
 			if (bAdded)
 				this.startWatchingImportAssistantAA(assistantAddress);
 		};
-		const contract = new ethers.Contract(this.#assistant_factory_contract_address, assistantFactoryJson.abi, this.#provider);
-		contract.on('NewExportAssistant', onNewExportAssistant);
-		contract.on('NewImportAssistant', onNewImportAssistant);
+		for (let v in this.#assistant_factory_contract_addresses) {
+			const assistant_factory_contract_address = this.#assistant_factory_contract_addresses[v];
+			const contract = new ethers.Contract(assistant_factory_contract_address, assistantFactoryJson.abi, this.#provider);
+			contract.on('NewExportAssistant', onNewExportAssistant);
+			contract.on('NewImportAssistant', onNewImportAssistant);
 
-		const processPastEventsOnContract = async (from_block, to_block) => {
-			await processPastEvents(contract, contract.filters.NewExportAssistant(), from_block, to_block, null, onNewExportAssistant);
-			await processPastEvents(contract, contract.filters.NewImportAssistant(), from_block, to_block, null, onNewImportAssistant);
-		};
+			const processPastEventsOnContract = async (from_block, to_block) => {
+				await processPastEvents(contract, contract.filters.NewExportAssistant(), from_block, to_block, null, onNewExportAssistant);
+				await processPastEvents(contract, contract.filters.NewImportAssistant(), from_block, to_block, null, onNewImportAssistant);
+			};
 
-		// get factory events that are beyond the block range
-		const last_block = Math.max(await this.getLastBlock() - 100, 0);
-		const top_available_block = await this.getTopAvailableBlock();
-		if (top_available_block > last_block) {
-			const blocks = await this.getAddressBlocks(this.#assistant_factory_contract_address, last_block);
-			for (let blockNumber of blocks) {
-				await processPastEventsOnContract(blockNumber, blockNumber);
+			// get factory events that are beyond the block range
+			const last_block = Math.max(await this.getLastBlock() - 100, 0);
+			const top_available_block = await this.getTopAvailableBlock();
+			if (top_available_block > last_block) {
+				const blocks = await this.getAddressBlocks(assistant_factory_contract_address, last_block);
+				for (let blockNumber of blocks) {
+					await processPastEventsOnContract(blockNumber, blockNumber);
+				}
 			}
-		}
 
-		const since_block = await this.getSinceBlock();
-		await processPastEventsOnContract(since_block, 0);
+			const since_block = await this.getSinceBlock();
+			await processPastEventsOnContract(since_block, 0);
+		}
 	}
 
 
@@ -740,10 +758,10 @@ class EvmChain {
 		await this.updateLastBlock(await this.#provider.getBlockNumber());
 	}
 
-	constructor(network, factory_contract_address, assistant_factory_contract_address, provider){
+	constructor(network, factory_contract_addresses, assistant_factory_contract_addresses, provider){
 		this.network = network;
-		this.#factory_contract_address = factory_contract_address;
-		this.#assistant_factory_contract_address = assistant_factory_contract_address;
+		this.#factory_contract_addresses = factory_contract_addresses;
+		this.#assistant_factory_contract_addresses = assistant_factory_contract_addresses;
 		this.#provider = provider;
 		let wallet = ethers.Wallet.fromMnemonic(JSON.parse(fs.readFileSync(desktopApp.getAppDataDir() + '/keys.json')).mnemonic_phrase);
 		console.log(`====== my ${network} address: `, wallet.address);

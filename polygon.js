@@ -23,7 +23,7 @@ class Polygon extends EvmChain {
 	//	const provider = new ethers.providers.JsonRpcProvider((process.env.testnet ? `https://polygon-mumbai.infura.io/v3/${conf.infura_project_id}` : `https://polygon-mainnet.infura.io/v3/${conf.infura_project_id}`));
 	//	provider.pollingInterval = conf.polygon_polling_interval * 1000;
 		const provider = getProvider('Polygon');
-		super('Polygon', conf.polygon_factory_contract_address, conf.polygon_assistant_factory_contract_address, provider);
+		super('Polygon', conf.polygon_factory_contract_addresses, conf.polygon_assistant_factory_contract_addresses, provider);
 		this.#bFree = bFree;
 	}
 

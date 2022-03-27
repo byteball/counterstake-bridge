@@ -786,9 +786,9 @@ async function recheckOldTransfers() {
 }
 
 
-async function handleNewExportAA(export_aa, home_network, home_asset, home_asset_decimals, foreign_network, foreign_asset) {
+async function handleNewExportAA(export_aa, home_network, home_asset, home_asset_decimals, foreign_network, foreign_asset, version) {
 	const unlock = await mutex.lock('new_bridge');
-	console.log('new export', { export_aa, home_network, home_asset, home_asset_decimals, foreign_network, foreign_asset });
+	console.log('new export', { export_aa, home_network, home_asset, home_asset_decimals, foreign_network, foreign_asset, version });
 	const [existing_bridge] = await db.query("SELECT bridge_id FROM bridges WHERE export_aa=?", [export_aa]);
 	if (existing_bridge)
 		return unlock(`export AA ${export_aa} already belongs to bridge ${existing_bridge.bridge_id}`);
@@ -815,20 +815,20 @@ async function handleNewExportAA(export_aa, home_network, home_asset, home_asset
 		const [claim] = await db.query(`SELECT * FROM claims WHERE bridge_id=? AND transfer_id IS NULL LIMIT 1`);
 		if (claim)
 			return unlock(`already had at least one invalid claim ${claim.claim_num} on half-complete import-only bridge ${bridge_id}, will not complete the bridge`);
-		await db.query(`UPDATE bridges SET export_aa=?, home_asset_decimals=?, home_symbol=?, foreign_symbol=? WHERE bridge_id=?`, [export_aa, home_asset_decimals, home_symbol, foreign_symbol, bridge_id]);
+		await db.query(`UPDATE bridges SET export_aa=?, home_asset_decimals=?, home_symbol=?, foreign_symbol=?, e_v=? WHERE bridge_id=?`, [export_aa, home_asset_decimals, home_symbol, foreign_symbol, version, bridge_id]);
 		unlock(`completed bridge ${bridge_id} by adding export AA ${export_aa}`);
 		return true;
 	}
-	const params = [export_aa, home_network, home_asset, home_asset_decimals, home_symbol, foreign_network, foreign_asset, foreign_symbol];
-	await db.query(`INSERT INTO bridges (export_aa, home_network, home_asset, home_asset_decimals, home_symbol, foreign_network, foreign_asset, foreign_symbol) VALUES (${Array(params.length).fill('?').join(', ')})`, params);
+	const params = [export_aa, home_network, home_asset, home_asset_decimals, home_symbol, foreign_network, foreign_asset, foreign_symbol, version];
+	await db.query(`INSERT INTO bridges (export_aa, home_network, home_asset, home_asset_decimals, home_symbol, foreign_network, foreign_asset, foreign_symbol, e_v) VALUES (${Array(params.length).fill('?').join(', ')})`, params);
 	unlock(`created a new half-bridge with only export end`);
 	return true;
 }
 
 
-async function handleNewImportAA(import_aa, home_network, home_asset, foreign_network, foreign_asset, foreign_asset_decimals, stake_asset) {
+async function handleNewImportAA(import_aa, home_network, home_asset, foreign_network, foreign_asset, foreign_asset_decimals, stake_asset, version) {
 	const unlock = await mutex.lock('new_bridge');
-	console.log('new import', { import_aa, home_network, home_asset, foreign_network, foreign_asset, foreign_asset_decimals, stake_asset });
+	console.log('new import', { import_aa, home_network, home_asset, foreign_network, foreign_asset, foreign_asset_decimals, stake_asset, version });
 	const [existing_bridge] = await db.query("SELECT bridge_id FROM bridges WHERE import_aa=?", [import_aa]);
 	if (existing_bridge)
 		return unlock(`import AA ${import_aa} already belongs to bridge ${existing_bridge.bridge_id}`);
@@ -855,27 +855,27 @@ async function handleNewImportAA(import_aa, home_network, home_asset, foreign_ne
 		const [claim] = await db.query(`SELECT * FROM claims WHERE bridge_id=? AND transfer_id IS NULL LIMIT 1`);
 		if (claim)
 			return unlock(`already had at least one invalid claim ${claim.claim_num} on half-complete export-only bridge ${bridge_id}, will not complete the bridge`);
-		await db.query(`UPDATE bridges SET import_aa=?, foreign_asset_decimals=?, stake_asset=?, home_symbol=?, foreign_symbol=? WHERE bridge_id=?`, [import_aa, foreign_asset_decimals, stake_asset, home_symbol, foreign_symbol, bridge_id]);
+		await db.query(`UPDATE bridges SET import_aa=?, foreign_asset_decimals=?, stake_asset=?, home_symbol=?, foreign_symbol=?, i_v=? WHERE bridge_id=?`, [import_aa, foreign_asset_decimals, stake_asset, home_symbol, foreign_symbol, version, bridge_id]);
 		unlock(`completed bridge ${bridge_id} by adding import AA ${import_aa}`);
 		return true;
 	}
-	const params = [import_aa, home_network, home_asset, home_symbol, foreign_network, foreign_asset, foreign_asset_decimals, foreign_symbol, stake_asset];
-	await db.query(`INSERT INTO bridges (import_aa, home_network, home_asset, home_symbol, foreign_network, foreign_asset, foreign_asset_decimals, foreign_symbol, stake_asset) VALUES (${Array(params.length).fill('?').join(', ')})`, params);
+	const params = [import_aa, home_network, home_asset, home_symbol, foreign_network, foreign_asset, foreign_asset_decimals, foreign_symbol, stake_asset, version];
+	await db.query(`INSERT INTO bridges (import_aa, home_network, home_asset, home_symbol, foreign_network, foreign_asset, foreign_asset_decimals, foreign_symbol, stake_asset, i_v) VALUES (${Array(params.length).fill('?').join(', ')})`, params);
 	unlock(`created a new half-bridge with only import end`);
 	return true;
 }
 
-async function handleNewAssistantAA(side, assistant_aa, bridge_aa, network, manager, assistant_shares_asset, assistant_shares_symbol) {
+async function handleNewAssistantAA(side, assistant_aa, bridge_aa, network, manager, assistant_shares_asset, assistant_shares_symbol, version) {
 	const unlock = await mutex.lock('new_bridge');
-	console.log(`new assistant`, { side, assistant_aa, bridge_aa, manager, assistant_shares_asset, assistant_shares_symbol });
+	console.log(`new assistant`, { side, assistant_aa, bridge_aa, manager, assistant_shares_asset, assistant_shares_symbol, version });
 	const [bridge] = await db.query(`SELECT * FROM bridges WHERE ${side}_aa=? AND ${side === 'export' ? 'home_network' : 'foreign_network'}=?`, [bridge_aa, network]);
 	if (!bridge)
 		return unlock(`got new ${side} assistant for AA ${bridge_aa} but the bridge not found`);
 	const { bridge_id } = bridge;
 	const meIsManager = networkApi[network].getMyAddress() === manager;
 	if (meIsManager)
-		await db.query(`UPDATE bridges SET ${side}_assistant_aa=? WHERE bridge_id=?`, [assistant_aa, bridge_id]);
-	await db.query(`INSERT ${db.getIgnore()} INTO pooled_assistants (assistant_aa, bridge_id, bridge_aa, network, side, manager, shares_asset, shares_symbol) VALUES(?, ?,?, ?,?,?, ?,?)`, [assistant_aa, bridge_id, bridge_aa, network, side, manager, assistant_shares_asset, assistant_shares_symbol]);
+		await db.query(`UPDATE bridges SET ${side}_assistant_aa=?, ${side === 'export' ? 'ea_v' : 'ia_v'}=? WHERE bridge_id=?`, [assistant_aa, version, bridge_id]);
+	await db.query(`INSERT ${db.getIgnore()} INTO pooled_assistants (assistant_aa, bridge_id, bridge_aa, network, side, manager, shares_asset, shares_symbol, \`version\`) VALUES(?, ?,?, ?,?,?, ?,?, ?)`, [assistant_aa, bridge_id, bridge_aa, network, side, manager, assistant_shares_asset, assistant_shares_symbol, version]);
 	unlock();
 	return meIsManager;
 }

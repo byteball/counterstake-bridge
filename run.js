@@ -16,7 +16,7 @@ eventBus.on('headless_wallet_ready', async () => {
 	await operator.start();
 	chat.start();
 
-	if (!conf.export_factory_aa || !conf.import_factory_aa)
+	if (!conf.export_factory_aas || !conf.import_factory_aas)
 		throw Error("Please specify export and import factory AAs in conf.json");
 	if (!conf.admin_email || !conf.from_email) {
 		console.log("please specify admin_email and from_email in your " + desktopApp.getAppDataDir() + "/conf.json");

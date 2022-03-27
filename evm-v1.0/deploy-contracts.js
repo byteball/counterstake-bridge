@@ -118,7 +118,7 @@ async function deploy() {
 	await wait(2000);
 
 	// import
-	const im = await ethers.ContractFactory.fromSolidity(Import, signer).deploy("Obyte", "master", "Imported GBYTE master", "GBYTE_MASTER", AddressZero, AddressZero, 160, 110, parseEther('100'), [14*3600, 3*24*3600, 7*24*3600, 30*24*3600], [4*24*3600, 7*24*3600, 30*24*3600], opts);
+	const im = await ethers.ContractFactory.fromSolidity(Import, signer).deploy("Obyte", "master", "Imported GBYTE", "GBYTE", AddressZero, AddressZero, 160, 110, parseEther('100'), [14*3600, 3*24*3600, 7*24*3600, 30*24*3600], [4*24*3600, 7*24*3600, 30*24*3600], opts);
 	console.log('import master address', im.address);
 	await im.deployTransaction.wait();
 	console.log('mined');
@@ -135,7 +135,7 @@ async function deploy() {
 	// Assistants
 
 	// export assistant
-	const exas = await ethers.ContractFactory.fromSolidity(ExportAssistant, signer).deploy(ex.address, AddressZero, 100, 2000, AddressZero, 1, "Export assistant template", "EXAS", opts);
+	const exas = await ethers.ContractFactory.fromSolidity(ExportAssistant, signer).deploy(ex.address, AddressZero, 100, 2000, 1, "Export assistant template", "EXAS", opts);
 	console.log('export assistant master address', exas.address);
 	await exas.deployTransaction.wait();
 	console.log('mined');

@@ -40,8 +40,8 @@ const evmProps = {
 		stablecoinSymbol: 'USDC', // get testnet USDC from https://app.compound.finance/
 		stablecoinTokenAddress: process.env.testnet ? '0x4DBCdF9B62e891a7cec5A2568C3F4FAF9E8Abe2b' : '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
 		stablecoinDecimals: 6,
-		factory: conf.ethereum_factory_contract_address,
-		assistant_factory: conf.ethereum_assistant_factory_contract_address,
+		factory: conf.ethereum_factory_contract_addresses[conf.version],
+		assistant_factory: conf.ethereum_assistant_factory_contract_addresses[conf.version],
 	},
 	BSC: {
 		symbol: 'BNB',
@@ -51,8 +51,8 @@ const evmProps = {
 		stablecoinSymbol: 'BUSD', // get testnet BUSD https://testnet.binance.org/faucet-smart
 		stablecoinTokenAddress: process.env.testnet ? '0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee' : '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', 
 		stablecoinDecimals: 18,
-		factory: conf.bsc_factory_contract_address,
-		assistant_factory: conf.bsc_assistant_factory_contract_address,
+		factory: conf.bsc_factory_contract_addresses[conf.version],
+		assistant_factory: conf.bsc_assistant_factory_contract_addresses[conf.version],
 	},
 	Polygon: {
 		symbol: 'MATIC',
@@ -62,8 +62,8 @@ const evmProps = {
 		stablecoinSymbol: '',
 		stablecoinTokenAddress: process.env.testnet ? '' : '', 
 		stablecoinDecimals: 18,
-		factory: conf.polygon_factory_contract_address,
-		assistant_factory: conf.polygon_assistant_factory_contract_address,
+		factory: conf.polygon_factory_contract_addresses[conf.version],
+		assistant_factory: conf.polygon_assistant_factory_contract_addresses[conf.version],
 	},
 };
 
@@ -194,7 +194,8 @@ async function sendToken(tokenAddress, address, amount) {
 
 async function createObyteImport(home_asset, home_symbol, asset_decimals, oracles, large_threshold) {
 	assertValidEthereumAddress(home_asset);
-	const unit = await dag.sendAARequest(conf.import_factory_aa, {
+	const import_factory_aa = conf.import_factory_aas[conf.version];
+	const unit = await dag.sendAARequest(import_factory_aa, {
 		home_network: evmNetwork,
 		home_asset,
 		stake_asset: 'base',
@@ -208,7 +209,7 @@ async function createObyteImport(home_asset, home_symbol, asset_decimals, oracle
 		oracles,
 	});
 	console.error(`waiting for AA response from create import trigger ${unit}`);
-	const response = await dag.getAAResponseToTrigger(conf.import_factory_aa, unit);
+	const response = await dag.getAAResponseToTrigger(import_factory_aa, unit);
 	if (response.bounced)
 		throw Error(`createObyteImport ${home_symbol} bounced: ${response.response.error}`);
 	const address = response.response.responseVars.address;
@@ -219,7 +220,8 @@ async function createObyteImport(home_asset, home_symbol, asset_decimals, oracle
 
 async function createObyteExport(foreign_asset, asset, asset_decimals, large_threshold, min_stake) {
 	assertValidEthereumAddress(foreign_asset);
-	const unit = await dag.sendAARequest(conf.export_factory_aa, {
+	const export_factory_aa = conf.export_factory_aas[conf.version];
+	const unit = await dag.sendAARequest(export_factory_aa, {
 		foreign_network: evmNetwork,
 		foreign_asset,
 		asset,
@@ -231,7 +233,7 @@ async function createObyteExport(foreign_asset, asset, asset_decimals, large_thr
 		min_tx_age: 30,
 	});
 	console.error(`waiting for AA response from create export trigger ${unit}`);
-	const response = await dag.getAAResponseToTrigger(conf.export_factory_aa, unit);
+	const response = await dag.getAAResponseToTrigger(export_factory_aa, unit);
 	if (response.bounced)
 		throw Error(`createObyteExport ${asset} bounced: ${response.response.error}`);
 	const address = response.response.responseVars.address;
@@ -241,14 +243,15 @@ async function createObyteExport(foreign_asset, asset, asset_decimals, large_thr
 async function createObyteExportAssistant(bridge_aa, symbol, asset_decimals) {
 	if (!bWithAssistants)
 		return;
-	const unit = await dag.sendAARequest(conf.export_assistant_factory_aa, {
+	const export_assistant_factory_aa = conf.export_assistant_factory_aas[conf.version];
+	const unit = await dag.sendAARequest(export_assistant_factory_aa, {
 		bridge_aa,
 		manager: operator.getAddress(),
 		management_fee: 0.01,
 		success_fee: 0.1,
 	});
 	console.error(`waiting for AA response from create export assistant trigger ${unit}`);
-	const response = await dag.getAAResponseToTrigger(conf.export_assistant_factory_aa, unit);
+	const response = await dag.getAAResponseToTrigger(export_assistant_factory_aa, unit);
 	if (response.bounced)
 		throw Error(`createObyteExportAssistant ${symbol} bounced: ${response.response.error}`);
 	const address = response.response.responseVars.address;
@@ -259,7 +262,8 @@ async function createObyteExportAssistant(bridge_aa, symbol, asset_decimals) {
 async function createObyteImportAssistant(bridge_aa, symbol, asset_decimals) {
 	if (!bWithAssistants)
 		return;
-	const unit = await dag.sendAARequest(conf.import_assistant_factory_aa, {
+	const import_assistant_factory_aa = conf.import_assistant_factory_aas[conf.version];
+	const unit = await dag.sendAARequest(import_assistant_factory_aa, {
 		bridge_aa,
 		manager: operator.getAddress(),
 		management_fee: 0.01,
@@ -267,7 +271,7 @@ async function createObyteImportAssistant(bridge_aa, symbol, asset_decimals) {
 		swap_fee: 0.001,
 	});
 	console.error(`waiting for AA response from create import assistant trigger ${unit}`);
-	const response = await dag.getAAResponseToTrigger(conf.import_assistant_factory_aa, unit);
+	const response = await dag.getAAResponseToTrigger(import_assistant_factory_aa, unit);
 	if (response.bounced)
 		throw Error(`createObyteImportAssistant ${symbol} bounced: ${response.response.error}`);
 	const address = response.response.responseVars.address;

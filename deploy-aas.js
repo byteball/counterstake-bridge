@@ -38,7 +38,7 @@ async function waitForDeploymentDependencies(aa) {
 	for (let dependency_aa of dependencies) {
 		const dependency_unit = deploymentUnits[dependency_aa];
 		if (!dependency_unit)
-			throw Error(`dependency AA ${dependency_aa} not deployed`);
+			return console.error(`dependency AA ${dependency_aa} not deployed`);
 		console.error(`waiting for stability of ${dependency_aa} unit ${dependency_unit}`);
 		await headlessWallet.waitUntilMyUnitBecameStable(dependency_unit);
 		console.error(`${dependency_unit} is stable`);

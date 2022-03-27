@@ -40,10 +40,24 @@ exports.max_ts_error = 60; // how far txts can be into the future due to clock d
 // Obyte
 exports.token_registry_aa = "O6H6ZIFI57X3PLTYHOCVYPP5A553CYFQ";
 
-exports.export_factory_aa = 'YOOQMPDNU3YU6CIN3MOVU6ILY3EVDTLE';
-exports.import_factory_aa = 'KFAJZYLH6T3W2U6LNQJYIWXJVSBB24FN';
-exports.export_assistant_factory_aa = 'EKZPWMJOKI6LTRKQTEUD7IFK4BBR5GMK';
-exports.import_assistant_factory_aa = 'BRDUWQBFJZ277E3QUQXTMDGP3LLLGUO3';
+exports.version = 'v1.1';
+
+exports.export_factory_aas = {
+	'v1': 'YOOQMPDNU3YU6CIN3MOVU6ILY3EVDTLE',
+	'v1.1': 'FMAJSIMYTPFG2RIJJJGCYF4X6C6IP3MU',
+};
+exports.import_factory_aas = {
+	'v1': 'KFAJZYLH6T3W2U6LNQJYIWXJVSBB24FN',
+	'v1.1': '7D2CD23PJNIECSMQ4M5AMPTHH3FGGLQJ',
+};
+exports.export_assistant_factory_aas = {
+	'v1': 'EKZPWMJOKI6LTRKQTEUD7IFK4BBR5GMK',
+	'v1.1': 'HTK3O7RYNVO2BEUI5SZ2NAKRFUGXFMDX',
+};
+exports.import_assistant_factory_aas = {
+	'v1': 'BRDUWQBFJZ277E3QUQXTMDGP3LLLGUO3',
+	'v1.1': 'HS2PH23XIXELNUAUGXU3QYEVBI3WH3KP',
+};
 // exports.export_factory_aa = 'FVRNLCHSQA3XTR56OTMITTCYUYY5JDP6';
 // exports.import_factory_aa = 'O2EWQTP5GC5O76FHNBFUYAHQRBGOONK7';
 // exports.export_assistant_factory_aa = 'XIZNGEAFWMCCPCCDJ4XIGDODFF47QP5O';
@@ -59,14 +73,85 @@ exports.evm_required_gas = 420e3 + 70e3; // total gas required for all steps of 
 exports.evm_required_gas_with_pooled_assistant = 440e3 + 70e3; // total gas required for all steps of claiming eth
 //exports.evm_required_gas_with_pooled_assistant = 520e3 + 90e3; // total gas required for all steps of claiming imported tokens
 
-exports.ethereum_factory_contract_address = process.env.devnet ? '0xd5498A2e8E59821FEd5fEDad028284C31f95a0FF' : (process.env.testnet ? '0x13cF97EB9BF6245784f5FCfCC3Cb3Bd1B959A931' : '0x13C34d1b3928B13255F3619D3CA6645Fbadaf6BF');
-exports.ethereum_assistant_factory_contract_address = process.env.devnet ? '0x3D539b67e0bb2e9272808094838D158271A67Dba' : (process.env.testnet ? '0x39F9CC0a70a5327e129B1Aab6b3B265fA0C03C01' : '0x12d40AA1861f32a08508ecE504269a1f12759F72');
+if (process.env.devnet){
+	exports.ethereum_factory_contract_addresses = {
+		'v1': '0xd5498A2e8E59821FEd5fEDad028284C31f95a0FF',
+		'v1.1': '',
+	};
+	exports.ethereum_assistant_factory_contract_addresses = {
+		'v1': '0x3D539b67e0bb2e9272808094838D158271A67Dba',
+		'v1.1': '',
+	};
+	exports.bsc_factory_contract_addresses = {
+		'v1': '',
+		'v1.1': '',
+	};
+	exports.bsc_assistant_factory_contract_addresses = {
+		'v1': '',
+		'v1.1': '',
+	};
+	exports.polygon_factory_contract_addresses = {
+		'v1': '',
+		'v1.1': '',
+	};
+	exports.polygon_assistant_factory_contract_addresses = {
+		'v1': '',
+		'v1.1': '',
+	};
+}
+else if (process.env.testnet) {
+	exports.ethereum_factory_contract_addresses = {
+		'v1': '0x13cF97EB9BF6245784f5FCfCC3Cb3Bd1B959A931',
+		'v1.1': '',
+	};
+	exports.ethereum_assistant_factory_contract_addresses = {
+		'v1': '0x39F9CC0a70a5327e129B1Aab6b3B265fA0C03C01',
+		'v1.1': '',
+	};
+	exports.bsc_factory_contract_addresses = {
+		'v1': '0x154cEF0ef08f715B66531017E6c2712BB85ac0e5',
+		'v1.1': '',
+	};
+	exports.bsc_assistant_factory_contract_addresses = {
+		'v1': '0x426D200d3572febdc2C154A58043bF9f857fb7E6',
+		'v1.1': '',
+	};
+	exports.polygon_factory_contract_addresses = {
+		'v1': '0x5e4E4eA9C780b6dF0087b0052A7A1ad039F398bB',
+		'v1.1': '',
+	};
+	exports.polygon_assistant_factory_contract_addresses = {
+		'v1': '0xd8BF89335214Caf4724739F52621bC6D70eF87bF',
+		'v1.1': '',
+	};
+}
+else {
+	exports.ethereum_factory_contract_addresses = {
+		'v1': '0x13C34d1b3928B13255F3619D3CA6645Fbadaf6BF',
+		'v1.1': '',
+	};
+	exports.ethereum_assistant_factory_contract_addresses = {
+		'v1': '0x12d40AA1861f32a08508ecE504269a1f12759F72',
+		'v1.1': '',
+	};
+	exports.bsc_factory_contract_addresses = {
+		'v1': '0x91C79A253481bAa22E7E481f6509E70e5E6A883F',
+		'v1.1': '',
+	};
+	exports.bsc_assistant_factory_contract_addresses = {
+		'v1': '0xd634330ca14524A43d193E1c2e92cbaB72952896',
+		'v1.1': '',
+	};
+	exports.polygon_factory_contract_addresses = {
+		'v1': '0x7EF26EF55FcE4032281783c70726af1bfB1d51e8',
+		'v1.1': '',
+	};
+	exports.polygon_assistant_factory_contract_addresses = {
+		'v1': '0xE740C62aC78bB2666Fa9465052D0a292D7C27A11',
+		'v1.1': '',
+	};
+}
 
-exports.bsc_factory_contract_address = process.env.devnet ? '' : (process.env.testnet ? '0x154cEF0ef08f715B66531017E6c2712BB85ac0e5' : '0x91C79A253481bAa22E7E481f6509E70e5E6A883F');
-exports.bsc_assistant_factory_contract_address = process.env.devnet ? '' : (process.env.testnet ? '0x426D200d3572febdc2C154A58043bF9f857fb7E6' : '0xd634330ca14524A43d193E1c2e92cbaB72952896');
-
-exports.polygon_factory_contract_address = process.env.devnet ? '' : (process.env.testnet ? '0x5e4E4eA9C780b6dF0087b0052A7A1ad039F398bB' : '0x7EF26EF55FcE4032281783c70726af1bfB1d51e8');
-exports.polygon_assistant_factory_contract_address = process.env.devnet ? '' : (process.env.testnet ? '0xd8BF89335214Caf4724739F52621bC6D70eF87bF' : '0xE740C62aC78bB2666Fa9465052D0a292D7C27A11');
 
 exports.infura_project_id = ''; // in conf.json
 exports.polygon_polling_interval = 120; // in seconds

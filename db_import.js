@@ -11,6 +11,20 @@ async function initDB(){
 		if (sql)
 			await db.query(sql);
 	}
+
+	let rows = await db.query("SELECT name FROM pragma_table_info('bridges')");
+	if (!rows.find(r => r.name === 'e_v')) {
+		await db.query(`ALTER TABLE bridges ADD COLUMN e_v VARCHAR(6) NOT NULL DEFAULT 'v1'`);
+		await db.query(`ALTER TABLE bridges ADD COLUMN i_v VARCHAR(6) NOT NULL DEFAULT 'v1'`);
+		await db.query(`ALTER TABLE bridges ADD COLUMN ea_v VARCHAR(6) NOT NULL DEFAULT 'v1'`);
+		await db.query(`ALTER TABLE bridges ADD COLUMN ia_v VARCHAR(6) NOT NULL DEFAULT 'v1'`);
+	}
+
+	rows = await db.query("SELECT name FROM pragma_table_info('pooled_assistants')");
+	if (!rows.find(r => r.name === 'version')) {
+		await db.query("ALTER TABLE pooled_assistants ADD COLUMN `version` VARCHAR(6) NOT NULL DEFAULT 'v1'");
+	}
+
 }
 
 exports.initDB = initDB;
