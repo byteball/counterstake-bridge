@@ -39,7 +39,7 @@ router.get('/bridges', async (ctx) => {
 	const bridges = await db.query("SELECT * FROM bridges WHERE import_aa IS NOT NULL AND export_aa IS NOT NULL AND home_network IN(?) AND foreign_network IN(?)", [networks, networks]);
 	console.log(`-- getting bridges`);
 	const gas_networks = networks.filter(n => networkApi[n].getGasPrice);
-	await Promise.all(gas_networks.map(n => networkApi[n].getGasPrice));
+	await Promise.all(gas_networks.map(n => networkApi[n].getGasPrice()));
 	console.log('refreshed gas prices of', gas_networks);
 	for (let bridge of bridges) {
 		const { bridge_id, home_asset, foreign_asset, home_network, foreign_network } = bridge;
