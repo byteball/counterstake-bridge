@@ -66,7 +66,7 @@ function cachify(func, count_args) {
 
 
 const fetchERC20ExchangeRate = async (chain, token_address, quote) => {
-	if (process.testnet) {
+	if (process.env.testnet) {
 		if (token_address === '0x4DBCdF9B62e891a7cec5A2568C3F4FAF9E8Abe2b') // USDC rinkeby
 			token_address = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 		else if (token_address === '0xbF7A7169562078c96f0eC1A8aFD6aE50f12e5A99') // BAT rinkeby
@@ -78,7 +78,7 @@ const fetchERC20ExchangeRate = async (chain, token_address, quote) => {
 			return null;
 		}
 	}
-	else if (process.devnet) {
+	else if (process.env.devnet) {
 		if (token_address === '0xB554fCeDb8E4E0DFDebbE7e58Ee566437A19bfB2') // DAI devnet
 			token_address = '0x6b175474e89094c44da98b954eedeac495271d0f';
 		else {
