@@ -66,14 +66,26 @@ function cachify(func, count_args) {
 
 
 const fetchERC20ExchangeRate = async (chain, token_address, quote) => {
-	if (token_address === '0x4DBCdF9B62e891a7cec5A2568C3F4FAF9E8Abe2b') // USDC rinkeby
-		token_address = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-	if (token_address === '0xbF7A7169562078c96f0eC1A8aFD6aE50f12e5A99') // BAT rinkeby
-		token_address = '0x0D8775F648430679A709E98d2b0Cb6250d2887EF';
-	if (token_address === '0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee') // BUSD testnet
-		token_address = '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56';
-	if (token_address === '0xB554fCeDb8E4E0DFDebbE7e58Ee566437A19bfB2') // DAI devnet
-		token_address = '0x6b175474e89094c44da98b954eedeac495271d0f';
+	if (process.testnet) {
+		if (token_address === '0x4DBCdF9B62e891a7cec5A2568C3F4FAF9E8Abe2b') // USDC rinkeby
+			token_address = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+		else if (token_address === '0xbF7A7169562078c96f0eC1A8aFD6aE50f12e5A99') // BAT rinkeby
+			token_address = '0x0D8775F648430679A709E98d2b0Cb6250d2887EF';
+		else if (token_address === '0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee') // BUSD testnet
+			token_address = '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56';
+		else {
+			console.log(`token ${token_address} not known on ${chain} testnet`);
+			return null;
+		}
+	}
+	else if (process.devnet) {
+		if (token_address === '0xB554fCeDb8E4E0DFDebbE7e58Ee566437A19bfB2') // DAI devnet
+			token_address = '0x6b175474e89094c44da98b954eedeac495271d0f';
+		else {
+			console.log(`token ${token_address} not known on ${chain} devnet`);
+			return null;
+		}		
+	}
 	const data = await request(`https://api.coingecko.com/api/v3/coins/${chain}/contract/${token_address.toLowerCase()}`)
 	const prices = data.market_data.current_price
 	quote = quote.toLowerCase()
