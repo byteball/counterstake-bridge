@@ -752,13 +752,23 @@ class EvmChain {
 		if (provider._websocket && !process.env.devnet) {
 			let closed = false;
 			const forgetAndEmitDisconnected = () => {
+				clearInterval(interval);
 				closed = true;
 				this.forget();
 				console.log(`will wait before emitting disconnection event on`, this.network);
 				setTimeout(() => eventBus.emit('network_disconnected', this.network), 60 * 1000);
 			};
+			let last_block_ts = Date.now();
+			var interval = setInterval(() => {
+				if (Date.now() - last_block_ts > 5 * 60 * 1000) {
+					console.log(`====== no new blocks on ${this.network} in more than 5 mins, will reset websocket connection`);
+					forgetAndEmitDisconnected();
+					provider._websocket.close();
+				}
+			}, 60 * 1000);
 			provider.on('block', (blockNumber) => {
 				console.log('new block', this.network, blockNumber);
+				last_block_ts = Date.now();
 				provider._websocket.ping();
 			});
 			provider._websocket.on('pong', () => console.log('pong', this.network));
