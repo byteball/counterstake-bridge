@@ -25,6 +25,8 @@ const evmNetwork = 'Ethereum';
 //const evmNetwork = 'BSC';
 //const evmNetwork = 'Polygon';
 
+const targetGasPrice = 35; // gwei
+
 const opts = {
 //	gasPrice: 8e9
 };
@@ -67,6 +69,23 @@ async function deploy() {
 	console.error(`====== my ETH address on ${evmNetwork}: `, process.env.devnet ? await provider.getSigner().getAddress() : ethWallet.address);
 	const signer = process.env.devnet ? provider.getSigner(0) : ethWallet.connect(provider);
 
+
+	async function getGasPrice() {
+		return (await provider.getGasPrice()).toNumber() / 1e9;
+	}
+
+	async function waitForGasPrice() {
+		while (true) {
+			const gasPrice = await getGasPrice();
+			console.log(`gas price`, gasPrice);
+			if (gasPrice < targetGasPrice)
+				break;
+			await wait(60 * 1000);
+		}
+	}
+
+	await waitForGasPrice();
+	
 	
 	// Counterstake library
 
