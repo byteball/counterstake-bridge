@@ -38,6 +38,7 @@ router.get('/bridges', async (ctx) => {
 	const networks = Object.keys(networkApi);
 	const bridges = await db.query("SELECT * FROM bridges WHERE import_aa IS NOT NULL AND export_aa IS NOT NULL AND home_network IN(?) AND foreign_network IN(?)", [networks, networks]);
 	console.log(`-- getting bridges`);
+	const start_ts = Date.now();
 	const gas_networks = networks.filter(n => networkApi[n].getGasPrice);
 	await Promise.all(gas_networks.map(n => networkApi[n].getGasPrice()));
 	console.log('refreshed gas prices of', gas_networks);
@@ -50,7 +51,7 @@ router.get('/bridges', async (ctx) => {
 		bridge.max_expatriation_amount = maxAmounts[bridge_id + 'expatriation'] || 0;
 		bridge.max_repatriation_amount = maxAmounts[bridge_id + 'repatriation'] || 0;
 	}
-	console.log(`-- got bridges`);
+	console.log(`-- got bridges in ${Date.now() - start_ts}ms`);
 	ctx.body = {
 		status: 'success',
 		data: bridges
