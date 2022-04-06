@@ -557,9 +557,10 @@ async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 				assistant_aa = undefined;
 			if (network !== 'Obyte')
 				await wait(3000); // getMyStake() might go to a different node that is not perfectly synced
-			const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome, assistant_aa);
-			console.log(`my stake on ${desc} was ${my_stake}`); // duplicates are harmless
-			if (!isZero(my_stake)) {
+			const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome);
+			const my_assistant_stake = assistant_aa ? await api.getMyStake(bridge_aa, claim_num, valid_outcome, assistant_aa) : 0;
+			console.log(`my stake on ${desc} was ${my_stake} as myself aand ${my_assistant_stake} as assistant`); // duplicates are harmless
+			if (!isZero(my_stake) || !isZero(my_assistant_stake)) {
 				console.log(`will withdraw from ${desc}`);
 				await sendWithdrawalRequest(network, bridge_aa, claim_info, assistant_aa);
 			}
@@ -745,9 +746,10 @@ async function checkUnfinishedClaims() {
 			const valid_outcome = await getValidOutcome(claim_info, true);
 			if (claim.current_outcome === valid_outcome) {
 				console.log(`checkUnfinishedClaims: ${desc} finished as expected`);
-				const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome, assistant_aa);
-				console.log(`my stake on ${desc} was ${my_stake}`);
-				if (isZero(my_stake))
+				const my_stake = await api.getMyStake(bridge_aa, claim_num, valid_outcome);
+				const my_assistant_stake = assistant_aa ? await api.getMyStake(bridge_aa, claim_num, valid_outcome, assistant_aa) : 0;
+				console.log(`my stake on ${desc} was ${my_stake} as myself and ${my_assistant_stake} as assistant`);
+				if (isZero(my_stake) && isZero(my_assistant_stake))
 					await finishClaim(claim_info);
 				else {
 					console.log(`checkUnfinishedClaims: will withdraw from ${desc}`);
