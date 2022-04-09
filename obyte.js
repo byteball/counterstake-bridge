@@ -70,6 +70,14 @@ class Obyte {
 		return validationUtils.isValidBase64(txid, constants.HASH_LENGTH);
 	}
 
+	isValidNonnativeAsset(asset) {
+		return this.isValidTxid(asset);
+	}
+
+	isValidAsset(asset) {
+		return asset === 'base' || this.isValidNonnativeAsset(asset);
+	}
+
 	isValidData(data) {
 		if (!data)
 			return true;

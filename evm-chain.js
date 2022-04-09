@@ -190,6 +190,14 @@ class EvmChain {
 		return !!txid.match(/^0x[0-9a-f]{64}$/);
 	}
 
+	isValidNonnativeAsset(asset) {
+		return asset !== AddressZero && this.isValidAddress(asset);
+	}
+
+	isValidAsset(asset) {
+		return asset === AddressZero || this.isValidNonnativeAsset(asset);
+	}
+
 	isValidData(data) {
 		return true;
 	}

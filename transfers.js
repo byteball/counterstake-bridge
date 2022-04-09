@@ -799,6 +799,9 @@ async function handleNewExportAA(export_aa, home_network, home_asset, home_asset
 	if (!networkApi[foreign_network])
 		return unlock(`skipping export AA ${export_aa} because network ${foreign_network} is disabled`);
 
+	if (!networkApi[foreign_network].isValidNonnativeAsset(foreign_asset))
+		return unlock(`invalid foreign asset ${foreign_asset}`);
+	
 	const home_symbol = await networkApi[home_network].getSymbol(home_asset);
 	const foreign_symbol = await networkApi[foreign_network].getSymbol(foreign_asset);
 	
@@ -806,8 +809,10 @@ async function handleNewExportAA(export_aa, home_network, home_asset, home_asset
 	const [bridge] = await db.query(`SELECT * FROM bridges WHERE foreign_asset=?`, [foreign_asset]);
 	if (bridge) { // export end is already known
 		const { bridge_id } = bridge;
-		if (bridge.export_aa)
-			throw Error(`foreign asset ${foreign_asset} is already connected to another export AA ${bridge.export_aa} on bridge ${bridge_id}`);
+		if (bridge.export_aa) {
+			notifications.notifyAdmin(`duplicate export AA`, `foreign asset ${foreign_asset} is already connected to another export AA ${bridge.export_aa} on bridge ${bridge_id}`);
+			return unlock(`foreign asset ${foreign_asset} is already connected to another export AA ${bridge.export_aa} on bridge ${bridge_id}`);
+		}
 		if (bridge.home_network !== home_network)
 			return unlock(`home network mismatch: existing half-bridge ${bridge_id}: ${bridge.home_network}, new export: ${home_network}`);
 		if (bridge.home_asset !== home_asset)
@@ -837,7 +842,7 @@ async function handleNewImportAA(import_aa, home_network, home_asset, foreign_ne
 	if (!networkApi[home_network])
 		return unlock(`skipping import AA ${import_aa} because network ${home_network} is disabled`);
 	if (!networkApi[foreign_network])
-		return unlock(`skipping import AA ${import_aa} because network ${foreign_network} is diabled`);
+		return unlock(`skipping import AA ${import_aa} because network ${foreign_network} is disabled`);
 
 	const home_symbol = await networkApi[home_network].getSymbol(home_asset);
 	const foreign_symbol = await networkApi[foreign_network].getSymbol(foreign_asset);
