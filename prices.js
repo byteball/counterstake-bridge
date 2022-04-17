@@ -10,7 +10,7 @@ const nativeSymbols = {
 };
 
 
-const cache_lifetime = 10 * 60 * 1000; // 10 minutes
+const cache_lifetime = 60 * 60 * 1000; // 60 minutes
 
 class Cache {
 	#data = {};
