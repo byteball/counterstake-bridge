@@ -1036,8 +1036,12 @@ async function start() {
 	if (!conf.disablePolygon)
 		networkApi.Polygon = new Polygon();
 
+	let caughtUp = {};
+
 	// reconnect to Ethereum websocket
 	eventBus.on('network_disconnected', async (network) => {
+		if (!caughtUp[network])
+			throw Error(`${network} disconnected before having caught up`);
 		console.log('will reconnect to', network);
 		if (network === 'Ethereum')
 			networkApi.Ethereum = new Ethereum();
@@ -1082,8 +1086,10 @@ async function start() {
 //	await populatePooledAssistantsTable();
 
 	// must be called after the bridges are loaded, contractsByAddress are populated by then
-	for (let net in networkApi)
+	for (let net in networkApi) {
 		await networkApi[net].catchup();
+		caughtUp[net] = true;
+	}
 	console.log('catching up done');
 	bCatchingUp = false;
 	setTimeout(() => { bCatchingUpOrHandlingPostponedEvents = false; }, 3 * 60 * 1000);
