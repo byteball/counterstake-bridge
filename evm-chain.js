@@ -642,6 +642,7 @@ class EvmChain {
 			contract.on('NewImport', onNewImport);
 
 			const processPastEventsOnContract = async (from_block, to_block) => {
+				console.log('factories processPastEventsOnContract', this.network, from_block, to_block);
 				await processPastEvents(contract, contract.filters.NewExport(), from_block, to_block, null, onNewExport);
 				await processPastEvents(contract, contract.filters.NewImport(), from_block, to_block, null, onNewImport);
 			};
@@ -650,7 +651,9 @@ class EvmChain {
 			const last_block = Math.max(await this.getLastBlock() - 100, 0);
 			const top_available_block = await this.getTopAvailableBlock();
 			if (top_available_block > last_block) {
+				console.log(this.network, 'factories top available block', top_available_block, '> last block', last_block);
 				const blocks = await this.getAddressBlocks(factory_contract_address, last_block);
+				console.log('factories blocks of missed txs', this.network, blocks);
 				for (let blockNumber of blocks) {
 					await processPastEventsOnContract(blockNumber, blockNumber);
 				}
@@ -704,6 +707,7 @@ class EvmChain {
 			contract.on('NewImportAssistant', onNewImportAssistant);
 
 			const processPastEventsOnContract = async (from_block, to_block) => {
+				console.log('assistants processPastEventsOnContract', this.network, from_block, to_block);
 				await processPastEvents(contract, contract.filters.NewExportAssistant(), from_block, to_block, null, onNewExportAssistant);
 				await processPastEvents(contract, contract.filters.NewImportAssistant(), from_block, to_block, null, onNewImportAssistant);
 			};
@@ -712,7 +716,9 @@ class EvmChain {
 			const last_block = Math.max(await this.getLastBlock() - 100, 0);
 			const top_available_block = await this.getTopAvailableBlock();
 			if (top_available_block > last_block) {
+				console.log(this.network, 'assistants top available block', top_available_block, '> last block', last_block);
 				const blocks = await this.getAddressBlocks(assistant_factory_contract_address, last_block);
+				console.log('assistants blocks of missed txs', this.network, blocks);
 				for (let blockNumber of blocks) {
 					await processPastEventsOnContract(blockNumber, blockNumber);
 				}
