@@ -21,12 +21,22 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 		retry_count++;
 		return await getAddressHistory({ base_url, address, startblock, startts, api_key, retry_count });
 	};
+	const requestWithUnlock = async (url) => {
+		try {
+			return await request(url);
+		}
+		catch (e) {
+			console.log(`request ${url} failed`, e);
+			unlock();
+			throw e;
+		}
+	};
 	await waitBetweenRequests(base_url);
 	if (startts && !startblock) {
 		let url = `${base_url}/api?module=block&action=getblocknobytime&timestamp=${startts}&closest=after`;
 		if (api_key)
 			url += `&apikey=${api_key}`;
-		const resp = await request(url);
+		const resp = await requestWithUnlock(url);
 		last_req_ts[base_url] = Date.now();
 		if (resp.message === 'NOTOK' && retry_count < 10)
 			return await retry(`got "${resp.result}", will retry`);
@@ -40,7 +50,7 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 		url += `&startblock=${startblock}`;
 	if (api_key)
 		url += `&apikey=${api_key}`;
-	const resp = await request(url);
+	const resp = await requestWithUnlock(url);
 	last_req_ts[base_url] = Date.now();
 	if (resp.message === 'NOTOK' && retry_count < 10)
 		return await retry(`got "${resp.result}", will retry`);
