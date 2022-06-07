@@ -107,10 +107,14 @@ class EvmChain {
 		return await this.#provider.getTransaction(txid);
 	}
 
-	async getBlockTimestamp(blockHash) {
+	async getBlockTimestamp(blockHash, bRetrying) {
 		const block = await this.#provider.getBlock(blockHash);
-		if (!block)
-			throw Error(`block ${blockHash} not found`);
+		if (!block) {
+			if (bRetrying)
+				throw Error(`block ${blockHash} not found`);
+			await wait(2000);
+			return await this.getBlockTimestamp(blockHash, true);
+		}
 		return block.timestamp;
 	}
 
