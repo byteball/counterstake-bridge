@@ -1098,6 +1098,7 @@ async function start() {
 	setInterval(checkUnfinishedClaims, (process.env.testnet || process.env.devnet ? 2 : 30) * 60 * 1000); // every half an hour
 
 	await recheckOldTransfers();
+	setInterval(recheckOldTransfers, 3600 * 1000); // every hour, in case gas price was too high when the claim was received, and then it got lower
 
 	await updateMaxAmounts();
 	setInterval(updateMaxAmounts, 3600 * 1000); // every hour
