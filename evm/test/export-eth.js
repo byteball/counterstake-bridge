@@ -243,7 +243,7 @@ contract("Exporting ETH", async accounts => {
 	});
 
 	it("failed withdraw: non-owner", async () => {
-		await time.increase(12 * 3600);
+		await time.increase(12 * 3600 + 1);
 		let promise = instance.withdrawByNum(this.claim_num, { from: bobAccount });
 		await expectRevert(promise, "you are not the recipient and you didn't stake on the winning outcome or you have already withdrawn");
 	});

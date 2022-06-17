@@ -369,7 +369,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 	});
 
 	it("failed withdraw: non-owner", async () => {
-		await time.increase(12 * 3600);
+		await time.increase(12 * 3600 + 1);
 		let promise = instance.withdrawById(this.claim_id, { from: aliceAccount });
 		await expectRevert(promise, "you are not the recipient and you didn't stake on the winning outcome or you have already withdrawn");
 	});
