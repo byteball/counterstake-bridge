@@ -52,6 +52,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 
 	let instance, governance, ratioVotedValue, counterstakeCoefVotedValue, largeThresholdVotedValue, challengingPeriodsVotedValue, largeChallengingPeriodsVotedValue, assistant;
 	let token;
+	let accessList;
 	
 	before(async () => {
 		token = await Token.new("USDC stake token", "USDC");
@@ -119,6 +120,12 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 
 		await instance.approve(assistant.address, ether('50'), { from: charlieAccount });
 		expect(await instance.allowance(charlieAccount, assistant.address)).to.be.bignumber.equal(ether('50'));
+
+		const importAssistantMaster = await assistantFactory.importAssistantMaster();
+		accessList = [
+			{ address: importAssistantMaster, storageKeys: [] },
+			{ address: assistant.address, storageKeys: ["0x0000000000000000000000000000000000000000000000000000000000000007"] }
+		];
 
 		expect(await assistant.profit_diffusion_period()).to.be.bignumber.eq(new BN(10 * 24 * 3600));
 	});
@@ -365,10 +372,10 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		console.log('balance before withdrawal', stake_balance_before.toString())
 		let image_balance_before = await instance.balanceOf(assistant.address);
 
-		let gas = await instance.withdrawTo.estimateGas(this.claim_id, assistant.address, { from: bobAccount });
+		let gas = await instance.withdrawTo.estimateGas(this.claim_id, assistant.address, { from: bobAccount, accessList });
 		console.log('gas estimation for withdrawal', gas);
 	//	gas--; // would OOG
-		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount, gas: gas });
+		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount, gas: gas, accessList });
 		console.log('withdraw res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
@@ -596,7 +603,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		let stake_balance_before = await balance.current(assistant.address);
 		let image_balance_before = await instance.balanceOf(assistant.address);
 
-		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount });
+		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount, accessList });
 		console.log('withdraw res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
@@ -969,7 +976,7 @@ contract("Importing GBYTE with ETH staking and assistance", async accounts => {
 		let assistant_stake_balance_before = await balance.current(assistant.address);
 		let assistant_image_balance_before = await instance.balanceOf(assistant.address)
 
-		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount });
+		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount, accessList });
 	//	console.log('withdraw res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 

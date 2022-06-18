@@ -50,6 +50,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 	const managerAccount = accounts[3]
 
 	let instance, governance, ratioVotedValue, counterstakeCoefVotedValue, largeThresholdVotedValue, challengingPeriodsVotedValue, largeChallengingPeriodsVotedValue, assistant;
+	let accessList;
 	
 	before(async () => {
 		const factory = await CounterstakeFactory.deployed();
@@ -101,6 +102,16 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		let assistant_res = await assistantFactory.createExportAssistant(instance.address, managerAccount, 100, 2500, a0, 1, "ETH-to-Obyte export assistant", "ETHOA");
 		assistant = await ExportAssistant.at(assistant_res.logs[0].args.contractAddress);
 		console.log('ETH-to-Obyte export assistant address', assistant.address);
+
+		const exportAssistantMaster = await assistantFactory.exportAssistantMaster();
+		accessList = [
+			{ address: exportAssistantMaster, storageKeys: [] },
+			{ address: assistant.address, storageKeys: ["0x0000000000000000000000000000000000000000000000000000000000000007"] }
+		];
+	//	const code = await web3.eth.getCode(assistant.address);
+	//	const extractedMasterAddress = '0x' + code.slice(22, 62);
+	//	console.log({ code, exportAssistantMaster, extractedMasterAddress });
+	//	process.exit()
 
 		expect(await assistant.profit_diffusion_period()).to.be.bignumber.eq(new BN(10 * 24 * 3600));
 	});
@@ -271,7 +282,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 
 	//	let gas = 150000;//await instance.withdrawTo.estimateGas(this.claim_id, assistant.address, { from: bobAccount });
 	//	console.log('gas estimation for withdrawal', gas);
-		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount });
+		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount, accessList });
 		console.log('withdraw to assistant res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
@@ -456,7 +467,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 	it("withdraw 2 to assistant", async () => {
 		let balance_before = await balance.current(assistant.address);
 
-		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount });
+		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount, accessList });
 		console.log('withdraw to assistant res', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
@@ -748,7 +759,7 @@ contract("Exporting ETH with the help of pooled assistant contract", async accou
 		await time.increase(3 * 24 * 3600 + 1);
 		let balance_before = await balance.current(assistant.address);
 
-		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount });
+		let res = await instance.withdrawTo(this.claim_id, assistant.address, { from: bobAccount, accessList });
 	//	console.log('withdraw 3 to assistant', res)
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 

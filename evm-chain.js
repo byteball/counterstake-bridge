@@ -371,6 +371,15 @@ class EvmChain {
 		await this.waitBetweenTransactions();
 		const contract = this.#contractsByAddress[bridge_aa];
 		let opts = {};
+		if (to_address) { // it must be an assistant contract
+			const code = await this.#provider.getCode(to_address);
+			const masterAddress = ethers.utils.getAddress('0x' + code.slice(22, 62));
+			opts.accessList = [
+				{ address: masterAddress, storageKeys: [] },
+				{ address: to_address, storageKeys: ["0x0000000000000000000000000000000000000000000000000000000000000007"] },
+			];
+			opts.gasLimit = 200000;
+		}
 		if (this.getGasPriceMultiplier())
 			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 		const res = to_address
