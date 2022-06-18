@@ -378,7 +378,7 @@ class EvmChain {
 				{ address: masterAddress, storageKeys: [] },
 				{ address: to_address, storageKeys: ["0x0000000000000000000000000000000000000000000000000000000000000007"] },
 			];
-			opts.gasLimit = 200000;
+			opts.gasLimit = 300000;
 		}
 		if (this.getGasPriceMultiplier())
 			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
