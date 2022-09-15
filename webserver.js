@@ -9,6 +9,7 @@ const bodyParser = require('koa-bodyparser');
 const conf = require('ocore/conf.js');
 const db = require('ocore/db.js');
 const { networkApi, getActiveClaimants, getMaxAmounts } = require('./transfers.js');
+const { constants: { AddressZero } } = ethers;
 
 const app = new Koa();
 const router = new KoaRouter();
@@ -49,7 +50,7 @@ router.get('/bridges', async (ctx) => {
 		bridge.count_expatriation_claimants = claimantCounts[bridge_id + 'expatriation'] || 0;
 		bridge.count_repatriation_claimants = claimantCounts[bridge_id + 'repatriation'] || 0;
 		bridge.max_expatriation_amount = maxAmounts[bridge_id + 'expatriation'] || 0;
-		bridge.max_repatriation_amount = maxAmounts[bridge_id + 'repatriation'] || 0;
+		bridge.max_repatriation_amount = Math.max((maxAmounts[bridge_id + 'repatriation'] || 0) - (home_asset === AddressZero ? bridge.min_repatriation_reward : 0), 0);
 	}
 	console.log(`-- got bridges in ${Date.now() - start_ts}ms`);
 	ctx.body = {
