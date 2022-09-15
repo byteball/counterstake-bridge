@@ -9,6 +9,7 @@ const bodyParser = require('koa-bodyparser');
 const conf = require('ocore/conf.js');
 const db = require('ocore/db.js');
 const { networkApi, getActiveClaimants, getMaxAmounts } = require('./transfers.js');
+const { ethers } = require("ethers");
 const { constants: { AddressZero } } = ethers;
 
 const app = new Koa();
