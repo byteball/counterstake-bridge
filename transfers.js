@@ -771,7 +771,7 @@ async function checkUnfinishedClaims() {
 async function recheckOldTransfers() {
 	if (!conf.bClaimForOthers)
 		return;
-	const unlock = await mutex.lock('recheckOldTransfers');
+	let unlock = await mutex.lock('recheckOldTransfers');
 	const transfers = await db.query(
 		`SELECT transfers.* FROM transfers LEFT JOIN claims USING(transfer_id)
 		WHERE claim_num IS NULL AND is_confirmed=1 AND transfers.reward>=0
@@ -780,11 +780,20 @@ async function recheckOldTransfers() {
 		ORDER BY transfer_id`
 	);
 	console.error('----- transfers', transfers.length)
+	if (transfers.length === 0)
+		return unlock();
+	setTimeout(() => { // might get stuck in case of reconnect, release the lock anyway
+		if (unlock)
+			unlock();
+		unlock = null;
+	}, 1800 * 1000);
 	for (let transfer of transfers) {
 		console.log('will retry old unhandled transfer', transfer);
 		await handleTransfer(transfer);
 	}
-	unlock();
+	if (unlock)
+		unlock();
+	unlock = null;
 }
 
 
