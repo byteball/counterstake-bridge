@@ -262,6 +262,20 @@ class EvmChain {
 		return settings.min_tx_age;
 	}
 
+	async addAccessListIfNecessary(opts, claimed_asset, staked_asset, dest_address) {
+		if (claimed_asset === staked_asset && staked_asset === AddressZero && await this.isContract(dest_address)) {
+			opts.accessList = [{ address: dest_address, storageKeys: [] }];
+			const code = await this.#provider.getCode(dest_address);
+			try {
+				const masterAddress = ethers.utils.getAddress('0x' + code.slice(22, 62));
+				if (await this.isContract(masterAddress))
+					opts.accessList.push({ address: masterAddress, storageKeys: [] });
+			}
+			catch(e){}
+			console.log('using accessList', opts.accessList);
+		}
+	}
+
 	async sendClaim({ bridge_aa, amount, reward, claimed_asset, stake, staked_asset, sender_address, dest_address, data, txid, txts }) {
 		const unlock = await mutex.lock(this.network + 'Tx');
 		console.log(`will send a claim to ${this.network}`, { bridge_aa, amount, reward, claimed_asset, stake, staked_asset, sender_address, dest_address, data, txid, txts });
@@ -283,8 +297,7 @@ class EvmChain {
 			let opts = (staked_asset === AddressZero) ? { value: total } : { value: 0 };
 			if (this.getGasPriceMultiplier())
 				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
-			if (claimed_asset === staked_asset && staked_asset === AddressZero && await this.isContract(dest_address))
-				opts.accessList = [{ address: dest_address, storageKeys: [] }];
+			await this.addAccessListIfNecessary(opts, claimed_asset, staked_asset, dest_address);
 			const res = await contract.claim(txid, txts, amount, reward, stake, sender_address, dest_address, data, opts);
 			const claim_txid = res.hash;
 			console.log(`sent claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
@@ -326,8 +339,7 @@ class EvmChain {
 			let opts = {};
 			if (this.getGasPriceMultiplier())
 				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
-			if (claimed_asset === staked_asset && staked_asset === AddressZero && await this.isContract(dest_address))
-				opts.accessList = [{ address: dest_address, storageKeys: [] }];
+			await this.addAccessListIfNecessary(opts, claimed_asset, staked_asset, dest_address);
 			const res = await contract.claim(txid, txts, amount, reward, sender_address, dest_address, data, opts);
 			const claim_txid = res.hash;
 			console.log(`sent assistant claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
