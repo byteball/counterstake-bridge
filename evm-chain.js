@@ -211,6 +211,16 @@ class EvmChain {
 		return sent_data === claimed_data;
 	}
 
+	async isContract(address) {
+		try {
+			const code = await this.#provider.getCode(address);
+			return code !== '0x';
+		}
+		catch (e) {
+			return false;
+		}
+	}
+
 	async getClaim(bridge_aa, claim_num, bFinished, bThrowIfNotFound) {
 		const contract = this.#contractsByAddress[bridge_aa];
 		let claim = await contract['getClaim(uint256)'](claim_num);
@@ -273,6 +283,8 @@ class EvmChain {
 			let opts = (staked_asset === AddressZero) ? { value: total } : { value: 0 };
 			if (this.getGasPriceMultiplier())
 				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
+			if (claimed_asset === staked_asset && staked_asset === AddressZero && await this.isContract(dest_address))
+				opts.accessList = [{ address: dest_address, storageKeys: [] }];
 			const res = await contract.claim(txid, txts, amount, reward, stake, sender_address, dest_address, data, opts);
 			const claim_txid = res.hash;
 			console.log(`sent claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
@@ -302,7 +314,7 @@ class EvmChain {
 		}
 	}
 
-	async sendClaimFromPooledAssistant({ assistant_aa, amount, reward, sender_address, dest_address, data, txid, txts }) {
+	async sendClaimFromPooledAssistant({ assistant_aa, amount, reward, claimed_asset, staked_asset, sender_address, dest_address, data, txid, txts }) {
 		const unlock = await mutex.lock(this.network + 'Tx');
 		if (!dest_address)
 			throw Error(`no dest address in assistant claim`);
@@ -314,6 +326,8 @@ class EvmChain {
 			let opts = {};
 			if (this.getGasPriceMultiplier())
 				opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
+			if (claimed_asset === staked_asset && staked_asset === AddressZero && await this.isContract(dest_address))
+				opts.accessList = [{ address: dest_address, storageKeys: [] }];
 			const res = await contract.claim(txid, txts, amount, reward, sender_address, dest_address, data, opts);
 			const claim_txid = res.hash;
 			console.log(`sent assistant claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
