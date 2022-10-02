@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS transfers (
 	txid VARCHAR(66) NOT NULL, -- with 0x
 	txts INT NOT NULL,
 	is_confirmed TINYINT NULL DEFAULT 1,
+	is_bad TINYINT NOT NULL DEFAULT 0,
 	creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	UNIQUE (txid, bridge_id, amount, reward, sender_address, dest_address, data, is_confirmed), -- txts not included as it might change after reorg
 	FOREIGN KEY (bridge_id) REFERENCES bridges(bridge_id)

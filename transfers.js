@@ -109,8 +109,10 @@ async function handleTransfer(transfer) {
 	if (!dst_api && conf['disable' + dst_network])
 		return console.log(`${dst_network} disabled, will not claim transfer ${txid}`);
 
-	if (!dst_api.isValidAddress(dest_address))
+	if (!dst_api.isValidAddress(dest_address)) {
+		await db.query("UPDATE transfers SET is_bad=1 WHERE txid=? AND bridge_id=?", [txid, bridge_id]);
 		return console.log(`invalid dest address ${dest_address} in transfer ${txid}, will not claim`);
+	}
 
 	if (data && !dst_api.isValidData(data))
 		return console.log(`invalid data ${data} in transfer ${txid}, will not claim`);
@@ -774,7 +776,7 @@ async function recheckOldTransfers() {
 	let unlock = await mutex.lock('recheckOldTransfers');
 	const transfers = await db.query(
 		`SELECT transfers.* FROM transfers LEFT JOIN claims USING(transfer_id)
-		WHERE claim_num IS NULL AND is_confirmed=1 AND transfers.reward>=0
+		WHERE claim_num IS NULL AND is_confirmed=1 AND is_bad=0 AND transfers.reward>=0
 			AND transfers.creation_date < ${db.addTime('-1 MINUTE')}
 			${process.env.testnet ? `AND transfers.creation_date > ${db.addTime('-30 DAY')}` : ''}
 		ORDER BY transfer_id`
