@@ -25,6 +25,11 @@ async function initDB(){
 		await db.query("ALTER TABLE pooled_assistants ADD COLUMN `version` VARCHAR(6) NOT NULL DEFAULT 'v1'");
 	}
 
+	rows = await db.query("SELECT name FROM pragma_table_info('transfers')");
+	if (!rows.find(r => r.name === 'is_bad')) {
+		await db.query("ALTER TABLE transfers ADD COLUMN is_bad TINYINT NOT NULL DEFAULT 0");
+	}
+
 }
 
 exports.initDB = initDB;
