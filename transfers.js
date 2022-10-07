@@ -19,7 +19,7 @@ const networkApi = {};
 let maxAmounts;
 let bCatchingUp = true;
 let bCatchingUpOrHandlingPostponedEvents = true;
-let unconfirmedClaims = {}; // transfer_id => claim_txid
+let unconfirmedClaims = {}; // transfer_id => {claim_txid, ts}
 let unconfirmeWithdrawals = {};
 
 async function getBridge(bridge_id) {
@@ -158,7 +158,7 @@ async function handleTransfer(transfer) {
 		if (db_claim)
 			return unlock(`transfer ${txid} #${transfer_id} from ${sender_address} already claimed`);
 		if (unconfirmedClaims[transfer_id])
-			return unlock(`we have already claimed transfer ${txid} #${transfer_id} from ${sender_address} in tx ${unconfirmedClaims[transfer_id]} and it's still unconfirmed`);
+			return unlock(`we have already claimed transfer ${txid} #${transfer_id} from ${sender_address} in tx ${unconfirmedClaims[transfer_id].claim_txid} and it's still unconfirmed`);
 		
 		let stake = await dst_api.getRequiredStake(bridge_aa, dst_amount);
 		stake = BigNumber.from(stake);
@@ -194,7 +194,7 @@ async function handleTransfer(transfer) {
 			? await dst_api.sendClaimFromPooledAssistant({ assistant_aa, amount: dst_amount, reward: dst_reward, claimed_asset, staked_asset, sender_address, dest_address, data, txid, txts })
 			: await dst_api.sendClaim({ bridge_aa, amount: dst_amount, reward: dst_reward, claimed_asset, stake, staked_asset, sender_address, dest_address, data, txid, txts });
 		console.log(`claimed transfer from ${sender_address} amount ${dst_amount} reward ${dst_reward}: ${claim_txid}`);
-		unconfirmedClaims[transfer_id] = claim_txid;
+		unconfirmedClaims[transfer_id] = { claim_txid, ts: Date.now() };
 		setTimeout(updateMaxAmounts, 60 * 1000);
 		unlock();
 	};
@@ -798,6 +798,16 @@ async function recheckOldTransfers() {
 	unlock = null;
 }
 
+function forgetOldUnconfirmedClaims() {
+	for (let transfer_id in unconfirmedClaims) {
+		const { claim_txid, ts } = unconfirmedClaims[transfer_id];
+		if (Date.now() > ts + 4 * 3600 * 1000) {
+			console.log(`forgetting unconfirmed claim ${claim_txid} in transfer ${transfer_id}`);
+			delete unconfirmedClaims[transfer_id];
+		}
+	}
+}
+
 
 async function handleNewExportAA(export_aa, home_network, home_asset, home_asset_decimals, foreign_network, foreign_asset, version) {
 	const unlock = await mutex.lock('new_bridge');
@@ -1109,6 +1119,8 @@ async function start() {
 	await checkUnfinishedClaims();
 	setInterval(checkUnfinishedClaims, (process.env.testnet || process.env.devnet ? 2 : 30) * 60 * 1000); // every half an hour
 
+	setInterval(forgetOldUnconfirmedClaims, 3600 * 1000);
+	
 	setTimeout(recheckOldTransfers, 61 * 1000);
 	setInterval(recheckOldTransfers, 3600 * 1000); // every hour, in case gas price was too high when the claim was received, and then it got lower
 
