@@ -15,7 +15,8 @@ function getProvider(network, bFree) {
 		//	return new ethers.providers.InfuraProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id);
 		
 		case 'BSC':
-			return new ethers.providers.WebSocketProvider(process.env.testnet ? `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/bsc/testnet/ws` : `wss://bsc--mainnet--ws.datahub.figment.io/apikey/${conf.datahub_key}`);
+			return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://rpc.ankr.com/bsc_testnet_chapel/ws/${conf.ankr_key}` : `https://rpc.ankr.com/bsc/${conf.ankr_key}`);
+		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/bsc/testnet/ws` : `wss://bsc--mainnet--ws.datahub.figment.io/apikey/${conf.datahub_key}`);
 		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/bsc/testnet/ws` : `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/bsc/mainnet/ws`);
 		//	return new ethers.providers.JsonRpcProvider(process.env.testnet ? "https://data-seed-prebsc-1-s1.binance.org:8545" : "https://bsc-dataseed.binance.org");
 		
