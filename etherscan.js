@@ -45,7 +45,7 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 			throw Error(`no block number from ${base_url} for ${startts}: ${JSON.stringify(resp)}`);
 		await waitBetweenRequests(base_url);
 	}
-	let url = `${base_url}/api?module=account&action=txlist&address=${address}`;
+	let url = `${base_url}/api?module=account&action=txlistinternal&address=${address}`;
 	if (startblock)
 		url += `&startblock=${startblock}`;
 	if (api_key)
