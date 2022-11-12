@@ -791,6 +791,7 @@ class EvmChain {
 				if (!contract.filters.NewClaim) // not a bridge, must be an assistant
 					continue;
 				const blocks = await this.getAddressBlocks(address, last_block);
+				console.log(`${this.network} contract ${address} blocks of mixed txs since ${last_block}`, blocks);
 				for (let blockNumber of blocks) {
 					await this.processPastEventsOnBridgeContract(contract, blockNumber, blockNumber);
 				}
