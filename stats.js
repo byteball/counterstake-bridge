@@ -84,7 +84,7 @@ async function getExportedAmount(home_network, home_asset, export_aa) {
 		// total expatriated
 		const contract = new ethers.Contract(export_aa, exportJson.abi, api.getProvider());
 		await processPastEvents(contract, contract.filters.NewExpatriation(), 0, null, (sender_address, amount, reward, foreign_address, data, event) => {
-			console.log(`expat ${amount} from ${sender_address} to ${foreign_address}`);
+			console.log(`expat ${amount} from ${sender_address}@${home_network} to ${foreign_address}`);
 			balance = balance.add(amount);
 		});
 
