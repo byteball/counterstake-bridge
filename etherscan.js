@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const mutex = require('ocore/mutex.js');
 const { request } = require('./request.js');
 const { wait } = require('./utils.js');
@@ -14,12 +15,12 @@ async function waitBetweenRequests(base_url) {
 	}
 }
 
-async function getAddressHistory({ base_url, address, startblock, startts, api_key, retry_count = 0 }) {
+async function getAddressHistory({ base_url, address, startblock, startts, api_key, bInternal = false, retry_count = 0 }) {
 	const unlock = await mutex.lock(base_url);
 	const retry = async (msg) => {
 		unlock(msg);
 		retry_count++;
-		return await getAddressHistory({ base_url, address, startblock, startts, api_key, retry_count });
+		return await getAddressHistory({ base_url, address, startblock, startts, api_key, bInternal, retry_count });
 	};
 	const requestWithUnlock = async (url) => {
 		try {
@@ -45,7 +46,8 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 			throw Error(`no block number from ${base_url} for ${startts}: ${JSON.stringify(resp)}`);
 		await waitBetweenRequests(base_url);
 	}
-	let url = `${base_url}/api?module=account&action=txlistinternal&address=${address}`;
+	const action = bInternal ? 'txlistinternal' : 'txlist';
+	let url = `${base_url}/api?module=account&action=${action}&address=${address}`;
 	if (startblock)
 		url += `&startblock=${startblock}`;
 	if (api_key)
@@ -63,8 +65,12 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 
 async function getAddressBlocks({ base_url, address, startblock, startts, api_key, count = 0 }) {
 	try {
-		const history = await getAddressHistory({ base_url, address, startblock, startts, api_key });
-		return history.map(tx => parseInt(tx.blockNumber));
+		const ext_history = await getAddressHistory({ base_url, address, startblock, startts, api_key, bInternal: false });
+		const int_history = await getAddressHistory({ base_url, address, startblock, startts, api_key, bInternal: true });
+		const history = ext_history.concat(int_history);
+		let blocks = _.uniq(history.map(tx => parseInt(tx.blockNumber)));
+		blocks.sort();
+		return blocks;
 	}
 	catch (e) {
 		console.log(`getAddressBlocks ${base_url} failed`, e);
