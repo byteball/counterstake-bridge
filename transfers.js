@@ -1094,24 +1094,32 @@ async function start() {
 			networkApi[foreign_network].startWatchingImportAssistantAA(import_assistant_aa);
 	}
 
+	let starters = [];
 	for (let net in networkApi) {
-		console.log(`starting`, net);
-		await networkApi[net].startWatchingSymbolUpdates();
-		await networkApi[net].startWatchingFactories();
-		await networkApi[net].startWatchingAssistantFactories();
-		// called after adding watched addresses so that they are included in the first history request
-		if (net === 'Obyte')
-			network.start();
-		console.log(`started`, net);
+		starters.push(async () => {
+			console.log(`starting`, net);
+			await networkApi[net].startWatchingSymbolUpdates();
+			await networkApi[net].startWatchingFactories();
+			await networkApi[net].startWatchingAssistantFactories();
+			// called after adding watched addresses so that they are included in the first history request
+			if (net === 'Obyte')
+				network.start();
+			console.log(`started`, net);
+		});
 	}
+	await Promise.all(starters);
 
 //	await populatePooledAssistantsTable();
 
 	// must be called after the bridges are loaded, contractsByAddress are populated by then
+	let catchups = [];
 	for (let net in networkApi) {
-		await networkApi[net].catchup();
-		caughtUp[net] = true;
+		catchups.push(async () => {
+			await networkApi[net].catchup();
+			caughtUp[net] = true;
+		});
 	}
+	await Promise.all(catchups);
 	console.log('catching up done');
 	bCatchingUp = false;
 	setTimeout(() => { bCatchingUpOrHandlingPostponedEvents = false; }, 3 * 60 * 1000);

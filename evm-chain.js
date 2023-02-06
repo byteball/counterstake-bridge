@@ -781,6 +781,7 @@ class EvmChain {
 
 	// called on start-up to handle missed transfers
 	async catchup() {
+		console.log(`will catch up ${this.network}`);
 
 		// get events that are beyond the block range
 		const last_block = Math.max(await this.getLastBlock() - 100, 0);
