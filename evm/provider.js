@@ -15,7 +15,8 @@ function getProvider(network, bFree) {
 		//	return new ethers.providers.InfuraProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id);
 		
 		case 'BSC':
-			return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://bsc-testnet.nodereal.io/ws/v1/${conf.nodereal_key}` : `wss://bsc-mainnet.nodereal.io/ws/v1/${conf.nodereal_key}`);
+			return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://bsc-testnet.blockvision.org/v1/${conf.blockvision_key}` : `wss://bsc-mainnet.blockvision.org/v1/${conf.blockvision_key}`);
+		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://bsc-testnet.nodereal.io/ws/v1/${conf.nodereal_key}` : `wss://bsc-mainnet.nodereal.io/ws/v1/${conf.nodereal_key}`);
 		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://bsc.getblock.io/${conf.getblock_key}/testnet/` : `wss://bsc.getblock.io/${conf.getblock_key}/mainnet/`);
 		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://rpc.ankr.com/bsc_testnet_chapel/ws/${conf.ankr_key}` : `wss://rpc.ankr.com/bsc/ws/${conf.ankr_key}`);
 		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/bsc/testnet/ws` : `wss://bsc--mainnet--ws.datahub.figment.io/apikey/${conf.datahub_key}`);
