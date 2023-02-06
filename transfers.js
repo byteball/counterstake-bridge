@@ -1096,7 +1096,7 @@ async function start() {
 
 	let starters = [];
 	for (let net in networkApi) {
-		starters.push(async () => {
+		const f = async () => {
 			console.log(`starting`, net);
 			await networkApi[net].startWatchingSymbolUpdates();
 			await networkApi[net].startWatchingFactories();
@@ -1105,7 +1105,8 @@ async function start() {
 			if (net === 'Obyte')
 				network.start();
 			console.log(`started`, net);
-		});
+		};
+		starters.push(f());
 	}
 	await Promise.all(starters);
 
@@ -1114,10 +1115,11 @@ async function start() {
 	// must be called after the bridges are loaded, contractsByAddress are populated by then
 	let catchups = [];
 	for (let net in networkApi) {
-		catchups.push(async () => {
+		const f = async () => {
 			await networkApi[net].catchup();
 			caughtUp[net] = true;
-		});
+		};
+		catchups.push(f());
 	}
 	await Promise.all(catchups);
 	console.log('catching up done');
