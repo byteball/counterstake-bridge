@@ -42,8 +42,10 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 		if (resp.message === 'NOTOK' && retry_count < 10)
 			return await retry(`got "${resp.result}", will retry`);
 		startblock = resp.result;
-		if (!startblock)
+		if (!startblock) {
+			unlock();
 			throw Error(`no block number from ${base_url} for ${startts}: ${JSON.stringify(resp)}`);
+		}
 		await waitBetweenRequests(base_url);
 	}
 	const action = bInternal ? 'txlistinternal' : 'txlist';
@@ -56,10 +58,10 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 	last_req_ts[base_url] = Date.now();
 	if (resp.message === 'NOTOK' && retry_count < 10)
 		return await retry(`got "${resp.result}", will retry`);
+	unlock();
 	const history = resp.result;
 	if (!Array.isArray(history))
 		throw Error(`no history from ${base_url} for ${address}: ${JSON.stringify(resp)}`);
-	unlock();
 	return history;
 }
 
