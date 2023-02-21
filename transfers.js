@@ -947,6 +947,8 @@ async function getActiveClaimants() {
 }
 
 async function updateMaxAmounts() {
+	if (!conf.webPort)
+		return console.log('updateMaxAmounts skipped as there is no web server');
 	const unlock = await mutex.lockOrSkip('updateMaxAmounts');
 	if (!unlock)
 		return console.log('updateMaxAmounts already under way, skipping');
@@ -1134,8 +1136,10 @@ async function start() {
 	setTimeout(recheckOldTransfers, 61 * 1000);
 	setInterval(recheckOldTransfers, 3600 * 1000); // every hour, in case gas price was too high when the claim was received, and then it got lower
 
-	await updateMaxAmounts();
-	setInterval(updateMaxAmounts, 3600 * 1000); // every hour
+	if (conf.webPort) {
+		await updateMaxAmounts();
+		setInterval(updateMaxAmounts, 3600 * 1000); // every hour
+	}
 
 	// we start Polygon with Infura to be able to scan more than 1000 blocks of past events, then switch to maticgivil to track ongoing events
 /*	setTimeout(async () => {

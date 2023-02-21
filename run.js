@@ -25,7 +25,8 @@ eventBus.on('headless_wallet_ready', async () => {
 
 //	network.start();
 	await transfers.start();
-	webserver.start();
+	if (conf.webPort)
+		webserver.start();
 	if (conf.bTrackStats)
 		stats.start();
 });
