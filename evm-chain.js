@@ -831,20 +831,37 @@ class EvmChain {
 				console.log(`will wait before emitting disconnection event on`, this.network);
 				setTimeout(() => eventBus.emit('network_disconnected', this.network), 60 * 1000);
 			};
-			let last_block_ts = Date.now();
-			var interval = setInterval(() => {
-				if (Date.now() - last_block_ts > 5 * 60 * 1000) {
-					console.log(`====== no new blocks on ${this.network} in more than 5 mins, will reset websocket connection`);
-					forgetAndEmitDisconnected();
-					provider._websocket.close();
-				}
-			}, 60 * 1000);
-			provider.on('block', (blockNumber) => {
-				console.log('new block', this.network, blockNumber);
-				last_block_ts = Date.now();
-				provider._websocket.ping();
+			let last_pong_ts = Date.now();
+			if (conf[network + '_noblocks']) {
+				var interval = setInterval(() => {
+					provider._websocket.ping();
+					if (Date.now() - last_pong_ts > 5 * 60 * 1000) {
+						console.log(`====== no new pongs on ${this.network} in more than 5 mins, will reset websocket connection`);
+						forgetAndEmitDisconnected();
+						provider._websocket.close();
+					}
+				}, 60 * 1000);
+			}
+			else {
+				let last_block_ts = Date.now();
+				var interval = setInterval(() => {
+					if (Date.now() - last_block_ts > 5 * 60 * 1000) {
+						console.log(`====== no new blocks on ${this.network} in more than 5 mins, will reset websocket connection`);
+						forgetAndEmitDisconnected();
+						provider._websocket.close();
+					}
+				}, 60 * 1000);
+				provider.on('block', (blockNumber) => {
+					console.log('new block', this.network, blockNumber);
+					last_block_ts = Date.now();
+					provider._websocket.ping();
+				});
+			}
+			provider._websocket.on('pong', () => {
+				last_pong_ts = Date.now();
+				console.log('pong', this.network);
 			});
-			provider._websocket.on('pong', () => console.log('pong', this.network));
+			provider._websocket.on('ping', () => console.log('ping', this.network));
 			provider._websocket.on('close', () => {
 				console.log('====== !!!!! websocket connection closed', this.network);
 				if (closed)
