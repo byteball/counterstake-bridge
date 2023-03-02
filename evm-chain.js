@@ -9,7 +9,7 @@ const desktopApp = require("ocore/desktop_app.js");
 const notifications = require('./notifications.js');
 const transfers = require('./transfers.js');
 const { fetchExchangeRateInNativeAsset } = require('./prices.js');
-const { wait, watchForDeadlock, getVersion } = require('./utils.js');
+const { wait, watchForDeadlock, getVersion, asyncCallWithTimeout } = require('./utils.js');
 
 const exportJson = require('./evm/build/contracts/Export.json');
 const importJson = require('./evm/build/contracts/Import.json');
@@ -143,7 +143,7 @@ class EvmChain {
 			return this.#cached_gas_price;
 		console.log('provider getGasPrice', this.network)
 		try {
-			this.#cached_gas_price = (await this.#provider.getGasPrice()).toNumber() / 1e9;
+			this.#cached_gas_price = (await asyncCallWithTimeout(this.#provider.getGasPrice(), 10 * 1000)).toNumber() / 1e9;
 			if (this.getGasPriceMultiplier())
 				this.#cached_gas_price *= this.getGasPriceMultiplier();
 		}

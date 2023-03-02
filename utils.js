@@ -32,6 +32,24 @@ function getVersion(versions, aa) {
 	return null;
 }
 
+async function asyncCallWithTimeout(asyncPromise, timeLimit = 60000) {
+	let timeoutHandle;
+
+	const timeoutPromise = new Promise((_resolve, reject) => {
+		timeoutHandle = setTimeout(
+			() => reject(new Error(`async call timeout limit ${timeLimit} reached`)),
+			timeLimit
+		);
+	});
+
+	return Promise.race([asyncPromise, timeoutPromise]).then(result => {
+		clearTimeout(timeoutHandle);
+		return result;
+	});
+}
+
+
+exports.asyncCallWithTimeout = asyncCallWithTimeout;
 exports.wait = wait;
 exports.watchForDeadlock = watchForDeadlock;
 exports.getVersion = getVersion;
