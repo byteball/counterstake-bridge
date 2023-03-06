@@ -44,6 +44,10 @@ class EvmChain {
 		return 0;
 	}
 
+	getStaticGasPrice() {
+		return 0; // in gwei
+	}
+
 	getGasPriceMultiplier() {
 		return 0;
 	}
@@ -139,6 +143,10 @@ class EvmChain {
 	// returns gas price in gwei as a js number
 	async getGasPrice() {
 		console.log('getGasPrice', this.network)
+		if (this.getStaticGasPrice()) {
+			console.log(`${this.network} has static gas price ${this.getStaticGasPrice()} gwei`);
+			return this.getStaticGasPrice();
+		}
 		if (this.#cached_gas_price && this.#last_gas_price_ts > Date.now() - 1 * 60 * 1000)
 			return this.#cached_gas_price;
 		console.log('provider getGasPrice', this.network)

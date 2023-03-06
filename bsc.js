@@ -33,6 +33,10 @@ class BSC extends EvmChain {
 		return 1000;
 	}
 
+	getStaticGasPrice() {
+		return 5; // in gwei
+	}
+
 	async getAddressBlocks(address, startblock, startts) {
 		return await getAddressBlocks({ base_url: etherscan_base_url, address, startblock, startts });
 	}
