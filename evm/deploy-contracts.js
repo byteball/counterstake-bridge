@@ -38,21 +38,6 @@ process.on('unhandledRejection', up => {
 });
 
 
-const oracleAddresses = process.env.testnet
-	? {
-		Ethereum: '0x1Af68677849da73B62A91d775B6A2bF457c0B2e3',
-		BSC: '0x3d2cd866b2e2e4fCE1dCcf662E71ea9611113344',
-		Polygon: '0x7A5b663D4Be50E415803176d9f473ee81db590b7',
-		Kava: '0x7A5b663D4Be50E415803176d9f473ee81db590b7',
-	}
-	: {
-		Ethereum: '0xAC4AA997A171A6CbbF5540D08537D5Cb1605E191',
-		BSC: '0xdD52899A001a4260CDc43307413A5014642f37A2',
-		Polygon: '0xdd603Fc2312A0E7Ab01dE2dA83e7776Af406DCeB',
-		Kava: '0xdd603Fc2312A0E7Ab01dE2dA83e7776Af406DCeB',
-	};
-const oracleAddress = oracleAddresses[evmNetwork];
-
 function link(contractJson, libName, libAddress) {
 	const symbol = "__" + libName + "_".repeat(40 - libName.length - 2);
 	const re = new RegExp(symbol, 'g');
@@ -154,6 +139,7 @@ async function deploy() {
 	await wait(2000);
 
 	// import
+	const oracleAddress = ex.address; // just any contract address will do for the master contract
 	const im = await ethers.ContractFactory.fromSolidity(Import, signer).deploy("Obyte", "base", "Imported GBYTE master", "GBYTE_MASTER", AddressZero, oracleAddress, 160, 110, parseEther('100'), [14*3600, 3*24*3600, 7*24*3600, 30*24*3600], [4*24*3600, 7*24*3600, 30*24*3600], opts);
 	console.log('import master address', im.address);
 	await im.deployTransaction.wait();
