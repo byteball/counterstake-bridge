@@ -126,6 +126,17 @@ let providers = {};
 //providers.Polygon = getProvider('Polygon');
 providers.Kava = getProvider('Kava');
 
+// keep websocket connections alive
+for (let n in providers) {
+	const provider = providers[n];
+	if (provider._websocket && !process.env.devnet) {
+		provider.on('block', (blockNumber) => {
+			console.log('got new block on', n, blockNumber);
+			provider._websocket.ping();
+		});
+	}
+}
+
 const provider = providers[evmNetwork];
 const ethWallet = ethers.Wallet.fromMnemonic(JSON.parse(fs.readFileSync(desktopApp.getAppDataDir() + '/keys.json')).mnemonic_phrase);
 console.error(`====== my ETH address: `, ethWallet.address);
