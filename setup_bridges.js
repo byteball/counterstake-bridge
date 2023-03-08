@@ -338,7 +338,7 @@ async function createEvmExportAssistant(bridge_aa, symbol, network) {
 	if (!bWithAssistants)
 		return;
 	const factory = new ethers.Contract(evmProps[network].assistant_factory, assistantFactoryJson.abi, ethWallet.connect(providers[network]));
-	const res = await factory.createExportAssistant(bridge_aa, ethWallet.address, 100, 1000, 1, `${symbol} export assistant shares`, `${symbol}EA`, opts);
+	const res = await factory.createExportAssistant(bridge_aa, ethWallet.address, 100, 1000, oracleAddresses[network], 1, `${symbol} export assistant shares`, `${symbol}EA`, opts);
 	console.error(`createEthereumExportAssistant ${symbol} res`, res);
 	await res.wait();
 	await wait(5000);
