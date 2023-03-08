@@ -67,6 +67,18 @@ const evmProps = {
 	},
 };
 
+const oracleAddresses = process.env.testnet
+	? {
+		Ethereum: '0x1Af68677849da73B62A91d775B6A2bF457c0B2e3',
+		BSC: '0x3d2cd866b2e2e4fCE1dCcf662E71ea9611113344',
+		Polygon: '0x7A5b663D4Be50E415803176d9f473ee81db590b7',
+	}
+	: {
+		Ethereum: '0xAC4AA997A171A6CbbF5540D08537D5Cb1605E191',
+		BSC: '0xdD52899A001a4260CDc43307413A5014642f37A2',
+		Polygon: '0xdd603Fc2312A0E7Ab01dE2dA83e7776Af406DCeB',
+	};
+
 const evmNetwork = 'Ethereum';
 //const evmNetwork = 'BSC';
 //const evmNetwork = 'Polygon';
@@ -325,17 +337,6 @@ async function createEvmImportAssistant(bridge_aa, symbol, network) {
 }
 
 
-async function createEvmOracle(network) {
-	console.error(`deploying oracle on ${network}`);
-	const oracleFactory = ethers.ContractFactory.fromSolidity(oracleJson, ethWallet.connect(providers[network]));
-	const oracle = await oracleFactory.deploy(opts);
-	console.error(evmNetwork, 'oracle', oracle.address);
-	await oracle.deployTransaction.wait();
-	await wait(5000);
-	return oracle;
-}
-
-
 
 async function registerObyteToken(asset, symbol, decimals, description) {
 	return await dag.sendPayment({
@@ -407,14 +408,7 @@ async function setupInitialBridges() {
 		ousdAsset = process.env.testnet ? 'CPPYMBzFzI4+eMk7tLMTGjLF4E60t5MUfo2Gq7Y6Cn4=' : '0IwAk71D5xFP0vTzwamKBwzad3I1ZUjZ1gdeB5OnfOg=';
 	
 	// oracle
-	const oracle = await createEvmOracle(evmNetwork);
-	const oracleAddress = oracle.address;
-	let res = await oracle.setPrice("Obyte", "_NATIVE_", 25, evmNativePrice);
-	await res.wait();
-	await wait(5000);
-	res = await oracle.setPrice(ousdAsset, "_NATIVE_", 1, evmNativePrice);
-	await res.wait();
-	await wait(5000);
+	const oracleAddress = oracleAddresses[evmNetwork];
 
 	if (process.env.testnet)
 		setInterval(push, 4000);
@@ -465,20 +459,8 @@ async function setupEvm2ObyteBridge(tokenAddress, symbol, ethereum_decimals, oby
 	await createEvmExportAssistant(export_aa, symbol, evmNetwork);
 }
 
-const oracleAddresses = process.env.testnet
-	? {
-		Ethereum: '0x1Af68677849da73B62A91d775B6A2bF457c0B2e3',
-		BSC: '0x3d2cd866b2e2e4fCE1dCcf662E71ea9611113344',
-		Polygon: '0x7A5b663D4Be50E415803176d9f473ee81db590b7',
-	}
-	: {
-		Ethereum: '0xAC4AA997A171A6CbbF5540D08537D5Cb1605E191',
-		BSC: '0xdD52899A001a4260CDc43307413A5014642f37A2',
-		Polygon: '0xdd603Fc2312A0E7Ab01dE2dA83e7776Af406DCeB',
-	};
-
 async function setupObyte2EvmBridge(asset, symbol, obyte_decimals, large_threshold, min_stake, price_in_usd) {
-	const oracleAddress = oracleAddresses.Ethereum;
+	const oracleAddress = oracleAddresses[evmNetwork];
 	const oracle = new ethers.Contract(oracleAddress, oracleJson.abi, signer);
 	const res = await oracle.setPrice(asset, "_NATIVE_", price_in_usd, evmNativePrice);
 	await res.wait();

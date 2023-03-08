@@ -18,13 +18,16 @@ const ImportAssistant = require('./build/contracts/ImportAssistant.json');
 const AssistantFactory = require('./build/contracts/AssistantFactory.json');
 const Governance = require('./build/contracts/Governance.json');
 const GovernanceFactory = require('./build/contracts/GovernanceFactory.json');
+const oracleJson = require('./build/contracts/Oracle.json');
 
 const { utils: { parseEther }, constants: { AddressZero } } = ethers;
 
-const evmNetwork = 'Ethereum';
+//const evmNetwork = 'Ethereum';
 //const evmNetwork = 'BSC';
 //const evmNetwork = 'Polygon';
-//const evmNetwork = 'Kava';
+const evmNetwork = 'Kava';
+
+const evmNativePrice = 1; // the dollar price of the native token (ETH, BNB, etc)
 
 const targetGasPrice = 35; // gwei
 
@@ -58,6 +61,17 @@ async function deploy() {
 	const signer = process.env.devnet ? provider.getSigner(0) : ethWallet.connect(provider);
 
 
+
+	async function createEvmOracle() {
+		console.error(`deploying oracle on ${evmNetwork}`);
+		const oracleFactory = ethers.ContractFactory.fromSolidity(oracleJson, ethWallet.connect(provider));
+		const oracle = await oracleFactory.deploy(opts);
+		console.error(evmNetwork, 'oracle', oracle.address);
+		await oracle.deployTransaction.wait();
+		await wait(5000);
+		return oracle;
+	}
+	
 	async function getGasPrice() {
 		return (await provider.getGasPrice()).toNumber() / 1e9;
 	}
@@ -75,6 +89,18 @@ async function deploy() {
 	await waitForGasPrice();
 	
 	
+	// oracle
+
+	const ousdAsset = process.env.testnet ? 'CPPYMBzFzI4+eMk7tLMTGjLF4E60t5MUfo2Gq7Y6Cn4=' : '0IwAk71D5xFP0vTzwamKBwzad3I1ZUjZ1gdeB5OnfOg='; // won't work on devnet
+	const oracle = await createEvmOracle(evmNetwork);
+	const oracleAddress = oracle.address;
+	let res = await oracle.setPrice("Obyte", "_NATIVE_", 20, evmNativePrice);
+	await res.wait();
+	await wait(5000);
+	res = await oracle.setPrice(ousdAsset, "_NATIVE_", 1, evmNativePrice);
+	await res.wait();
+	await wait(5000);
+
 	// Counterstake library
 
 	const csLib = await ethers.ContractFactory.fromSolidity(CounterstakeLibrary, signer).deploy(opts);
@@ -139,7 +165,6 @@ async function deploy() {
 	await wait(2000);
 
 	// import
-	const oracleAddress = ex.address; // just any contract address will do for the master contract
 	const im = await ethers.ContractFactory.fromSolidity(Import, signer).deploy("Obyte", "base", "Imported GBYTE master", "GBYTE_MASTER", AddressZero, oracleAddress, 160, 110, parseEther('100'), [14*3600, 3*24*3600, 7*24*3600, 30*24*3600], [4*24*3600, 7*24*3600, 30*24*3600], opts);
 	console.log('import master address', im.address);
 	await im.deployTransaction.wait();
