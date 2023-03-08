@@ -121,9 +121,9 @@ const ethereum_challenging_periods = (process.env.devnet || process.env.testnet)
 const ethereum_long_challenging_periods = (process.env.devnet || process.env.testnet) ? [0.2 * 3600, 0.3 * 3600, 0.7 * 3600, 1.5 * 3600] : [7 * 24 * 3600, 30 * 24 * 3600, 60 * 24 * 3600, 90 * 24 * 3600];
 
 let providers = {};
-providers.Ethereum = getProvider('Ethereum');
-providers.BSC = getProvider('BSC');
-providers.Polygon = getProvider('Polygon');
+//providers.Ethereum = getProvider('Ethereum');
+//providers.BSC = getProvider('BSC');
+//providers.Polygon = getProvider('Polygon');
 providers.Kava = getProvider('Kava');
 
 const provider = providers[evmNetwork];
@@ -526,8 +526,8 @@ async function setupEthereum2BSCBridge(tokenAddress, symbol, ethereum_decimals, 
 
 async function setupAdditionalBridge() {
 	await init();
-	await transfers.start();
-	webserver.start();
+//	await transfers.start();
+//	webserver.start();
 	await setupEvm2ObyteBridge(AddressZero, 'KAVA', 18, 5, 20000);
 	await setupEvm2ObyteBridge(evmStablecoinTokenAddress, 'KUSDC', 6, 4, 20000, `${obyte_oracle}/GBYTE_USD`);
 	await setupObyte2EvmBridge('base', 'GBYTE', 9, 1000e9, 1e9, 20);
