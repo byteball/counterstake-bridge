@@ -13,6 +13,7 @@ const Obyte = require('./obyte.js');
 const Ethereum = require('./ethereum.js');
 const BSC = require('./bsc.js');
 const Polygon = require('./polygon.js');
+const Kava = require('./kava.js');
 const { wait } = require('./utils.js');
 
 const networkApi = {};
@@ -1059,6 +1060,8 @@ async function start() {
 		networkApi.BSC = new BSC();
 	if (!conf.disablePolygon)
 		networkApi.Polygon = new Polygon();
+	if (!conf.disableKava)
+		networkApi.Kava = new Kava();
 
 	let caughtUp = {};
 
@@ -1073,6 +1076,8 @@ async function start() {
 			networkApi.BSC = new BSC();
 		else if (network === 'Polygon')
 			networkApi.Polygon = new Polygon();
+		else if (network === 'Kava')
+			networkApi.Kava = new Kava();
 		else
 			throw Error(`unknown network disconnected ${network}`);
 		await restartNetwork(network);

@@ -7,6 +7,7 @@ const nativeSymbols = {
 	Ethereum: 'ETH',
 	BSC: 'BNB',
 	Polygon: 'MATIC',
+	Kava: 'KAVA',
 };
 
 
@@ -118,6 +119,7 @@ const coingeckoChainIds = {
 	Ethereum: 'ethereum',
 	BSC: 'binance-smart-chain',
 	Polygon: 'polygon-pos',
+	Kava: 'kava',
 };
 
 async function tryGetTokenPrice(network, token_address, nativeSymbol, cached) {
@@ -125,6 +127,7 @@ async function tryGetTokenPrice(network, token_address, nativeSymbol, cached) {
 		case 'Ethereum':
 		case 'BSC':
 		case 'Polygon':
+		case 'Kava':
 			try {
 				const chain = coingeckoChainIds[network];
 				return await fetchERC20ExchangeRateCached(chain, token_address, nativeSymbol, cached);

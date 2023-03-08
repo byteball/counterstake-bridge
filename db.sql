@@ -138,3 +138,5 @@ INSERT OR IGNORE INTO last_blocks (network, last_block) VALUES ('Ethereum', 8600
 INSERT OR IGNORE INTO last_blocks (network, last_block) VALUES ('BSC', 0);
 -- query separator
 INSERT OR IGNORE INTO last_blocks (network, last_block) VALUES ('Polygon', 0);
+-- query separator
+INSERT OR IGNORE INTO last_blocks (network, last_block) VALUES ('Kava', 0);

@@ -20,6 +20,10 @@ const evmProps = {
 		symbol: 'MATIC',
 		price: 1,
 	},
+	Kava: {
+		symbol: 'KAVA',
+		price: 1,
+	},
 };
 
 const oracleAddresses = process.env.testnet
@@ -37,6 +41,7 @@ const oracleAddresses = process.env.testnet
 const evmNetwork = 'Ethereum';
 //const evmNetwork = 'BSC';
 //const evmNetwork = 'Polygon';
+//const evmNetwork = 'Kava';
 
 const evmNativePrice = evmProps[evmNetwork].price;
 
