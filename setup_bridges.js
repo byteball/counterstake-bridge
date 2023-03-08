@@ -546,8 +546,8 @@ async function setupEthereum2BSCBridge(tokenAddress, symbol, ethereum_decimals, 
 
 async function setupAdditionalBridge() {
 	await init();
-//	await transfers.start();
-//	webserver.start();
+	await transfers.start();
+	webserver.start();
 	await setupEvm2ObyteBridge(AddressZero, 'KAVA', 18, 5, 20000);
 	await setupEvm2ObyteBridge(evmStablecoinTokenAddress, 'KUSDC', 6, 4, 20000, 1, `${obyte_oracle}/GBYTE_USD`);
 	await setupObyte2EvmBridge('base', 'GBYTE', 9, 1000e9, 1e9, 20);
