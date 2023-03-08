@@ -65,6 +65,17 @@ const evmProps = {
 		factory: conf.polygon_factory_contract_addresses[conf.version],
 		assistant_factory: conf.polygon_assistant_factory_contract_addresses[conf.version],
 	},
+	Kava: {
+		symbol: 'KAVA',
+		price: 1,
+		decimals_on_obyte: 5,
+		large_threshold: parseEther('100000'),
+		stablecoinSymbol: 'KUSDC', // actually USDC but we add the K prefix to avoid conflicting with the Ethereum USDC
+		stablecoinTokenAddress: process.env.testnet ? '0x43D8814FdFB9B8854422Df13F1c66e34E4fa91fD' : '0xfA9343C3897324496A05fC75abeD6bAC29f8A40f', 
+		stablecoinDecimals: 6,
+		factory: conf.kava_factory_contract_addresses[conf.version],
+		assistant_factory: conf.kava_assistant_factory_contract_addresses[conf.version],
+	},
 };
 
 const oracleAddresses = process.env.testnet
@@ -72,6 +83,7 @@ const oracleAddresses = process.env.testnet
 		Ethereum: '0x1Af68677849da73B62A91d775B6A2bF457c0B2e3',
 		BSC: '0x3d2cd866b2e2e4fCE1dCcf662E71ea9611113344',
 		Polygon: '0x7A5b663D4Be50E415803176d9f473ee81db590b7',
+		Kava: '0x5e4E4eA9C780b6dF0087b0052A7A1ad039F398bB',
 	}
 	: {
 		Ethereum: '0xAC4AA997A171A6CbbF5540D08537D5Cb1605E191',
@@ -79,9 +91,10 @@ const oracleAddresses = process.env.testnet
 		Polygon: '0xdd603Fc2312A0E7Ab01dE2dA83e7776Af406DCeB',
 	};
 
-const evmNetwork = 'Ethereum';
+//const evmNetwork = 'Ethereum';
 //const evmNetwork = 'BSC';
 //const evmNetwork = 'Polygon';
+const evmNetwork = 'Kava';
 
 const evmNativeSymbol = evmProps[evmNetwork].symbol;
 const evmNativePrice = evmProps[evmNetwork].price;
@@ -450,9 +463,9 @@ async function setupInitialBridges() {
 
 
 
-async function setupEvm2ObyteBridge(tokenAddress, symbol, ethereum_decimals, obyte_decimals, large_threshold) {
+async function setupEvm2ObyteBridge(tokenAddress, symbol, ethereum_decimals, obyte_decimals, large_threshold, data_feed_formula) {
 	assertValidEthereumAddress(tokenAddress);
-	const { address: import_aa, asset: asset_on_obyte } = await createObyteImport(tokenAddress, symbol, obyte_decimals, `${obyte_oracle}*${symbol}_USD ${obyte_oracle}/GBYTE_USD`, 1000e9);
+	const { address: import_aa, asset: asset_on_obyte } = await createObyteImport(tokenAddress, symbol, obyte_decimals, data_feed_formula || `${obyte_oracle}*${symbol}_USD ${obyte_oracle}/GBYTE_USD`, 1000e9);
 	await createObyteImportAssistant(import_aa, symbol, obyte_decimals);
 	const export_aa = await createEvmExport(asset_on_obyte, tokenAddress, parseUnits(large_threshold + '', ethereum_decimals), evmNetwork, "Obyte");
 	await wait(2000);
@@ -509,7 +522,10 @@ async function setupAdditionalBridge() {
 	await init();
 	await transfers.start();
 	webserver.start();
-	await setupEvm2ObyteBridge('0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', 'WBTC', 8, 8, 0.5);
+	await setupEvm2ObyteBridge(AddressZero, 'KAVA', 18, 5, 20000);
+	await setupEvm2ObyteBridge(evmStablecoinTokenAddress, 'KUSDC', 6, 4, 20000, `${obyte_oracle}/GBYTE_USD`);
+	await setupObyte2EvmBridge('base', 'GBYTE', 9, 1000e9, 1e9, 20);
+//	await setupEvm2ObyteBridge('0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', 'WBTC', 8, 8, 0.5);
 //	await setupObyte2EvmBridge('RGJT5nS9Luw2OOlAeOGywxbxwWPXtDAbZfEw5PiXVug=', 'IBIT', 8, 1e8, 1e5, 40e3);
 //	await setupBSC2EthereumBridge(evmProps.BSC.stablecoinTokenAddress, 'BUSD', 18, 20000, 1);
 //	await setupEthereum2BSCBridge(evmProps.Ethereum.stablecoinTokenAddress, 'USDC', 6, 20000, 1);

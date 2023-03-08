@@ -98,6 +98,12 @@ if (process.env.devnet){
 		'v1': '',
 		'v1.1': '',
 	};
+	exports.kava_factory_contract_addresses = {
+		'v1.1': '',
+	};
+	exports.kava_assistant_factory_contract_addresses = {
+		'v1.1': '',
+	};
 }
 else if (process.env.testnet) {
 	exports.ethereum_factory_contract_addresses = {
@@ -123,6 +129,12 @@ else if (process.env.testnet) {
 	exports.polygon_assistant_factory_contract_addresses = {
 		'v1': '0xd8BF89335214Caf4724739F52621bC6D70eF87bF',
 		'v1.1': '0xb8BC974b1DcC0cDDB54C9e5B3d04d736cb6113DE',
+	};
+	exports.kava_factory_contract_addresses = {
+		'v1.1': '0xCc77a8D98c7Dfc2737939976243548bF9de02a7F',
+	};
+	exports.kava_assistant_factory_contract_addresses = {
+		'v1.1': '0x192b3769709cA681e315848809cddad526D1ca08',
 	};
 }
 else { // mainnet
