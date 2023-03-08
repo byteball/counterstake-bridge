@@ -124,6 +124,7 @@ let providers = {};
 providers.Ethereum = getProvider('Ethereum');
 providers.BSC = getProvider('BSC');
 providers.Polygon = getProvider('Polygon');
+providers.Kava = getProvider('Kava');
 
 const provider = providers[evmNetwork];
 const ethWallet = ethers.Wallet.fromMnemonic(JSON.parse(fs.readFileSync(desktopApp.getAppDataDir() + '/keys.json')).mnemonic_phrase);
