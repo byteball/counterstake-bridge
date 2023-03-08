@@ -30,7 +30,7 @@ class Kava extends EvmChain {
 	}
 
 	getMaxBlockRange() {
-		return 0;
+		return 10000;
 	}
 
 	async getAddressBlocks(address, startblock, startts) {
