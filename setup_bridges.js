@@ -240,6 +240,7 @@ async function createObyteImport(home_asset, home_symbol, asset_decimals, oracle
 		throw Error(`createObyteImport ${home_symbol} bounced: ${response.response.error}`);
 	const address = response.response.responseVars.address;
 	const asset = await dag.readAAStateVar(address, 'asset');
+	console.error(`created import AA ${address}, asset ${asset}`);
 	await registerObyteToken(asset, home_symbol + symbol_suffix, asset_decimals, home_symbol + ' on Obyte');
 	return { address, asset };
 }
@@ -263,6 +264,7 @@ async function createObyteExport(foreign_asset, asset, asset_decimals, large_thr
 	if (response.bounced)
 		throw Error(`createObyteExport ${asset} bounced: ${response.response.error}`);
 	const address = response.response.responseVars.address;
+	console.error(`created export AA ${address}`);
 	return address;
 }
 
@@ -282,6 +284,7 @@ async function createObyteExportAssistant(bridge_aa, symbol, asset_decimals) {
 		throw Error(`createObyteExportAssistant ${symbol} bounced: ${response.response.error}`);
 	const address = response.response.responseVars.address;
 	const shares_asset = await dag.readAAStateVar(address, 'shares_asset');
+	console.error(`created export assistant AA ${address}, shares asset ${shares_asset}`);
 	await registerObyteToken(shares_asset, `${symbol}${evmNetwork.substr(0, 1).toUpperCase()}EA`, asset_decimals, `${symbol} export assistant shares`);
 }
 
@@ -302,6 +305,7 @@ async function createObyteImportAssistant(bridge_aa, symbol, asset_decimals) {
 		throw Error(`createObyteImportAssistant ${symbol} bounced: ${response.response.error}`);
 	const address = response.response.responseVars.address;
 	const shares_asset = await dag.readAAStateVar(address, 'shares_asset');
+	console.error(`created import assistant AA ${address}, shares asset ${shares_asset}`);
 	await registerObyteToken(shares_asset, `${symbol}${symbol_suffix}IA`, asset_decimals, `${symbol} import assistant shares`);
 }
 
@@ -353,6 +357,7 @@ async function createEvmImportAssistant(bridge_aa, symbol, network) {
 
 
 async function registerObyteToken(asset, symbol, decimals, description) {
+	console.error(`will register symbol ${symbol} for asset ${asset}`);
 	return await dag.sendPayment({
 		to_address: conf.token_registry_aa,
 		amount: 0.1e9,
