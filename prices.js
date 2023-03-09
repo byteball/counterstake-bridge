@@ -95,7 +95,7 @@ const fetchERC20ExchangeRate = async (chain, token_address, quote) => {
 	if (!prices[quote]) {
 		if (!prices.usd)
 			throw new Error(`no ${quote} and no usd in response ${JSON.stringify(data)}`);
-		const quote_price_in_usd = await fetchCryptocompareExchangeRateCached(quote, 'usd', true);
+		const quote_price_in_usd = await fetchCryptocompareExchangeRateCached(quote, 'USD', true);
 		return prices.usd / quote_price_in_usd;
 	}
 	return prices[quote]
