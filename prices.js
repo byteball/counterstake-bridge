@@ -92,8 +92,12 @@ const fetchERC20ExchangeRate = async (chain, token_address, quote) => {
 	const data = await request(`https://api.coingecko.com/api/v3/coins/${chain}/contract/${token_address.toLowerCase()}`)
 	const prices = data.market_data.current_price
 	quote = quote.toLowerCase()
-	if (!prices[quote])
-		throw new Error(`no ${quote} in response ${JSON.stringify(data)}`);
+	if (!prices[quote]) {
+		if (!prices.usd)
+			throw new Error(`no ${quote} and no usd in response ${JSON.stringify(data)}`);
+		const quote_price_in_usd = await fetchCryptocompareExchangeRateCached(quote, 'usd', true);
+		return prices.usd / quote_price_in_usd;
+	}
 	return prices[quote]
 }
 
