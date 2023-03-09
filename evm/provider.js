@@ -8,6 +8,8 @@ function getProvider(network, bFree) {
 		return new ethers.providers.JsonRpcProvider("http://0.0.0.0:7545") // ganache
 	switch (network) {
 		case 'Ethereum':
+			if (process.env.testnet)
+				throw Error("rinkeby was discontinued");
 			return process.env.devnet
 				? new ethers.providers.JsonRpcProvider("http://0.0.0.0:7545") // ganache
 			//	: new ethers.providers.WebSocketProvider(process.env.testnet ? `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/eth/rinkeby/ws` : `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/eth/mainnet/ws`);
