@@ -74,6 +74,8 @@ const fetchERC20ExchangeRate = async (chain, token_address, quote) => {
 			token_address = '0x0D8775F648430679A709E98d2b0Cb6250d2887EF';
 		else if (token_address === '0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee') // BUSD testnet
 			token_address = '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56';
+		else if (token_address === '0x43D8814FdFB9B8854422Df13F1c66e34E4fa91fD') // Kava USDC testnet
+			token_address = '0xfA9343C3897324496A05fC75abeD6bAC29f8A40f';
 		else {
 			console.log(`token ${token_address} not known on ${chain} testnet`);
 			return null;
