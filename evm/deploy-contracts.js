@@ -60,6 +60,12 @@ async function deploy() {
 	console.error(`====== my ETH address on ${evmNetwork}: `, process.env.devnet ? await provider.getSigner().getAddress() : ethWallet.address);
 	const signer = process.env.devnet ? provider.getSigner(0) : ethWallet.connect(provider);
 
+	if (provider._websocket && !process.env.devnet) {
+		provider.on('block', (blockNumber) => {
+			console.log('got new block', blockNumber);
+			provider._websocket.ping();
+		});
+	}
 
 
 	async function createEvmOracle() {
