@@ -74,6 +74,7 @@ async function deploy() {
 		const oracle = await oracleFactory.deploy(opts);
 		console.error(evmNetwork, 'oracle', oracle.address);
 		await oracle.deployTransaction.wait();
+		console.log('mined');
 		await wait(5000);
 		return oracle;
 	}
@@ -102,9 +103,11 @@ async function deploy() {
 	const oracleAddress = oracle.address;
 	let res = await oracle.setPrice("Obyte", "_NATIVE_", 20, evmNativePrice);
 	await res.wait();
+	console.log('set price Obyte mined');
 	await wait(5000);
 	res = await oracle.setPrice(ousdAsset, "_NATIVE_", 1, evmNativePrice);
 	await res.wait();
+	console.log('set price Obyte mined');
 	await wait(5000);
 
 	// Counterstake library
