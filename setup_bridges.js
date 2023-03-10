@@ -481,7 +481,7 @@ async function setupInitialBridges() {
 
 
 
-async function setupEvm2ObyteBridge(tokenAddress, symbol, ethereum_decimals, obyte_decimals, large_threshold, usd_price, data_feed_formula) {
+async function setupEvm2ObyteBridge(tokenAddress, symbol, obyte_symbol, ethereum_decimals, obyte_decimals, large_threshold, usd_price, data_feed_formula) {
 	assertValidEthereumAddress(tokenAddress);
 
 	if (tokenAddress !== AddressZero) {
@@ -492,8 +492,8 @@ async function setupEvm2ObyteBridge(tokenAddress, symbol, ethereum_decimals, oby
 		await wait(2000);
 	}
 	
-	const { address: import_aa, asset: asset_on_obyte } = await createObyteImport(tokenAddress, symbol, obyte_decimals, data_feed_formula || `${obyte_oracle}*${symbol}_USD ${obyte_oracle}/GBYTE_USD`, 1000e9);
-	await createObyteImportAssistant(import_aa, symbol, obyte_decimals);
+	const { address: import_aa, asset: asset_on_obyte } = await createObyteImport(tokenAddress, obyte_symbol, obyte_decimals, data_feed_formula || `${obyte_oracle}*${symbol}_USD ${obyte_oracle}/GBYTE_USD`, 1000e9);
+	await createObyteImportAssistant(import_aa, obyte_symbol, obyte_decimals);
 	const export_aa = await createEvmExport(asset_on_obyte, tokenAddress, parseUnits(large_threshold + '', ethereum_decimals), evmNetwork, "Obyte");
 	await wait(2000);
 	await createEvmExportAssistant(export_aa, symbol, evmNetwork);
@@ -549,8 +549,8 @@ async function setupAdditionalBridge() {
 	await init();
 	await transfers.start();
 	webserver.start();
-	await setupEvm2ObyteBridge(AddressZero, 'KAVA', 18, 5, 20000);
-	await setupEvm2ObyteBridge(evmStablecoinTokenAddress, 'KUSDC', 6, 4, 20000, 1, `${obyte_oracle}/GBYTE_USD`);
+	await setupEvm2ObyteBridge(AddressZero, 'KAVA', 'KAVA', 18, 5, 20000);
+	await setupEvm2ObyteBridge(evmStablecoinTokenAddress, 'USDC', 'KUSDC', 6, 4, 20000, 1, `${obyte_oracle}/GBYTE_USD`);
 	await setupObyte2EvmBridge('base', 'GBYTE', 9, 1000e9, 1e9, 20);
 //	await setupEvm2ObyteBridge('0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', 'WBTC', 8, 8, 0.5);
 //	await setupObyte2EvmBridge('RGJT5nS9Luw2OOlAeOGywxbxwWPXtDAbZfEw5PiXVug=', 'IBIT', 8, 1e8, 1e5, 40e3);
