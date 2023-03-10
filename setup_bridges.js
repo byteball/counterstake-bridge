@@ -89,6 +89,7 @@ const oracleAddresses = process.env.testnet
 		Ethereum: '0xAC4AA997A171A6CbbF5540D08537D5Cb1605E191',
 		BSC: '0xdD52899A001a4260CDc43307413A5014642f37A2',
 		Polygon: '0xdd603Fc2312A0E7Ab01dE2dA83e7776Af406DCeB',
+		Kava: '0x16f5E8ad38cf676a0a78436ED8F5C8c19dA3be3d',
 	};
 
 //const evmNetwork = 'Ethereum';

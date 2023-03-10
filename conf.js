@@ -162,6 +162,12 @@ else { // mainnet
 		'v1': '0xE740C62aC78bB2666Fa9465052D0a292D7C27A11',
 		'v1.1': '0xc8320F465A0012c9bb4230BC0D0C35aB50E263Ff',
 	};
+	exports.kava_factory_contract_addresses = {
+		'v1.1': '0xdD52899A001a4260CDc43307413A5014642f37A2',
+	};
+	exports.kava_assistant_factory_contract_addresses = {
+		'v1.1': '0x61636B08483D8010B1210ecF9c4Ab81bbCd24A38',
+	};
 }
 
 
