@@ -33,6 +33,10 @@ class Kava extends EvmChain {
 		return 10000;
 	}
 
+	getStaticGasPrice() {
+		return 1; // in gwei
+	}
+
 	async getAddressBlocks(address, startblock, startts) {
 		return await getAddressBlocks({ base_url: etherscan_base_url, address, startblock, startts });
 	}
