@@ -779,13 +779,17 @@ class EvmChain {
 
 
 	async processPastEventsOnBridgeContract(contract, from_block, to_block) {
+		console.log('processPastEventsOnBridgeContract', this.network, contract.address, from_block, to_block);
+		let count = 0;
 		if (contract.filters.NewExpatriation)
-			await processPastEvents(contract, contract.filters.NewExpatriation(), from_block, to_block, this, this.onNewExpatriation);
+			count += await processPastEvents(contract, contract.filters.NewExpatriation(), from_block, to_block, this, this.onNewExpatriation);
 		if (contract.filters.NewRepatriation)
-			await processPastEvents(contract, contract.filters.NewRepatriation(), from_block, to_block, this, this.onNewRepatriation);
-		await processPastEvents(contract, contract.filters.NewClaim(), from_block, to_block, this, this.onNewClaim);
-		await processPastEvents(contract, contract.filters.NewChallenge(), from_block, to_block, this, this.onNewChallenge);
-		await processPastEvents(contract, contract.filters.FinishedClaim(), from_block, to_block, this, this.onFinishedClaim);
+			count += await processPastEvents(contract, contract.filters.NewRepatriation(), from_block, to_block, this, this.onNewRepatriation);
+		count += await processPastEvents(contract, contract.filters.NewClaim(), from_block, to_block, this, this.onNewClaim);
+		count += await processPastEvents(contract, contract.filters.NewChallenge(), from_block, to_block, this, this.onNewChallenge);
+		count += await processPastEvents(contract, contract.filters.FinishedClaim(), from_block, to_block, this, this.onFinishedClaim);
+		console.log('processPastEventsOnBridgeContract', this.network, contract.address, from_block, to_block, `found ${count} events`);
+		return count;
 	}
 
 	// called on start-up to handle missed transfers
@@ -803,7 +807,9 @@ class EvmChain {
 				const blocks = await this.getAddressBlocks(address, last_block);
 				console.log(`${this.network} contract ${address} blocks of missed txs since ${last_block}`, blocks);
 				for (let blockNumber of blocks) {
-					await this.processPastEventsOnBridgeContract(contract, blockNumber, blockNumber);
+					const count = await this.processPastEventsOnBridgeContract(contract, blockNumber, blockNumber);
+					if (!count)
+						throw Error(`no events on contract ${address} in block ${blockNumber}`);
 				}
 			}
 		}
@@ -904,6 +910,7 @@ function getType(address, bridge) {
 }
 
 async function processPastEvents(contract, filter, since_block, to_block, thisArg, handler) {
+	console.log('processPastEvents', contract.address, since_block, to_block, filter);
 	const events = await contract.queryFilter(filter, since_block, to_block || 'latest');
 	for (let event of events) {
 		console.log('--- past event', event);
@@ -911,6 +918,8 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 		args.push(event);
 		await handler.apply(thisArg, args);
 	}
+	console.log('processPastEvents', contract.address, since_block, to_block, `found ${events.length} events`);
+	return events.length;
 }
 
 module.exports = EvmChain;
