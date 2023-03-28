@@ -809,7 +809,7 @@ class EvmChain {
 				for (let blockNumber of blocks) {
 					const count = await this.processPastEventsOnBridgeContract(contract, blockNumber, blockNumber);
 					if (!count)
-						throw Error(`no events on contract ${address} in block ${blockNumber}`);
+						console.log(`no CS events on contract ${address}@${this.network} in block ${blockNumber}`);
 				}
 			}
 		}
