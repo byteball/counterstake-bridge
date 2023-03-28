@@ -1,5 +1,6 @@
 const { ethers } = require("ethers");
 const { request } = require('./request.js');
+const { asyncCallWithTimeout } = require('./utils.js');
 
 const { constants: { AddressZero } } = ethers;
 
@@ -49,7 +50,7 @@ function cachify(func, count_args) {
 			}
 		}
 		try {
-			const value = await func.apply(null, args);
+			const value = await asyncCallWithTimeout(func.apply(null, args), 10 * 1000);
 			cache.put(key, value);
 			return value
 		}
@@ -58,6 +59,7 @@ function cachify(func, count_args) {
 			const value = cache.get(key, true);
 			if (value !== null) {
 				console.log(`using expired cached value ${value} for`, func.name, arguments)
+				cache.put(key, value);
 				return value;
 			}
 			throw e;
