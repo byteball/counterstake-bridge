@@ -475,7 +475,7 @@ class EvmChain {
 
 	async onNewExpatriation(sender_address, amount, reward, foreign_address, data, event) {
 		const unlock = await mutex.lock(this.network + 'Event');
-		console.log('NewExpatriation event', sender_address, amount, reward, foreign_address, data, event);
+		console.log('NewExpatriation event', this.network, sender_address, amount.toString(), reward.toString(), foreign_address, data, event);
 		const txid = event.transactionHash;
 		const txts = await this.getBlockTimestamp(event.blockHash);
 		const bridge = await transfers.getBridgeByAddress(event.address, true);
@@ -491,7 +491,7 @@ class EvmChain {
 
 	async onNewRepatriation(sender_address, amount, reward, home_address, data, event) {
 		const unlock = await mutex.lock(this.network + 'Event');
-		console.log('NewRepatriation event', sender_address, amount, reward, home_address, data, event);
+		console.log('NewRepatriation event', this.network, sender_address, amount.toString(), reward.toString(), home_address, data, event);
 		const txid = event.transactionHash;
 		const txts = await this.getBlockTimestamp(event.blockHash);
 		const bridge = await transfers.getBridgeByAddress(event.address, true);
@@ -507,7 +507,7 @@ class EvmChain {
 	async onNewClaim(claim_num, author_address, sender_address, recipient_address, txid, txts, amount, reward, stake, data, expiry_ts, event) {
 		const unlock = await mutex.lock(this.network + 'Event');
 		claim_num = claim_num.toNumber();
-		console.log('NewClaim event', claim_num, author_address, sender_address, recipient_address, txid, txts, amount, reward, stake, data, expiry_ts, event);
+		console.log('NewClaim event', this.network, claim_num, author_address, sender_address, recipient_address, txid, txts, amount.toString(), reward.toString(), stake.toString(), data, expiry_ts, event);
 		if (event.removed)
 			return unlock(`the claim event was removed, ignoring`);
 		const bridge = await transfers.getBridgeByAddress(event.address, true);
@@ -522,7 +522,7 @@ class EvmChain {
 	async onNewChallenge(claim_num, author_address, stake, outcome, current_outcome, yes_stake, no_stake, expiry_ts, challenging_target, event) {
 		const unlock = await mutex.lock(this.network + 'Event');
 		claim_num = claim_num.toNumber();
-		console.log('NewChallenge event', claim_num, author_address, stake, outcome, current_outcome, yes_stake, no_stake, expiry_ts, challenging_target, event);
+		console.log('NewChallenge event', this.network, claim_num, author_address, stake.toString(), outcome, current_outcome, yes_stake, no_stake, expiry_ts, challenging_target, event);
 		if (event.removed)
 			return unlock(`the challenge event was removed, ignoring`);
 		const bridge = await transfers.getBridgeByAddress(event.address, true);
@@ -535,7 +535,7 @@ class EvmChain {
 	async onFinishedClaim(claim_num, outcome, event) {
 		const unlock = await mutex.lock(this.network + 'Event');
 		claim_num = claim_num.toNumber();
-		console.log('FinishedClaim event', claim_num, outcome, event);
+		console.log('FinishedClaim event', this.network, claim_num, outcome, event);
 		if (event.removed)
 			return unlock(`the finish event was removed, ignoring`);
 		const bridge = await transfers.getBridgeByAddress(event.address, true);
