@@ -981,7 +981,7 @@ async function updateMaxAmounts() {
 				const key = bridge_id + type;
 				try {
 					let balance = await networkApi[home_network].getBalance(claimant_address, home_asset, true);
-					balance = balance.toString() / 10 ** home_asset_decimals;
+					balance = balance.toString() / 10 ** home_asset_decimals * 0.98; // pool manager's fees are unavailable
 					const max_amount = balance / 2; // amount + stake
 					if (!_maxAmounts[key] || max_amount > _maxAmounts[key])
 						_maxAmounts[key] = max_amount;
@@ -1005,7 +1005,7 @@ async function updateMaxAmounts() {
 						continue;
 					let required_stake = await networkApi[foreign_network].getRequiredStake(import_aa, balance);
 					required_stake = BigNumber.from(required_stake).mul(110).div(100); // add 10%
-					let max_amount = balance.toString() / 10 ** foreign_asset_decimals;
+					let max_amount = balance.toString() / 10 ** foreign_asset_decimals * 0.98;
 					if (required_stake.gt(stake_balance))
 						max_amount *= stake_balance.toString() / required_stake.toString(); // scale down
 					if (!_maxAmounts[key] || max_amount > _maxAmounts[key])
