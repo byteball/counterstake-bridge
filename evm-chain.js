@@ -116,7 +116,7 @@ class EvmChain {
 		if (!block) {
 			if (bRetrying)
 				throw Error(`block ${blockHash} not found`);
-			await wait(5000);
+			await wait(10000);
 			return await this.getBlockTimestamp(blockHash, true);
 		}
 		return block.timestamp;
