@@ -843,6 +843,7 @@ class EvmChain {
 				clearInterval(interval);
 				closed = true;
 				this.forget();
+				provider._websocket.removeAllListeners();
 				console.log(`will wait before emitting disconnection event on`, this.network);
 				setTimeout(() => eventBus.emit('network_disconnected', this.network), 60 * 1000);
 			};
