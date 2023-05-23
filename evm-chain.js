@@ -888,6 +888,7 @@ class EvmChain {
 				console.log('====== !!!!! websocket error', this.network, error);
 				if (closed)
 					return console.log('error event: ws already closed');
+				provider._websocket.close();
 				forgetAndEmitDisconnected();
 			});
 			console.log(`${this.network} constructor done`);
