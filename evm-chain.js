@@ -259,6 +259,8 @@ class EvmChain {
 
 	async getRequiredStake(bridge_aa, amount) {
 		const contract = this.#contractsByAddress[bridge_aa];
+		if (!contract)
+			throw Error(`no contract for bridge ${bridge_aa} on ${this.network}`);
 		return await contract.getRequiredStake(amount);
 	}
 

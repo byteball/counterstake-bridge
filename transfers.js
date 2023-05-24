@@ -1012,7 +1012,7 @@ async function updateMaxAmounts() {
 						_maxAmounts[key] = max_amount;
 				}
 				catch (e) {
-					console.log(`updateMaxAmounts expatriation ${foreign_network} error`, e);
+					console.log(`updateMaxAmounts expatriation ${foreign_network} bridge ${bridge_id} error`, e);
 					_maxAmounts[key] = maxAmounts && maxAmounts[key] ? maxAmounts[key] : 0;
 				}
 			}
