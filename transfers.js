@@ -975,6 +975,10 @@ async function updateMaxAmounts() {
 		WHERE claimant_address IN(${claimants.map(db.escape).join(', ')})`);*/
 	const bridges = await db.query("SELECT * FROM bridges WHERE import_aa IS NOT NULL AND export_aa IS NOT NULL");
 	for (let { bridge_id, import_aa, stake_asset, home_asset, foreign_asset, home_asset_decimals, foreign_asset_decimals, home_network, foreign_network } of bridges) {
+		if (!networkApi[home_network] || !networkApi[foreign_network]) {
+			console.log(`updateMaxAmounts: skipping bridge ${bridge_id} ${home_network}->${foreign_network} as one of networks is not available`);
+			continue;
+		}
 		for (let claimant_address of claimants) {
 			if (networkApi[home_network] && networkApi[home_network].isValidAddress(claimant_address)) {
 				const type = 'repatriation';
