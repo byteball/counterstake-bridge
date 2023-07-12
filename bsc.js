@@ -34,7 +34,7 @@ class BSC extends EvmChain {
 	}
 
 	getStaticGasPrice() {
-		return 5; // in gwei
+		return 3; // in gwei
 	}
 
 	async getAddressBlocks(address, startblock, startts) {
