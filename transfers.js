@@ -71,7 +71,7 @@ async function addTransfer(transfer, bRewritable) {
 }
 
 async function handleTransfer(transfer) {
-	const { bridge_id, type, sender_address, dest_address, data, txid, txts } = transfer;
+	const { bridge_id, type, sender_address, dest_address, data, txid, txts, transfer_id } = transfer;
 	let { amount, reward } = transfer;
 	if (typeof reward === 'number' && !validationUtils.isInteger(reward))
 		return console.log(`invalid reward ${reward} in transfer ${txid} from ${sender_address} on bridge ${bridge_id}, will not claim`);
@@ -187,7 +187,8 @@ async function handleTransfer(transfer) {
 						&& dst_amount.lte(await dst_api.getMyBalance(claimed_asset))))
 				: stake.lte(await dst_api.getMyBalance(staked_asset));
 			if (!bHaveEnoughBalance) {
-				notifications.notifyAdmin(`not enough balance to claim ${dst_amount / 10 ** dst_asset_decimals} ${claimed_symbol} on ${dst_network} (${claimed_asset}) in transfer ${txid} from ${sender_address}`);
+				if (!transfer_id || transfer_id > 1664) // transfer_id available only when retrying from the db
+					notifications.notifyAdmin(`not enough balance to claim ${dst_amount / 10 ** dst_asset_decimals} ${claimed_symbol} on ${dst_network} (${claimed_asset}) in transfer ${txid} from ${sender_address}`);
 				return unlock();
 			}
 		}
