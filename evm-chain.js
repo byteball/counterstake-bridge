@@ -852,7 +852,12 @@ class EvmChain {
 			let last_pong_ts = Date.now();
 			if (conf[network + '_noblocks']) {
 				var interval = setInterval(() => {
-					provider._websocket.ping();
+					try {
+						provider._websocket.ping();
+					}
+					catch (e) {
+						console.log(`ping ${this.network} failed`, e);
+					}
 					if (Date.now() - last_pong_ts > 5 * 60 * 1000) {
 						console.log(`====== no new pongs on ${this.network} in more than 5 mins, will reset websocket connection`);
 						forgetAndEmitDisconnected();
