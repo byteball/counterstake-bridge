@@ -10,6 +10,7 @@ const conf = require('ocore/conf.js');
 const db = require('ocore/db.js');
 const { networkApi, getActiveClaimants, getMaxAmounts } = require('./transfers.js');
 const { ethers } = require("ethers");
+const { mailerliteController } = require('./mailerlite.js');
 const { constants: { AddressZero } } = ethers;
 
 const app = new Koa();
@@ -98,6 +99,10 @@ router.get('/transfer/:txid*', async (ctx) => {
 		data: transfer
 	};
 });
+
+if (process.env.MAILERLITE_API_KEY) {
+	router.post('/subscribe', mailerliteController);
+}
 
 app.use(cors());
 app.use(router.routes());
