@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const conf = require('ocore/conf.js');
 
 const mailerliteController = async (ctx) => {
     const email = String(ctx.request.body.email || '');
@@ -13,7 +14,7 @@ const mailerliteController = async (ctx) => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-MailerLite-ApiKey': process.env.MAILERLITE_API_KEY,
+                    'X-MailerLite-ApiKey': conf.mailerlite_api_key,
                 },
                 body: JSON.stringify({
                     email: String(email)
