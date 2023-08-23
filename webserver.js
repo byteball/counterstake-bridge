@@ -100,7 +100,7 @@ router.get('/transfer/:txid*', async (ctx) => {
 	};
 });
 
-if (process.env.MAILERLITE_API_KEY) {
+if (conf.mailerlite_api_key) {
 	router.post('/subscribe', mailerliteController);
 }
 
