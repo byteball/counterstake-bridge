@@ -174,8 +174,6 @@ else { // mainnet
 exports.infura_project_id = ''; // in conf.json
 exports.polygon_polling_interval = 120; // in seconds
 
-exports.mailerlite_api_key = '';
-
 exports.max_exposure = 0.5; // up to 50% of the balance in asset can be sent in a counterstake
 
 exports.recheck_timeout = 15 * 60 * 1000; // 15 mins: when to recheck if a tx was removed
