@@ -849,19 +849,30 @@ class EvmChain {
 				console.log(`will wait before emitting disconnection event on`, this.network);
 				setTimeout(() => eventBus.emit('network_disconnected', this.network), 60 * 1000);
 			};
+			const closeSocket = () => {
+				try {
+					provider._websocket.close();
+				}
+				catch (e) {
+					console.log(`ws close ${this.network} failed`, e);
+				}
+			};
+			const pingSocket = () => {
+				try {
+					provider._websocket.ping();
+				}
+				catch (e) {
+					console.log(`ping ${this.network} failed`, e);
+				}
+			};
 			let last_pong_ts = Date.now();
 			if (conf[network + '_noblocks']) {
 				var interval = setInterval(() => {
-					try {
-						provider._websocket.ping();
-					}
-					catch (e) {
-						console.log(`ping ${this.network} failed`, e);
-					}
+					pingSocket();
 					if (Date.now() - last_pong_ts > 5 * 60 * 1000) {
 						console.log(`====== no new pongs on ${this.network} in more than 5 mins, will reset websocket connection`);
 						forgetAndEmitDisconnected();
-						provider._websocket.close();
+						closeSocket();
 					}
 				}, 60 * 1000);
 			}
@@ -871,13 +882,13 @@ class EvmChain {
 					if (Date.now() - last_block_ts > 5 * 60 * 1000) {
 						console.log(`====== no new blocks on ${this.network} in more than 5 mins, will reset websocket connection`);
 						forgetAndEmitDisconnected();
-						provider._websocket.close();
+						closeSocket();
 					}
 				}, 60 * 1000);
 				provider.on('block', (blockNumber) => {
 					console.log('new block', this.network, blockNumber);
 					last_block_ts = Date.now();
-					provider._websocket.ping();
+					pingSocket();
 				});
 			}
 			provider._websocket.on('pong', () => {
@@ -895,7 +906,7 @@ class EvmChain {
 				console.log('====== !!!!! websocket error', this.network, error);
 				if (closed)
 					return console.log('error event: ws already closed');
-				provider._websocket.close();
+				closeSocket();
 				forgetAndEmitDisconnected();
 			});
 			console.log(`${this.network} constructor done`);
