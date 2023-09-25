@@ -115,8 +115,9 @@ class EvmChain {
 		const block = await this.#provider.getBlock(blockHash);
 		if (!block) {
 			if (bRetrying)
-				throw Error(`block ${blockHash} not found`);
-			await wait(10000);
+				throw Error(`block ${blockHash} in ${this.network} not found`);
+			console.log(`block ${blockHash} in ${this.network} not found, will retry`);
+			await wait(15000);
 			return await this.getBlockTimestamp(blockHash, true);
 		}
 		return block.timestamp;
