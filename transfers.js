@@ -474,7 +474,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 	const api = networkApi[network];
 	const claim = await api.getClaim(bridge_aa, claim_num, false, false);
 	console.log(`claim challenged in trigger ${challenge_txid}`, claim);
-	if (!claim) {
+	if (!claim) { // no claim at all or it's already finished
 		eventBus.emit('challenge', bridge, type, claim_num, address, stake_on, stake, challenge_txid);
 		return unlock(`ongoing claim ${claim_num} challenged in ${challenge_txid} not found, will skip`);
 	}
@@ -482,11 +482,10 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 	const valid_outcome = await getValidOutcome({ claim_num, bridge_id, type }, false);
 	// this can happen if the claim was too young when received and we delayed its processing but someone challenged it in the mean time. Will wait and retry.
 	if (valid_outcome === null) {
-		console.log(`claim ${claim_num} challenged in ${challenge_txid} is not known yet, will retry`);
 		setTimeout(() => {
 			handleChallenge(bridge, type, claim_num, address, stake_on, stake, challenge_txid);
 		}, 60 * 1000);
-		return unlock();
+		return unlock(`claim ${claim_num} challenged in ${challenge_txid} is not known yet, will retry`);
 	}
 	eventBus.emit('challenge', bridge, type, claim_num, address, stake_on, stake, challenge_txid, claim, valid_outcome);
 
