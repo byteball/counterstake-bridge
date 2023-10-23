@@ -1,6 +1,7 @@
 const { ethers } = require("ethers");
 const { request } = require('./request.js');
 const { asyncCallWithTimeout } = require('./utils.js');
+const network = require('ocore/network.js');
 
 const { constants: { AddressZero } } = ethers;
 
@@ -91,6 +92,12 @@ const fetchERC20ExchangeRate = async (chain, token_address, quote) => {
 			return null;
 		}		
 	}
+	else {
+		if (chain === 'kava' && token_address === '0x31f8d38df6514b6cc3C360ACE3a2EFA7496214f6') { // LINE
+			console.log(`getting price of LINE`);
+			return getObyteAssetPrice('kNWO9R4/oiZ7m+3k4RgBxR2Lrdb/rtfIYB2XKVytCc0=');
+		}
+	}
 	const data = await request(`https://api.coingecko.com/api/v3/coins/${chain}/contract/${token_address.toLowerCase()}`)
 	const prices = data.market_data.current_price
 	quote = quote.toLowerCase()
@@ -118,6 +125,12 @@ const fetchObyteTokenPrices = async () => {
 	return prices
 }
 
+function getObyteAssetPrice(asset) {
+	const price = network.exchangeRates[asset + '_USD'];
+	if (!price)
+		throw Error(`no price of ${asset}`);
+	return price;
+}
 
 const fetchERC20ExchangeRateCached = cachify(fetchERC20ExchangeRate, 3)
 const fetchCryptocompareExchangeRateCached = cachify(fetchCryptocompareExchangeRate, 2)
