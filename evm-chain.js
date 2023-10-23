@@ -843,6 +843,7 @@ class EvmChain {
 		if (provider._websocket && !process.env.devnet) {
 			let closed = false;
 			const forgetAndEmitDisconnected = () => {
+				clearTimeout(scheduledReconnectTimeout);
 				clearInterval(interval);
 				closed = true;
 				this.forget();
@@ -892,6 +893,11 @@ class EvmChain {
 					pingSocket();
 				});
 			}
+			var scheduledReconnectTimeout = setTimeout(() => {
+				console.log(`====== scheduled reconnect on ${this.network}`);
+				forgetAndEmitDisconnected();
+				closeSocket();
+			}, 23 * 3600 * 1000);
 			provider._websocket.on('pong', () => {
 				last_pong_ts = Date.now();
 				console.log('pong', this.network);
