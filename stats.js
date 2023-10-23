@@ -6,7 +6,7 @@ const dag = require('aabot/dag.js');
 
 const { networkApi } = require('./transfers.js');
 const { fetchExchangeRateInUSD } = require('./prices.js');
-const { wait } = require('./utils.js');
+const { wait, asyncCallWithTimeout } = require('./utils.js');
 const erc20Json = require('./evm/build/contracts/ERC20.json');
 const exportJson = require('./evm/build/contracts/Export.json');
 
@@ -26,14 +26,14 @@ async function calcTransferredAmounts() {
 		console.log(`getting transferred amounts for bridge ${home_symbol} ${home_network}->${foreign_network}`);
 		let exported_amount, imported_amount;
 		try {
-			exported_amount = toDisplayUnits(await getExportedAmount(home_network, home_asset, export_aa), home_asset_decimals);
+			exported_amount = toDisplayUnits(await asyncCallWithTimeout(getExportedAmount(home_network, home_asset, export_aa), 3600 * 1000), home_asset_decimals);
 		}
 		catch (e) {
 			console.log(`getExportedAmount(${home_network}, ${home_asset}, ${export_aa}) failed`, e);
 			bExportsIncomplete = true;
 		}
 		try {
-			imported_amount = toDisplayUnits(await getImportedAmount(foreign_network, foreign_asset, import_aa), foreign_asset_decimals);
+			imported_amount = toDisplayUnits(await asyncCallWithTimeout(getImportedAmount(foreign_network, foreign_asset, import_aa), 3600 * 1000), foreign_asset_decimals);
 		}
 		catch (e) {
 			console.log(`getImportedAmount(${foreign_network}, ${foreign_asset}, ${import_aa}) failed`, e);
