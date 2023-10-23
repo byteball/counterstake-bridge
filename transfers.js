@@ -133,7 +133,7 @@ async function handleTransfer(transfer) {
 		const fMinReward = await dst_api.getMinReward(type, claimed_asset, src_network, src_asset, !!assistant_aa);
 		console.log({ fMinReward });
 		if (fMinReward === null)
-			return console.log(`unable to determine min reward for transfer ${txid} from ${sender_address} in ${claimed_asset}, will not claim`);
+			return console.log(`unable to determine min reward for transfer ${txid} from ${sender_address} of ${fAmount} ${claimed_asset}, will not claim`);
 		if (fDstReward < fMinReward)
 			return console.log(`the reward in transfer ${txid} from ${sender_address} is only ${fDstReward} which is less than the minimum ${fMinReward} to justify the fees, will not claim`);
 		const fDstNetReward = fDstReward - fMinReward;
