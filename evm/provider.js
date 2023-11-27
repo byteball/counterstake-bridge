@@ -12,8 +12,8 @@ function getProvider(network, bFree) {
 				throw Error("rinkeby was discontinued");
 			return process.env.devnet
 				? new ethers.providers.JsonRpcProvider("http://0.0.0.0:7545") // ganache
-			//	: new ethers.providers.WebSocketProvider(process.env.testnet ? `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/eth/rinkeby/ws` : `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/eth/mainnet/ws`);
-				: ethers.providers.InfuraProvider.getWebSocketProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id);
+				: new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://eth-none.g.alchemy.com/v2/${conf.alchemy_keys.eth.testnet}` : `wss://eth-mainnet.g.alchemy.com/v2/${conf.alchemy_keys.eth.mainnet}`);
+		//		: ethers.providers.InfuraProvider.getWebSocketProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id);
 		//	return new ethers.providers.InfuraProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id);
 		
 		case 'BSC':
