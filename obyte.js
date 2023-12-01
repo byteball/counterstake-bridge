@@ -270,8 +270,10 @@ class Obyte {
 		if (!timestamp)
 			throw Error(`no timestamp in AA response`);
 		
-		if (bounced && trigger_address === operator.getAddress())
+		if (bounced && trigger_address === operator.getAddress()) {
+			transfers.forgetUnconfirmedClaim(trigger_unit);
 			return unlock(`=== our request ${trigger_unit} bounced with error ` + response.error);
+		}
 		if (bounced)
 			return unlock(`skipping bounced request ${trigger_unit} ` + response.error);
 	//	if (objAAResponse.trigger_address === operator.getAddress())

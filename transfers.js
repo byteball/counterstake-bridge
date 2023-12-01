@@ -803,10 +803,22 @@ function forgetOldUnconfirmedClaims() {
 	for (let transfer_id in unconfirmedClaims) {
 		const { claim_txid, ts } = unconfirmedClaims[transfer_id];
 		if (Date.now() > ts + 4 * 3600 * 1000) {
-			console.log(`forgetting unconfirmed claim ${claim_txid} in transfer ${transfer_id}`);
+			console.log(`forgetting unconfirmed claim ${claim_txid} in transfer ${transfer_id} due to timeout`);
 			delete unconfirmedClaims[transfer_id];
 		}
 	}
+}
+
+function forgetUnconfirmedClaim(claim_txid) {
+	for (let transfer_id in unconfirmedClaims) {
+		const claim = unconfirmedClaims[transfer_id];
+		if (claim.claim_txid === claim_txid) {
+			console.log(`forgetting unconfirmed claim ${claim_txid} in transfer ${transfer_id} as the claim bounced`);
+			delete unconfirmedClaims[transfer_id];
+			return;
+		}
+	}
+	console.log(`bounced tx ${claim_txid} not found among unconfirmed claims`);
 }
 
 
@@ -1180,6 +1192,7 @@ Object.assign(module.exports, {
 	handleNewAssistantAA,
 	getActiveClaimants,
 	getMaxAmounts,
+	forgetUnconfirmedClaim,
 	start,
 });
 
