@@ -269,8 +269,8 @@ class EvmChain {
 		const contract = this.#contractsByAddress[bridge_aa];
 		if (!contract)
 			throw Error(`no contract by bridge AA ${bridge_aa}`);
-		const settings = await contract.settings();
-		console.error('settings', settings)
+		const settings = await asyncCallWithTimeout(contract.settings(), 300 * 1000);
+		console.log('settings', this.network, bridge_aa, settings)
 		return settings.min_tx_age;
 	}
 
