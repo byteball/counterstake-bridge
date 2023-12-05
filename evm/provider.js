@@ -22,7 +22,6 @@ function getProvider(network, bFree) {
 			return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://bsc.getblock.io/${conf.getblock_key}/testnet/` : `wss://bsc.getblock.io/${conf.getblock_key}/mainnet/`);
 		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://rpc.ankr.com/bsc_testnet_chapel/ws/${conf.ankr_key}` : `wss://rpc.ankr.com/bsc/ws/${conf.ankr_key}`);
 		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/bsc/testnet/ws` : `wss://bsc--mainnet--ws.datahub.figment.io/apikey/${conf.datahub_key}`);
-		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/bsc/testnet/ws` : `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/bsc/mainnet/ws`);
 		//	return new ethers.providers.JsonRpcProvider(process.env.testnet ? "https://data-seed-prebsc-1-s1.binance.org:8545" : "https://bsc-dataseed.binance.org");
 		//	return new ethers.providers.JsonRpcProvider(process.env.testnet ? "https://bsc-testnet.publicnode.com" : "https://bsc.publicnode.com");
 		
@@ -38,7 +37,6 @@ function getProvider(network, bFree) {
 			return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://rpc.ankr.com/polygon_mumbai/ws/${conf.ankr_key}` : `wss://rpc.ankr.com/polygon/ws/${conf.ankr_key}`);
 		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://polygon-mumbai.g.alchemy.com/v2/${conf.alchemy_keys.polygon.testnet}` : `wss://polygon-mainnet.g.alchemy.com/v2/${conf.alchemy_keys.polygon.mainnet}`);
 		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://matic-mumbai--ws.datahub.figment.io/apikey/${conf.datahub_key}` : `wss://matic-mainnet--ws.datahub.figment.io/apikey/${conf.datahub_key}`);
-		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/polygon/mumbai/ws` : `https://speedy-nodes-nyc.moralis.io/${conf.moralis_key}/polygon/mainnet/ws`);
 
 		case 'Kava':
 			return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://wevm.testnet.kava.io` : `wss://wevm.kava.io`);
