@@ -265,13 +265,25 @@ class EvmChain {
 		return await contract.getRequiredStake(amount);
 	}
 
+	#cachedMinTxAges = {};
 	async getMinTxAge(bridge_aa) {
 		const contract = this.#contractsByAddress[bridge_aa];
 		if (!contract)
 			throw Error(`no contract by bridge AA ${bridge_aa}`);
-		const settings = await asyncCallWithTimeout(contract.settings(), 300 * 1000);
-		console.log('settings', this.network, bridge_aa, settings)
-		return settings.min_tx_age;
+		try {
+			const settings = await asyncCallWithTimeout(contract.settings(), 60 * 1000);
+			console.log('settings', this.network, bridge_aa, settings)
+			this.#cachedMinTxAges[bridge_aa] = settings.min_tx_age;
+			return settings.min_tx_age;
+		}
+		catch (e) {
+			console.log(`error in getMinTxAge`, this.network, bridge_aa, e);
+			if (this.#cachedMinTxAges[bridge_aa]) {
+				console.log(`using cached value for min tx age`);
+				return this.#cachedMinTxAges[bridge_aa];
+			}
+			throw e;
+		}
 	}
 
 	async addAccessListIfNecessary(opts, claimed_asset, staked_asset, dest_address) {
