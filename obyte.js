@@ -524,21 +524,21 @@ class Obyte {
 		const rows = await db.query(
 			`SELECT aa_responses.*, units.timestamp
 			FROM aa_responses
-			CROSS JOIN my_watched_addresses ON aa_address=address
+			CROSS JOIN my_watched_addresses ON aa_address=my_watched_addresses.address
 			CROSS JOIN units ON trigger_unit=unit
 			LEFT JOIN transfers ON trigger_unit=txid
 			WHERE bounced=0 AND transfers.txid IS NULL AND (response LIKE '%started expatriation%' OR response LIKE '%started repatriation%')
 			UNION
 			SELECT aa_responses.*, units.timestamp
 			FROM aa_responses
-			CROSS JOIN my_watched_addresses ON aa_address=address
+			CROSS JOIN my_watched_addresses ON aa_address=my_watched_addresses.address
 			CROSS JOIN units ON trigger_unit=unit
 			LEFT JOIN claims ON trigger_unit=claim_txid
 			WHERE bounced=0 AND claims.claim_txid IS NULL AND response LIKE '%challenging period%'
 			UNION
 			SELECT aa_responses.*, units.timestamp
 			FROM aa_responses
-			CROSS JOIN my_watched_addresses ON aa_address=address
+			CROSS JOIN my_watched_addresses ON aa_address=my_watched_addresses.address
 			CROSS JOIN units ON trigger_unit=unit
 			LEFT JOIN challenges ON trigger_unit=challenge_txid
 			WHERE bounced=0 AND challenges.challenge_txid IS NULL AND response LIKE '%current outcome%'`
