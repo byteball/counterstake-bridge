@@ -520,11 +520,50 @@ class Obyte {
 			walletGeneral.addWatchedAddress(conf.import_assistant_factory_aas[v]);
 	}
 
+	async scanForMissedResponses() {
+		const rows = await db.query(
+			`SELECT aa_responses.*, units.timestamp
+			FROM aa_responses
+			CROSS JOIN my_watched_addresses ON aa_address=address
+			CROSS JOIN units ON trigger_unit=unit
+			LEFT JOIN transfers ON trigger_unit=txid
+			WHERE bounced=0 AND transfers.txid IS NULL AND (response LIKE '%started expatriation%' OR response LIKE '%started repatriation%')
+			UNION
+			SELECT aa_responses.*, units.timestamp
+			FROM aa_responses
+			CROSS JOIN my_watched_addresses ON aa_address=address
+			CROSS JOIN units ON trigger_unit=unit
+			LEFT JOIN claims ON trigger_unit=claim_txid
+			WHERE bounced=0 AND claims.claim_txid IS NULL AND response LIKE '%challenging period%'
+			UNION
+			SELECT aa_responses.*, units.timestamp
+			FROM aa_responses
+			CROSS JOIN my_watched_addresses ON aa_address=address
+			CROSS JOIN units ON trigger_unit=unit
+			LEFT JOIN challenges ON trigger_unit=challenge_txid
+			WHERE bounced=0 AND challenges.challenge_txid IS NULL AND response LIKE '%current outcome%'`
+		);
+		console.log(rows.length, 'lost AAResponses', rows);
+		for (let row of rows) {
+			let objAAResponse = row;
+			if (objAAResponse.response)
+				objAAResponse.response = JSON.parse(objAAResponse.response);
+			console.log(`will handle lost AAResponse`, objAAResponse);
+			await this.onAAResponse(objAAResponse);
+		}
+	}
+
+	async waitForQueuedResponses() {
+		const unlock = await mutex.lock('onAAResponse'); // take the last place in the queue after all real AA responses
+		unlock();
+	}
+
 	// called on start-up to handle missed transfers
 	async catchup() {
 		await this.waitUntilSynced();
-		const unlock = await mutex.lock('onAAResponse'); // take the last place in the queue after all real AA responses
-		unlock();
+		await this.waitForQueuedResponses();
+		await this.scanForMissedResponses();
+		await this.waitForQueuedResponses();
 		console.log(`catching up ${this.network} done`);
 	}
 
