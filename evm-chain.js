@@ -23,6 +23,8 @@ const assistantFactoryJson = require('./evm/build/contracts/AssistantFactory.jso
 const { BigNumber, constants: { AddressZero } } = ethers;
 const TIMEOUT_BETWEEN_TRANSACTIONS = 3000;
 
+let cachedMinTxAges = {};
+
 
 class EvmChain {
 	network = "AbstractEVMChain";
@@ -265,7 +267,6 @@ class EvmChain {
 		return await contract.getRequiredStake(amount);
 	}
 
-	#cachedMinTxAges = {};
 	async getMinTxAge(bridge_aa) {
 		const contract = this.#contractsByAddress[bridge_aa];
 		if (!contract)
@@ -273,14 +274,14 @@ class EvmChain {
 		try {
 			const settings = await asyncCallWithTimeout(contract.settings(), 60 * 1000);
 			console.log('settings', this.network, bridge_aa, settings)
-			this.#cachedMinTxAges[bridge_aa] = settings.min_tx_age;
+			cachedMinTxAges[this.network][bridge_aa] = settings.min_tx_age;
 			return settings.min_tx_age;
 		}
 		catch (e) {
 			console.log(`error in getMinTxAge`, this.network, bridge_aa, e);
-			if (this.#cachedMinTxAges[bridge_aa]) {
+			if (cachedMinTxAges[this.network][bridge_aa]) {
 				console.log(`using cached value for min tx age`);
-				return this.#cachedMinTxAges[bridge_aa];
+				return cachedMinTxAges[this.network][bridge_aa];
 			}
 			throw e;
 		}
@@ -851,6 +852,8 @@ class EvmChain {
 		let wallet = ethers.Wallet.fromMnemonic(JSON.parse(fs.readFileSync(desktopApp.getAppDataDir() + '/keys.json')).mnemonic_phrase);
 		console.log(`====== my ${network} address: `, wallet.address);
 		this.#wallet = wallet.connect(provider);
+		if (!cachedMinTxAges[network])
+			cachedMinTxAges[network] = {};
 
 		if (provider._websocket && !process.env.devnet) {
 			let closed = false;
