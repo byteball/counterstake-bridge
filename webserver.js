@@ -102,12 +102,14 @@ router.get('/transfer/:txid*', async (ctx) => {
 
 router.get('/transfers/:address*', async (ctx) => {
 	const address = ctx.params.address ? decodeURIComponent(ctx.params.address) : ctx.query.address;
+	const all = !!ctx.query.all;
 	const transfers = await db.query(`SELECT transfers.*, claim_txid, claim_num, claimant_address, is_finished, transfer_units.is_stable AS transfer_is_stable, claim_units.is_stable AS claim_is_stable
 		FROM transfers
 		LEFT JOIN claims USING(transfer_id)
 		LEFT JOIN units AS transfer_units ON transfers.txid=transfer_units.unit
 		LEFT JOIN units AS claim_units ON claim_txid=claim_units.unit
-		WHERE (transfers.sender_address=? OR transfers.dest_address=?) AND is_confirmed=1`,
+		WHERE (transfers.sender_address=? OR transfers.dest_address=?)
+			AND is_confirmed=1 ${all ? '' : 'AND !(is_finished=1)'}`,
 		[address, address]
 	);
 	for (let transfer of transfers) {
