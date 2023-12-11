@@ -64,6 +64,10 @@ CREATE TABLE IF NOT EXISTS transfers (
 -- query separator
 CREATE INDEX IF NOT EXISTS transferByBridge ON transfers(bridge_id);
 -- query separator
+CREATE INDEX IF NOT EXISTS transfersBySender ON transfers(sender_address);
+-- query separator
+CREATE INDEX IF NOT EXISTS transfersByDest ON transfers(dest_address);
+-- query separator
 
 -- via Import AA on the foreign network
 -- via Export AA on the home network

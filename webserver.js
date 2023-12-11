@@ -100,6 +100,29 @@ router.get('/transfer/:txid*', async (ctx) => {
 	};
 });
 
+router.get('/transfers/:address*', async (ctx) => {
+	const address = ctx.params.address ? decodeURIComponent(ctx.params.address) : ctx.query.address;
+	const transfers = await db.query(`SELECT transfers.*, claim_txid, claim_num, claimant_address, is_finished, transfer_units.is_stable AS transfer_is_stable, claim_units.is_stable AS claim_is_stable
+		FROM transfers
+		LEFT JOIN claims USING(transfer_id)
+		LEFT JOIN units AS transfer_units ON transfers.txid=transfer_units.unit
+		LEFT JOIN units AS claim_units ON claim_txid=claim_units.unit
+		WHERE (transfers.sender_address=? OR transfers.dest_address=?) AND is_confirmed=1`,
+		[address, address]
+	);
+	for (let transfer of transfers) {
+		delete transfer.is_confirmed;
+		if (transfer.claim_txid)
+			transfer.status = transfer.claim_is_stable === 0 ? 'claimed' : 'claim_confirmed';
+		else
+			transfer.status = transfer.transfer_is_stable === 1 ? 'confirmed' : (transfer.transfer_is_stable === 0 ? 'sent' : 'mined');
+	}
+	ctx.body = {
+		status: 'success',
+		data: transfers
+	};
+});
+
 if (conf.mailerlite_api_key) {
 	router.post('/subscribe', mailerliteController);
 }
