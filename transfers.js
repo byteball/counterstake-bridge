@@ -334,6 +334,8 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 
 	// make sure the opposite network is up to date and we know all the transfers initiated there
 	const opposite_network = type === 'expatriation' ? bridge.home_network : bridge.foreign_network;
+	if (!networkApi[opposite_network])
+		return unlock(`opposite network ${opposite_network} not active, ignoring claim ${claim_txid}`);
 	await networkApi[opposite_network].waitUntilSynced();
 	if (!bridge.import_aa || !bridge.export_aa) // maybe it became complete now?
 		bridge = await getBridge(bridge.bridge_id);
