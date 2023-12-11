@@ -109,7 +109,7 @@ router.get('/transfers/:address*', async (ctx) => {
 		LEFT JOIN units AS transfer_units ON transfers.txid=transfer_units.unit
 		LEFT JOIN units AS claim_units ON claim_txid=claim_units.unit
 		WHERE (transfers.sender_address=? OR transfers.dest_address=?)
-			AND is_confirmed=1 ${all ? '' : 'AND !(is_finished=1)'}`,
+			AND is_confirmed=1 ${all ? '' : 'AND NOT (is_finished=1)'}`,
 		[address, address]
 	);
 	for (let transfer of transfers) {
