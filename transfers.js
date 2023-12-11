@@ -147,9 +147,14 @@ async function handleTransfer(transfer) {
 		console.log(`will claim a transfer from ${sender_address} amount ${dst_amount} reward ${dst_reward} txid ${txid}`);
 
 		// check if the transfer got removed while we were waiting
-		const db_transfers = await db.query("SELECT * FROM transfers WHERE txid=? AND bridge_id=? AND amount=? AND reward=? AND sender_address=? AND dest_address=? AND data=?", [txid, bridge_id, amount.toString(), reward.toString(), sender_address, dest_address, data]);
-		if (db_transfers.length !== 1)
-			throw Error(`${db_transfers.length} transfers found in db for transfer tx ${txid}`);
+		let db_transfers = await db.query("SELECT * FROM transfers WHERE txid=? AND bridge_id=? AND amount=? AND reward=? AND sender_address=? AND dest_address=? AND data=?", [txid, bridge_id, amount.toString(), reward.toString(), sender_address, dest_address, data]);
+		if (db_transfers.length !== 1) {
+			if (db_transfers.length === 0)
+				throw Error(`no transfers found in db for transfer tx ${txid}`);
+			db_transfers = db_transfers.filter(t => t.is_confirmed);
+			if (db_transfers.length !== 1)
+				throw Error(`${db_transfers.length} confirmed transfers found in db for transfer tx ${txid}`);
+		}
 		const [{ transfer_id, is_confirmed }] = db_transfers;
 		if (!is_confirmed)
 			return unlock(`transfer ${txid} from ${sender_address} got removed, will not claim`);
