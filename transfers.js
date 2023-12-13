@@ -144,7 +144,7 @@ async function handleTransfer(transfer) {
 	const sendClaim = async () => {
 
 		const unlock = await mutex.lock(dst_network);
-		console.log(`will claim a transfer from ${sender_address} amount ${dst_amount} reward ${dst_reward} txid ${txid}`);
+		console.log(`will claim a transfer on ${dst_network} from ${sender_address} amount ${dst_amount} reward ${dst_reward} txid ${txid}`);
 
 		// check if the transfer got removed while we were waiting
 		let db_transfers = await db.query("SELECT * FROM transfers WHERE txid=? AND bridge_id=? AND amount=? AND reward=? AND sender_address=? AND dest_address=? AND data=?", [txid, bridge_id, amount.toString(), reward.toString(), sender_address, dest_address, data]);
