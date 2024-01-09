@@ -2,6 +2,7 @@ const { ethers } = require("ethers");
 const { request } = require('./request.js');
 const { asyncCallWithTimeout } = require('./utils.js');
 const network = require('ocore/network.js');
+const mutex = require('ocore/mutex.js');
 
 const { constants: { AddressZero } } = ethers;
 
@@ -43,10 +44,12 @@ function cachify(func, count_args) {
 		for (let i = 0; i < count_args; i++) // not including the 'cached' arg
 			args[i] = arguments[i];
 		const key = func.name + '_' + args.join(',');
+		const unlock = await mutex.lock(key);
 		if (cached) {
 			const value = cache.get(key);
 			if (value !== null) {
 				console.log(`using cached value ${value} for`, func.name, arguments)
+				unlock();
 				return value;
 			}
 		}
@@ -54,10 +57,12 @@ function cachify(func, count_args) {
 			const value = await asyncCallWithTimeout(func.apply(null, args), 10 * 1000);
 			cache.put(key, value);
 			console.log(`cached`, key, value);
+			unlock();
 			return value
 		}
 		catch (e) {
 			console.log(func.name, arguments, 'failed', e);
+			unlock();
 			const value = cache.get(key, true);
 			if (value !== null) {
 				console.log(`using expired cached value ${value} for`, func.name, arguments)
@@ -126,7 +131,7 @@ const fetchCoingeckoExchangeRate = async (in_currency, out_currency) => {
 	const id = getCoingeckoId(in_currency.toLowerCase());
 	out_currency = out_currency.toLowerCase();
 	if (!['usd'/*, 'eth', 'bnb'*/].includes(out_currency))
-		return await fetchExchangeRateCached(in_currency, 'usd') / await fetchExchangeRateCached(out_currency, 'usd');
+		return await fetchExchangeRateCached(in_currency, 'USD') / await fetchExchangeRateCached(out_currency, 'USD');
 	const data = await request(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=${out_currency}`)
 	if (!data[id] || !data[id][out_currency])
 		throw new Error(`no ${out_currency} in CG response ${JSON.stringify(data)}`);
@@ -162,7 +167,9 @@ const fetchCoingeckoExchangeRateCached = cachify(fetchCoingeckoExchangeRate, 2)
 const fetchObyteTokenPricesCached = cachify(fetchObyteTokenPrices, 0)
 
 async function fetchExchangeRateCached(in_currency, out_currency) {
-	return in_currency.toUpperCase() === 'GBYTE'
+	in_currency = in_currency.toUpperCase();
+	out_currency = out_currency.toUpperCase();
+	return in_currency === 'GBYTE'
 		? await fetchCoingeckoExchangeRateCached(in_currency, out_currency)
 		: await fetchCryptocompareExchangeRateCached(in_currency, out_currency);
 }
