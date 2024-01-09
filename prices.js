@@ -52,7 +52,11 @@ function cachify(func, count_args) {
 				unlock();
 				return value;
 			}
+			else
+				console.log(`no cached value for ${key} or it expired`);
 		}
+		else
+			console.log(`requested ${key} without cache`);
 		try {
 			const value = await asyncCallWithTimeout(func.apply(null, args), 10 * 1000);
 			cache.put(key, value);
@@ -62,14 +66,15 @@ function cachify(func, count_args) {
 		}
 		catch (e) {
 			console.log(func.name, arguments, 'failed', e);
-			unlock();
 			const value = cache.get(key, true);
 			if (value !== null) {
-				console.log(`using expired cached value ${value} for`, func.name, arguments)
+				console.log(`using expired cached value ${value} for`, func.name, arguments, `requested cached=${cached}`)
 				cache.put(key, value);
+				unlock();
 				return value;
 			}
 			console.log(`no cached value of ${key}, rethrowing`);
+			unlock();
 			throw e;
 		}
 	}
