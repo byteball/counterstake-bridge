@@ -104,7 +104,7 @@ const fetchERC20ExchangeRate = async (chain, token_address, quote) => {
 	if (!prices[quote]) {
 		if (!prices.usd)
 			throw new Error(`no ${quote} and no usd in response ${JSON.stringify(data)}`);
-		const quote_price_in_usd = await fetchCoingeckoExchangeRateCached(quote, 'USD', true);
+		const quote_price_in_usd = await fetchExchangeRateCached(quote, 'USD', true);
 		return prices.usd / quote_price_in_usd;
 	}
 	return prices[quote]
@@ -124,7 +124,7 @@ const fetchCoingeckoExchangeRate = async (in_currency, out_currency) => {
 	const id = getCoingeckoId(in_currency.toLowerCase());
 	out_currency = out_currency.toLowerCase();
 	if (!['usd', 'eth', 'bnb'].includes(out_currency))
-		return await fetchCoingeckoExchangeRateCached(id, 'usd') / await fetchCoingeckoExchangeRateCached(out_currency, 'usd');
+		return await fetchExchangeRateCached(id, 'usd') / await fetchExchangeRateCached(out_currency, 'usd');
 	const data = await request(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=${out_currency}`)
 	if (!data[id] || !data[id][out_currency])
 		throw new Error(`no ${out_currency} in CG response ${JSON.stringify(data)}`);
@@ -157,6 +157,12 @@ const fetchERC20ExchangeRateCached = cachify(fetchERC20ExchangeRate, 3)
 const fetchCryptocompareExchangeRateCached = cachify(fetchCryptocompareExchangeRate, 2)
 const fetchCoingeckoExchangeRateCached = cachify(fetchCoingeckoExchangeRate, 2)
 const fetchObyteTokenPricesCached = cachify(fetchObyteTokenPrices, 0)
+
+async function fetchExchangeRateCached(in_currency, out_currency) {
+	return in_currency.toUpperCase() === 'GBYTE'
+		? await fetchCoingeckoExchangeRateCached(in_currency, out_currency)
+		: await fetchCryptocompareExchangeRateCached(in_currency, out_currency);
+}
 
 const coingeckoChainIds = {
 	Ethereum: 'ethereum',
@@ -195,13 +201,13 @@ async function fetchExchangeRateInNativeAsset(type, dst_network, claimed_asset, 
 		return rate;
 	if (src_network === 'Obyte') {
 		if (src_asset === 'base')
-			rate = await fetchCoingeckoExchangeRateCached('GBYTE', nativeSymbol, cached)
+			rate = await fetchExchangeRateCached('GBYTE', nativeSymbol, cached)
 		else {
 			const prices = await fetchObyteTokenPricesCached(cached);
 			const price_in_usd = prices[toMainnetObyteAsset(src_asset)];
 			if (!price_in_usd)
 				return null;
-			const native_price_in_usd = await fetchCoingeckoExchangeRateCached(nativeSymbol, 'USD', cached)
+			const native_price_in_usd = await fetchExchangeRateCached(nativeSymbol, 'USD', cached)
 			rate = price_in_usd / native_price_in_usd
 		}
 	}
@@ -211,13 +217,13 @@ async function fetchExchangeRateInNativeAsset(type, dst_network, claimed_asset, 
 async function fetchExchangeRateInUSD(network, asset, cached) {
 	if (network === 'Obyte') {
 		if (asset === 'base')
-			return await fetchCoingeckoExchangeRateCached('GBYTE', 'USD', cached);
+			return await fetchExchangeRateCached('GBYTE', 'USD', cached);
 		const prices = await fetchObyteTokenPricesCached(cached);
 		const price_in_usd = prices[toMainnetObyteAsset(asset)];
 		return price_in_usd || null;
 	}
 	if (asset === AddressZero)
-		return await fetchCoingeckoExchangeRateCached(nativeSymbols[network], 'USD', cached);
+		return await fetchExchangeRateCached(nativeSymbols[network], 'USD', cached);
 	return await tryGetTokenPrice(network, asset, 'USD', cached);
 }
 
