@@ -134,6 +134,7 @@ const fetchCoingeckoExchangeRate = async (in_currency, out_currency) => {
 }
 
 const fetchCryptocompareExchangeRate = async (in_currency, out_currency) => {
+	out_currency = out_currency.toUpperCase();
 	const data = await request(`https://min-api.cryptocompare.com/data/price?fsym=${in_currency}&tsyms=${out_currency}`)
 	if (!data[out_currency])
 		throw new Error(`no ${out_currency} in response ${JSON.stringify(data)}`);
