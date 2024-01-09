@@ -124,7 +124,7 @@ const fetchCoingeckoExchangeRate = async (in_currency, out_currency) => {
 	const id = getCoingeckoId(in_currency.toLowerCase());
 	out_currency = out_currency.toLowerCase();
 	if (!['usd', 'eth', 'bnb'].includes(out_currency))
-		return await fetchCoingeckoExchangeRate(id, 'usd') / await fetchCoingeckoExchangeRate(out_currency, 'usd');
+		return await fetchCoingeckoExchangeRateCached(id, 'usd') / await fetchCoingeckoExchangeRateCached(out_currency, 'usd');
 	const data = await request(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=${out_currency}`)
 	if (!data[id] || !data[id][out_currency])
 		throw new Error(`no ${out_currency} in CG response ${JSON.stringify(data)}`);
