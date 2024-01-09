@@ -53,6 +53,7 @@ function cachify(func, count_args) {
 		try {
 			const value = await asyncCallWithTimeout(func.apply(null, args), 10 * 1000);
 			cache.put(key, value);
+			console.log(`cached`, key, value);
 			return value
 		}
 		catch (e) {
@@ -63,6 +64,7 @@ function cachify(func, count_args) {
 				cache.put(key, value);
 				return value;
 			}
+			console.log(`no cached value of ${key}, rethrowing`);
 			throw e;
 		}
 	}
@@ -123,7 +125,7 @@ function getCoingeckoId(currency) {
 const fetchCoingeckoExchangeRate = async (in_currency, out_currency) => {
 	const id = getCoingeckoId(in_currency.toLowerCase());
 	out_currency = out_currency.toLowerCase();
-	if (!['usd', 'eth', 'bnb'].includes(out_currency))
+	if (!['usd'/*, 'eth', 'bnb'*/].includes(out_currency))
 		return await fetchExchangeRateCached(in_currency, 'usd') / await fetchExchangeRateCached(out_currency, 'usd');
 	const data = await request(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=${out_currency}`)
 	if (!data[id] || !data[id][out_currency])
