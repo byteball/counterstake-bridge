@@ -136,7 +136,7 @@ const fetchCoingeckoExchangeRate = async (in_currency, out_currency) => {
 	const id = getCoingeckoId(in_currency.toLowerCase());
 	out_currency = out_currency.toLowerCase();
 	if (!['usd'/*, 'eth', 'bnb'*/].includes(out_currency))
-		return await fetchExchangeRateCached(in_currency, 'USD') / await fetchExchangeRateCached(out_currency, 'USD');
+		return await fetchExchangeRateCached(in_currency, 'USD', true) / await fetchExchangeRateCached(out_currency, 'USD', true);
 	const data = await request(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=${out_currency}`)
 	if (!data[id] || !data[id][out_currency])
 		throw new Error(`no ${out_currency} in CG response ${JSON.stringify(data)}`);
@@ -171,12 +171,12 @@ const fetchCryptocompareExchangeRateCached = cachify(fetchCryptocompareExchangeR
 const fetchCoingeckoExchangeRateCached = cachify(fetchCoingeckoExchangeRate, 2)
 const fetchObyteTokenPricesCached = cachify(fetchObyteTokenPrices, 0)
 
-async function fetchExchangeRateCached(in_currency, out_currency) {
+async function fetchExchangeRateCached(in_currency, out_currency, cached) {
 	in_currency = in_currency.toUpperCase();
 	out_currency = out_currency.toUpperCase();
 	return in_currency === 'GBYTE'
-		? await fetchCoingeckoExchangeRateCached(in_currency, out_currency)
-		: await fetchCryptocompareExchangeRateCached(in_currency, out_currency);
+		? await fetchCoingeckoExchangeRateCached(in_currency, out_currency, cached)
+		: await fetchCryptocompareExchangeRateCached(in_currency, out_currency, cached);
 }
 
 const coingeckoChainIds = {
