@@ -11,7 +11,7 @@ const request = async (url, options) => {
 	})
 	if (!response.ok) {
 		const error = await response.text()
-		console.error('-- error', error)
+		console.error('-- error', url, error)
 		throw new Error(error)
 	}
 	const data = await response.json()
