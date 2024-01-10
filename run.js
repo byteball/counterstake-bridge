@@ -33,5 +33,7 @@ eventBus.on('headless_wallet_ready', async () => {
 
 process.on('unhandledRejection', up => {
 	console.error('unhandledRejection event', up, up.stack);
+	if (up.toSting().includes("Your app has exceeded its compute units per second capacity"))
+		return console.error("ignored unhandledRejection");
 	throw up;
 });
