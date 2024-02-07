@@ -952,15 +952,16 @@ function getType(address, bridge) {
 }
 
 async function processPastEvents(contract, filter, since_block, to_block, thisArg, handler) {
-	console.log('processPastEvents', contract.address, since_block, to_block, filter);
+	const network = thisArg ? thisArg.network : null;
+	console.log('processPastEvents', network, contract.address, since_block, to_block, filter);
 	const events = await contract.queryFilter(filter, since_block, to_block || 'latest');
 	for (let event of events) {
-		console.log('--- past event', event);
+		console.log('--- past event', network, event);
 		let args = event.args.concat();
 		args.push(event);
 		await handler.apply(thisArg, args);
 	}
-	console.log('processPastEvents', contract.address, since_block, to_block, `found ${events.length} events`);
+	console.log('processPastEvents', network, contract.address, since_block, to_block, `found ${events.length} events`);
 	return events.length;
 }
 
