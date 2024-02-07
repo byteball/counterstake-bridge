@@ -14,7 +14,7 @@ const Ethereum = require('./ethereum.js');
 const BSC = require('./bsc.js');
 const Polygon = require('./polygon.js');
 const Kava = require('./kava.js');
-const { wait } = require('./utils.js');
+const { wait, asyncCallWithTimeout } = require('./utils.js');
 
 const networkApi = {};
 let maxAmounts;
@@ -776,6 +776,7 @@ async function checkUnfinishedClaims() {
 		else
 			console.log(`checkUnfinishedClaims: ${desc} challenging period is still ongoing`);
 	}
+	console.log('done unfinished claims');
 }
 
 async function recheckOldTransfers() {
@@ -1171,7 +1172,12 @@ async function start() {
 	setInterval(recheckOldTransfers, 3600 * 1000); // every hour, in case gas price was too high when the claim was received, and then it got lower
 
 	if (conf.webPort) {
-		await updateMaxAmounts();
+		try {
+			await asyncCallWithTimeout(updateMaxAmounts(), 60 * 1000);
+		}
+		catch (e) {
+			console.log('updateMaxAmounts failed', e);
+		}
 		setInterval(updateMaxAmounts, 3600 * 1000); // every hour
 	}
 
