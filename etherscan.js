@@ -71,6 +71,8 @@ async function getAddressBlocks({ base_url, address, startblock, startts, api_ke
 		const int_history = await getAddressHistory({ base_url, address, startblock, startts, api_key, bInternal: true });
 		const history = ext_history.concat(int_history);
 		let blocks = _.uniq(history.map(tx => parseInt(tx.blockNumber)));
+		if (startblock)
+			blocks = blocks.filter(b => b >= startblock); // kava explorer seems to ignore startblock and return the entire history
 		blocks.sort();
 		return blocks;
 	}

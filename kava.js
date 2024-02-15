@@ -4,7 +4,7 @@ const EvmChain = require('./evm-chain.js');
 const { getProvider } = require("./evm/provider.js");
 const { getAddressBlocks } = require("./etherscan.js");
 
-const etherscan_base_url = process.env.testnet ? 'https://explorer.testnet.kava.io' : 'https://explorer.kava.io';
+const etherscan_base_url = process.env.testnet ? 'https://testnet.kavascan.com' : 'https://kavascan.com';
 
 let bCreated = false;
 
