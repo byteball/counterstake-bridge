@@ -272,7 +272,7 @@ class EvmChain {
 		if (!contract)
 			throw Error(`no contract by bridge AA ${bridge_aa}`);
 		try {
-			const settings = await asyncCallWithTimeout(contract.settings(), 60 * 1000);
+			const settings = await asyncCallWithTimeout(contract.settings(), 120 * 1000);
 			console.log('settings', this.network, bridge_aa, settings)
 			cachedMinTxAges[this.network][bridge_aa] = settings.min_tx_age;
 			return settings.min_tx_age;
@@ -283,7 +283,7 @@ class EvmChain {
 				console.log(`using cached value for min tx age`);
 				return cachedMinTxAges[this.network][bridge_aa];
 			}
-			throw e;
+			throw Error(`getMinTxAge ${this.network} ${bridge_aa} failed: ${e.toString()}`);
 		}
 	}
 
