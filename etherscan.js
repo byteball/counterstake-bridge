@@ -4,10 +4,10 @@ const { request } = require('./request.js');
 const { wait } = require('./utils.js');
 
 let last_req_ts = {};
-const timeout = 6000; // 6 sec
 
 
-async function waitBetweenRequests(base_url) {
+async function waitBetweenRequests(base_url, bWithApiKey) {
+	const timeout = bWithApiKey ? 300 : 6000; // 6 sec
 	const passed = last_req_ts[base_url] ? Date.now() - last_req_ts[base_url] : Infinity;
 	if (passed < timeout) {
 		console.log(`will wait for ${timeout - passed} ms between ${base_url} requests`);
@@ -32,7 +32,7 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 			throw e;
 		}
 	};
-	await waitBetweenRequests(base_url);
+	await waitBetweenRequests(base_url, !!api_key);
 	if (startts && !startblock) {
 		let url = `${base_url}/api?module=block&action=getblocknobytime&timestamp=${startts}&closest=after`;
 		if (api_key)
