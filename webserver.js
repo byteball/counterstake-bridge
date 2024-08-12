@@ -35,9 +35,9 @@ router.get('/bridges', async (ctx) => {
 		for (let { bridge_id, type, c } of claims)
 			claimantCounts[bridge_id + type] = c;
 	}
-	
+
 	const maxAmounts = getMaxAmounts();
-	
+
 	const networks = Object.keys(networkApi);
 	const bridges = await db.query("SELECT * FROM bridges WHERE import_aa IS NOT NULL AND export_aa IS NOT NULL AND home_network IN(?) AND foreign_network IN(?)", [networks, networks]);
 	console.log(`-- getting bridges`);
@@ -62,10 +62,44 @@ router.get('/bridges', async (ctx) => {
 });
 
 router.get('/pooled_assistants', async (ctx) => {
-	const assistants = await db.query("SELECT pooled_assistants.*, MIN(claims.creation_date) AS first_claim_date FROM pooled_assistants LEFT JOIN claims ON assistant_aa=claimant_address GROUP BY assistant_aa");
-//	for (let assistant of assistants)
-//		if (assistant.creation_date && assistant.creation_date < assistant.first_claim_date)
-//			assistant.first_claim_date = assistant.creation_date;
+	const assistants = await db.query(`
+		SELECT
+			pooled_assistants.*,
+			MIN(claims.creation_date) AS first_claim_date,
+			bridges.stake_asset AS bridge_stake_asset,
+			bridges.home_asset AS bridge_home_asset,
+			bridges.home_asset_decimals AS bridge_home_asset_decimals,
+			bridges.home_symbol AS bridge_home_symbol,
+			bridges.home_network AS bridge_home_network,
+			bridges.foreign_asset AS bridge_foreign_asset,
+			bridges.foreign_asset_decimals AS bridge_foreign_asset_decimals,
+			bridges.foreign_symbol AS bridge_foreign_symbol,
+			bridges.foreign_network AS bridge_foreign_network,
+			bridges.export_aa AS bridge_export_aa,
+			bridges.import_aa AS bridge_import_aa
+		FROM
+			pooled_assistants
+		LEFT JOIN
+			claims ON pooled_assistants.assistant_aa = claims.claimant_address
+		INNER JOIN
+			bridges ON pooled_assistants.bridge_id = bridges.bridge_id
+		GROUP BY
+			pooled_assistants.assistant_aa,
+			bridges.stake_asset,
+			bridges.home_asset,
+			bridges.home_asset_decimals,
+			bridges.home_symbol,
+			bridges.home_network,
+			bridges.foreign_asset,
+			bridges.foreign_asset_decimals,
+			bridges.foreign_symbol,
+			bridges.foreign_network,
+			bridges.export_aa,
+			bridges.import_aa;
+	`);
+	//	for (let assistant of assistants)
+	//		if (assistant.creation_date && assistant.creation_date < assistant.first_claim_date)
+	//			assistant.first_claim_date = assistant.creation_date;
 	ctx.body = {
 		status: 'success',
 		data: assistants
