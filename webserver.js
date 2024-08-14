@@ -11,6 +11,8 @@ const db = require('ocore/db.js');
 const { networkApi, getActiveClaimants, getMaxAmounts } = require('./transfers.js');
 const { ethers } = require("ethers");
 const { mailerliteController } = require('./mailerlite.js');
+const { fetchExchangeRateInUSD } = require('./prices.js');
+
 const { constants: { AddressZero } } = ethers;
 
 const app = new Koa();
@@ -63,20 +65,50 @@ router.get('/bridges', async (ctx) => {
 
 router.get('/pooled_assistants', async (ctx) => {
 	const reqBridgesInfo = !!ctx.query.reqBridgesInfo;
-	const assistants = await db.query("SELECT pooled_assistants.*, MIN(claims.creation_date) AS first_claim_date FROM pooled_assistants LEFT JOIN claims ON assistant_aa=claimant_address GROUP BY assistant_aa");
-	const responseData = { assistants };
+	const reqUsdRates = !!ctx.query.reqUsdRates;
 
-	// We added the info suffix to avoid confusion with the bridge route.
-	if (reqBridgesInfo) {
-		responseData.bridges_info = await db.query("SELECT * FROM bridges");
+	let bridgesInfo = []; // We added the info suffix to avoid confusion with the bridge route.
+	const responseData = {};
+
+	const assistants = await db.query("SELECT pooled_assistants.*, MIN(claims.creation_date) AS first_claim_date FROM pooled_assistants LEFT JOIN claims ON assistant_aa=claimant_address GROUP BY assistant_aa");
+
+	if (reqBridgesInfo || reqUsdRates) {
+		bridgesInfo = await db.query("SELECT * FROM bridges");
 	}
-//	for (let assistant of assistants)
-//		if (assistant.creation_date && assistant.creation_date < assistant.first_claim_date)
-//			assistant.first_claim_date = assistant.creation_date;
+	
+	if (reqBridgesInfo) responseData.bridges_info = bridgesInfo;
+
+	if (reqUsdRates) {
+		for (const assistant of assistants) {
+			const bridge = bridgesInfo.find(bridge => bridge.bridge_id === assistant.bridge_id);
+
+			if (!bridge) {
+				console.error(`ERROR: Bridge not found for assistant ${assistant.assistant_aa}`);
+				continue;
+			};
+
+			const { home_network, home_asset, foreign_network, stake_asset } = bridge;
+
+			if (stake_asset) {
+				assistant.stake_token_usd_rate = await fetchExchangeRateInUSD(foreign_network, stake_asset, true);
+			}
+
+			if (home_asset) {
+				assistant.home_token_usd_rate = await fetchExchangeRateInUSD(home_network, home_asset, true);
+			}
+		}
+	}
+
+	responseData.assistants = assistants; // add assistants to the response data
+
 	ctx.body = {
 		status: 'success',
 		data: responseData
 	};
+
+	//	for (let assistant of assistants)
+	//		if (assistant.creation_date && assistant.creation_date < assistant.first_claim_date)
+	//			assistant.first_claim_date = assistant.creation_date;
 });
 
 router.get('/transfer/:txid*', async (ctx) => {
@@ -141,6 +173,7 @@ app.use(router.routes());
 
 function start() {
 	if (conf.webPort)
+		console.error(`Starting web server on port ${conf.webPort}`);
 		app.listen(conf.webPort);
 }
 
