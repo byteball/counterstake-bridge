@@ -267,7 +267,7 @@ class EvmChain {
 		return await contract.getRequiredStake(amount);
 	}
 
-	async getMinTxAge(bridge_aa) {
+	async getMinTxAge(bridge_aa, attempt = 0) {
 		const contract = this.#contractsByAddress[bridge_aa];
 		if (!contract)
 			throw Error(`no contract by bridge AA ${bridge_aa}`);
@@ -278,10 +278,15 @@ class EvmChain {
 			return settings.min_tx_age;
 		}
 		catch (e) {
-			console.log(`error in getMinTxAge`, this.network, bridge_aa, e);
+			console.log(`error in getMinTxAge attempt=${attempt}`, this.network, bridge_aa, e);
 			if (cachedMinTxAges[this.network][bridge_aa]) {
 				console.log(`using cached value for min tx age`);
 				return cachedMinTxAges[this.network][bridge_aa];
+			}
+			if (attempt < 5) {
+				console.log(`will retry getMinTxAge in 30s`);
+				await wait(30_000);
+				return this.getMinTxAge(bridge_aa, attempt + 1);
 			}
 			throw Error(`getMinTxAge ${this.network} ${bridge_aa} failed: ${e.toString()}`);
 		}
