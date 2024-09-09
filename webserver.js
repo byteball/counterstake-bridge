@@ -103,7 +103,7 @@ router.get('/pooled_assistants', async (ctx) => {
 
 	ctx.body = {
 		status: 'success',
-		data: responseData
+		data: reqBridgesInfo ? responseData : assistants,
 	};
 
 	//	for (let assistant of assistants)
