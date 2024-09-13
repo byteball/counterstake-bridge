@@ -38,7 +38,20 @@ class Kava extends EvmChain {
 	}
 
 	async getAddressBlocks(address, startblock, startts) {
-		return await getAddressBlocks({ base_url: etherscan_base_url, address, startblock, startts });
+		return await getAddressBlocks({
+			base_url: etherscan_base_url,
+			address,
+			startblock,
+			startts,
+			getUrl: (address, bInternal) => `https://apis.mintscan.io/v1/evm/kava/account/${bInternal ? 'internal-tx' : 'tx'}?address=${address}&start_block=${startblock}&offset=1000`,
+			getOptions: () => ({
+				headers: {
+					Accept: 'application/json',
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${conf.kava_api_key}`,
+				},
+			}),
+		 });
 	}
 
 }
