@@ -73,8 +73,14 @@ async function addTransfer(transfer, bRewritable) {
 async function handleTransfer(transfer) {
 	const { bridge_id, type, sender_address, dest_address, data, txid, txts, transfer_id } = transfer;
 	let { amount, reward } = transfer;
+
+	async function markAsBad(msg) {
+		await db.query("UPDATE transfers SET is_bad=1 WHERE txid=? AND bridge_id=?", [txid, bridge_id]);
+		return console.log(msg);
+	}
+
 	if (typeof reward === 'number' && !validationUtils.isInteger(reward))
-		return console.log(`invalid reward ${reward} in transfer ${txid} from ${sender_address} on bridge ${bridge_id}, will not claim`);
+		return markAsBad(`invalid reward ${reward} in transfer ${txid} from ${sender_address} on bridge ${bridge_id}, will not claim`);
 	if (!BigNumber.isBigNumber(amount))
 		amount = BigNumber.from(amount);
 	if (!BigNumber.isBigNumber(reward))
@@ -100,9 +106,9 @@ async function handleTransfer(transfer) {
 	const dst_reward = getDestAmount(reward, src_asset_decimals, dst_asset_decimals);
 	// someone might send an amount with excessive precision such as 1.0000000000000001 ETH to a network with smaller precision, reject
 	if (!amountsMatch(amount, src_asset_decimals, dst_amount, dst_asset_decimals))
-		return console.log(`transfer ${txid} on bridge ${bridge_id} amounts do not match: src ${amount.toString()}/${src_asset_decimals} dst ${dst_amount.toString()}/${dst_asset_decimals}, will not claim`);
+		return markAsBad(`transfer ${txid} on bridge ${bridge_id} amounts do not match: src ${amount.toString()}/${src_asset_decimals} dst ${dst_amount.toString()}/${dst_asset_decimals}, will not claim`);
 	if (!amountsMatch(reward, src_asset_decimals, dst_reward, dst_asset_decimals))
-		return console.log(`transfer ${txid} on bridge ${bridge_id} rewards do not match: src ${reward.toString()}/${src_asset_decimals} dst ${dst_reward.toString()}/${dst_asset_decimals}, will not claim`);
+		return markAsBad(`transfer ${txid} on bridge ${bridge_id} rewards do not match: src ${reward.toString()}/${src_asset_decimals} dst ${dst_reward.toString()}/${dst_asset_decimals}, will not claim`);
 	const fDstAmount = parseFloat(dst_amount.toString()) / 10 ** dst_asset_decimals;
 	const fDstReward = parseFloat(dst_reward.toString()) / 10 ** dst_asset_decimals;
 	const src_api = networkApi[src_network];
@@ -110,13 +116,11 @@ async function handleTransfer(transfer) {
 	if (!dst_api && conf['disable' + dst_network])
 		return console.log(`${dst_network} disabled, will not claim transfer ${txid}`);
 
-	if (!dst_api.isValidAddress(dest_address)) {
-		await db.query("UPDATE transfers SET is_bad=1 WHERE txid=? AND bridge_id=?", [txid, bridge_id]);
-		return console.log(`invalid dest address ${dest_address} in transfer ${txid}, will not claim`);
-	}
+	if (!dst_api.isValidAddress(dest_address))
+		return markAsBad(`invalid dest address ${dest_address} in transfer ${txid}, will not claim`);
 
 	if (data && !dst_api.isValidData(data))
-		return console.log(`invalid data ${data} in transfer ${txid}, will not claim`);
+		return markAsBad(`invalid data ${data} in transfer ${txid}, will not claim`);
 
 	const bThirdPartyClaiming = !dst_api.isMyAddress(dest_address);
 	if (!conf.bClaimForOthers && bThirdPartyClaiming)
