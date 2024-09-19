@@ -33,15 +33,18 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 		}
 	};
 	await waitBetweenRequests(base_url, !!api_key);
-	if (startts && !startblock && !getUrl) {
-		let url = `${base_url}/api?module=block&action=getblocknobytime&timestamp=${startts}&closest=after`;
-		if (api_key)
-			url += `&apikey=${api_key}`;
-		const resp = await requestWithUnlock(url);
+	if (startts && !startblock) {
+		const defaultGetUrl = () => {
+			let url = `${base_url}/api?module=block&action=getblocknobytime&timestamp=${startts}&closest=after`;
+			if (api_key)
+				url += `&apikey=${api_key}`;
+			return url;
+		};
+		const resp = await requestWithUnlock(getUrl ? getUrl('block-by-ts', startts) : defaultGetUrl());
 		last_req_ts[base_url] = Date.now();
-		if (resp.message === 'NOTOK' && retry_count < 10)
+		if (!getUrl && resp.message === 'NOTOK' && retry_count < 10)
 			return await retry(`got "${resp.result}", will retry`);
-		startblock = resp.result;
+		startblock = getUrl ? resp : resp.result;
 		if (!startblock) {
 			unlock();
 			throw Error(`no block number from ${base_url} for ${startts}: ${JSON.stringify(resp)}`);
@@ -57,7 +60,7 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 			url += `&apikey=${api_key}`;
 		return url;
 	};
-	const resp = await requestWithUnlock(getUrl ? getUrl(address, bInternal) : defaultGetUrl());
+	const resp = await requestWithUnlock(getUrl ? getUrl('account-history', { address, bInternal, startblock }) : defaultGetUrl());
 	last_req_ts[base_url] = Date.now();
 	if (!getUrl && resp.message === 'NOTOK' && retry_count < 10)
 		return await retry(`got "${resp.result}", will retry`);

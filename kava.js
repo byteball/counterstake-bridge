@@ -43,7 +43,18 @@ class Kava extends EvmChain {
 			address,
 			startblock,
 			startts,
-			getUrl: (address, bInternal) => `https://apis.mintscan.io/v1/evm/kava/account/${bInternal ? 'internal-tx' : 'tx'}?address=${address}&start_block=${startblock}&offset=1000`,
+			getUrl: (type, params) => {
+				if (type === 'account-history') {
+					const { address, bInternal, startblock } = params;
+					return `https://apis.mintscan.io/v1/evm/kava/account/${bInternal ? 'internal-tx' : 'tx'}?address=${address}&start_block=${startblock}&offset=1000`;
+				}
+				else if (type === 'block-by-ts') {
+					const ts = params;
+					return `https://apis.mintscan.io/v1/evm/kava/block/number-by-timestamp?timestamp=${ts}&closest=after`;
+				}
+				else
+					throw Error(`unknown type: ${type}`);
+			},
 			getOptions: () => ({
 				headers: {
 					Accept: 'application/json',
