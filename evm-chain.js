@@ -959,7 +959,19 @@ function getType(address, bridge) {
 async function processPastEvents(contract, filter, since_block, to_block, thisArg, handler) {
 	const network = thisArg ? thisArg.network : null;
 	console.log('processPastEvents', network, contract.address, since_block, to_block, filter);
-	const events = await contract.queryFilter(filter, since_block, to_block || 'latest');
+	try {
+		var events = await contract.queryFilter(filter, since_block, to_block || 'latest');
+	}
+	catch (e) {
+		console.log(`processPastEvents failed`, network, contract.address, since_block, to_block, e);
+		const errMsg = e.toString();
+		if (errMsg.includes("rate-limit") || errMsg.includes("project ID request rate exceeded")) {
+			console.log(`will retry later`);
+			await wait(100);
+			return processPastEvents(contract, filter, since_block, to_block, thisArg, handler);
+		}
+		throw e;
+	}
 	for (let event of events) {
 		console.log('--- past event', network, event);
 		let args = event.args.concat();
