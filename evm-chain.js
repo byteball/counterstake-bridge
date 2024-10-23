@@ -965,7 +965,7 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 	catch (e) {
 		console.log(`processPastEvents failed`, network, contract.address, since_block, to_block, e);
 		const errMsg = e.toString();
-		if (errMsg.includes("rate-limit") || errMsg.includes("project ID request rate exceeded")) {
+		if (errMsg.includes("Your app has exceeded its compute units per second capacity") || errMsg.includes("rate-limit") || errMsg.includes("project ID request rate exceeded")) {
 			console.log(`will retry later`);
 			await wait(100);
 			return processPastEvents(contract, filter, since_block, to_block, thisArg, handler);
