@@ -205,7 +205,8 @@ async function handleTransfer(transfer) {
 			? await dst_api.sendClaimFromPooledAssistant({ assistant_aa, amount: dst_amount, reward: dst_reward, claimed_asset, staked_asset, sender_address, dest_address, data, txid, txts })
 			: await dst_api.sendClaim({ bridge_aa, amount: dst_amount, reward: dst_reward, claimed_asset, stake, staked_asset, sender_address, dest_address, data, txid, txts });
 		console.log(`claimed transfer from ${sender_address} amount ${dst_amount} reward ${dst_reward}: ${claim_txid}`);
-		unconfirmedClaims[transfer_id] = { claim_txid, ts: Date.now() };
+		if (claim_txid)
+			unconfirmedClaims[transfer_id] = { claim_txid, ts: Date.now() };
 		setTimeout(updateMaxAmounts, 60 * 1000);
 		unlock();
 	};
