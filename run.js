@@ -10,6 +10,7 @@ const transfers = require('./transfers.js');
 const webserver = require('./webserver.js');
 const chat = require('./chat.js');
 const stats = require('./stats.js');
+const { isRateLimitError } = require('./utils.js');
 
 eventBus.on('headless_wallet_ready', async () => {
 	await db_import.initDB();
@@ -34,7 +35,7 @@ eventBus.on('headless_wallet_ready', async () => {
 process.on('unhandledRejection', up => {
 	console.error('unhandledRejection event', up, up.stack);
 	const errMsg = up.toString();
-	if (errMsg.includes("Your app has exceeded its compute units per second capacity") || errMsg.includes("rate-limit") || errMsg.includes("project ID request rate exceeded"))
+	if (isRateLimitError(errMsg))
 		return console.error("ignored unhandledRejection");
 	throw up;
 });

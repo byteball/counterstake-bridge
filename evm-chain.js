@@ -9,7 +9,7 @@ const desktopApp = require("ocore/desktop_app.js");
 const notifications = require('./notifications.js');
 const transfers = require('./transfers.js');
 const { fetchExchangeRateInNativeAsset } = require('./prices.js');
-const { wait, watchForDeadlock, getVersion, asyncCallWithTimeout } = require('./utils.js');
+const { wait, watchForDeadlock, getVersion, asyncCallWithTimeout, isRateLimitError } = require('./utils.js');
 
 const exportJson = require('./evm/build/contracts/Export.json');
 const importJson = require('./evm/build/contracts/Import.json');
@@ -965,7 +965,7 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 	catch (e) {
 		console.log(`processPastEvents failed`, network, contract.address, since_block, to_block, e);
 		const errMsg = e.toString();
-		if (errMsg.includes("Your app has exceeded its compute units per second capacity") || errMsg.includes("rate-limit") || errMsg.includes("project ID request rate exceeded")) {
+		if (isRateLimitError(errMsg)) {
 			console.log(`will retry later`);
 			await wait(100);
 			return processPastEvents(contract, filter, since_block, to_block, thisArg, handler);

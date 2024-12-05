@@ -48,8 +48,20 @@ async function asyncCallWithTimeout(asyncPromise, timeLimit = 60000) {
 	});
 }
 
+function isRateLimitError(errMsg) {
+	return (
+		errMsg.includes("Your app has exceeded its compute units per second capacity")
+		||
+		errMsg.includes("rate-limit")
+		||
+		errMsg.includes("project ID request rate exceeded")
+		||
+		errMsg.includes("Too Many Requests")
+	);
+}
 
 exports.asyncCallWithTimeout = asyncCallWithTimeout;
 exports.wait = wait;
 exports.watchForDeadlock = watchForDeadlock;
 exports.getVersion = getVersion;
+exports.isRateLimitError = isRateLimitError;
