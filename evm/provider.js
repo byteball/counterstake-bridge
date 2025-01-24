@@ -40,7 +40,8 @@ function getProvider(network, bFree) {
 		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://matic-mumbai--ws.datahub.figment.io/apikey/${conf.datahub_key}` : `wss://matic-mainnet--ws.datahub.figment.io/apikey/${conf.datahub_key}`);
 
 		case 'Kava':
-			return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://wevm.testnet.kava.io` : `wss://wevm.kava.io`);
+		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://wevm.testnet.kava.io` : `wss://wevm.kava.io`);
+			return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://wevm.testnet.kava.io` : `wss://wevm.kava-rpc.com`);
 	}
 	throw Error(`unknown network ` + network);
 }
