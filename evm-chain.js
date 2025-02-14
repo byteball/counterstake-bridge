@@ -75,10 +75,21 @@ class EvmChain {
 		return last_block;
 	}
 
+	async getBlockNumber() {
+		try {
+			return await this.#provider.getBlockNumber();
+		}
+		catch (e) {
+			console.log(`getBlockNumber ${this.network} failed, will try again after waiting`, e);
+			await wait(100);
+			return await this.getBlockNumber();
+		}
+	}
+
 	async getTopAvailableBlock() {
 		if (!this.getMaxBlockRange())
 			return 0;
-		const currentBlockNumber = await this.#provider.getBlockNumber();
+		const currentBlockNumber = await this.getBlockNumber();
 		const top_available_block = currentBlockNumber - this.getMaxBlockRange() + 100;
 		return top_available_block;
 	}
@@ -126,7 +137,7 @@ class EvmChain {
 	}
 
 	async getLastStableTimestamp() {
-		const currentBlockNumber = await this.#provider.getBlockNumber();
+		const currentBlockNumber = await this.getBlockNumber();
 		if (!currentBlockNumber)
 			throw Error(`no current block number in ${this.network}`);
 		const last_finalized_block_number = Math.max(currentBlockNumber - conf.evm_count_blocks_for_finality, 0);
@@ -846,7 +857,7 @@ class EvmChain {
 		unlock();
 		console.log(`catching up ${this.network} done`);
 		this.#bCatchingUp = false;
-		await this.updateLastBlock(await this.#provider.getBlockNumber());
+		await this.updateLastBlock(await this.getBlockNumber());
 	}
 
 	constructor(network, factory_contract_addresses, assistant_factory_contract_addresses, provider){
