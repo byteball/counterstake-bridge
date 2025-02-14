@@ -12,7 +12,8 @@ function getProvider(network, bFree) {
 				throw Error("rinkeby was discontinued");
 			return process.env.devnet
 				? new ethers.providers.JsonRpcProvider("http://0.0.0.0:7545") // ganache
-				: new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://eth-none.g.alchemy.com/v2/${conf.alchemy_keys.eth.testnet}` : `wss://eth-mainnet.g.alchemy.com/v2/${conf.alchemy_keys.eth.mainnet}`);
+				: new ethers.providers.WebSocketProvider(`wss://mainnet.gateway.tenderly.co`);
+		//		: new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://eth-none.g.alchemy.com/v2/${conf.alchemy_keys.eth.testnet}` : `wss://eth-mainnet.g.alchemy.com/v2/${conf.alchemy_keys.eth.mainnet}`);
 		//		: ethers.providers.InfuraProvider.getWebSocketProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id);
 		//	return new ethers.providers.InfuraProvider(process.env.testnet ? "rinkeby" : "homestead", conf.infura_project_id);
 		
@@ -33,9 +34,9 @@ function getProvider(network, bFree) {
 			return new ethers.providers.JsonRpcProvider(url);
 			*/
 		//	return new ethers.providers.JsonRpcProvider((process.env.testnet ? `https://polygon-mumbai.infura.io/v3/${conf.infura_project_id}` : `https://polygon-mainnet.infura.io/v3/${conf.infura_project_id}`));
-			return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://polygon-mumbai.infura.io/v3/ws/${conf.infura_project_id}` : `wss://polygon-mainnet.infura.io/ws/v3/${conf.infura_project_id}`);
+		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://polygon-mumbai.infura.io/v3/ws/${conf.infura_project_id}` : `wss://polygon-mainnet.infura.io/ws/v3/${conf.infura_project_id}`);
 		//	return new ethers.providers.JsonRpcProvider((process.env.testnet ? `https://rpc.ankr.com/polygon_mumbai` : `https://polygon-rpc.com`));
-		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://rpc.ankr.com/polygon_mumbai/ws/${conf.ankr_key}` : `wss://rpc.ankr.com/polygon/ws/${conf.ankr_key}`);
+			return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://rpc.ankr.com/polygon_mumbai/ws/${conf.ankr_key}` : `wss://rpc.ankr.com/polygon/ws/${conf.ankr_key}`);
 		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://polygon-mumbai.g.alchemy.com/v2/${conf.alchemy_keys.polygon.testnet}` : `wss://polygon-mainnet.g.alchemy.com/v2/${conf.alchemy_keys.polygon.mainnet}`);
 		//	return new ethers.providers.WebSocketProvider(process.env.testnet ? `wss://matic-mumbai--ws.datahub.figment.io/apikey/${conf.datahub_key}` : `wss://matic-mainnet--ws.datahub.figment.io/apikey/${conf.datahub_key}`);
 
