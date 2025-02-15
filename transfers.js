@@ -201,9 +201,16 @@ async function handleTransfer(transfer) {
 				return unlock();
 			}
 		}
-		const claim_txid = bClaimFromPooledAssistant
-			? await dst_api.sendClaimFromPooledAssistant({ assistant_aa, amount: dst_amount, reward: dst_reward, claimed_asset, staked_asset, sender_address, dest_address, data, txid, txts })
-			: await dst_api.sendClaim({ bridge_aa, amount: dst_amount, reward: dst_reward, claimed_asset, stake, staked_asset, sender_address, dest_address, data, txid, txts });
+		let claim_txid;
+		if (bClaimFromPooledAssistant) {
+			claim_txid = await dst_api.sendClaimFromPooledAssistant({ assistant_aa, amount: dst_amount, reward: dst_reward, claimed_asset, staked_asset, sender_address, dest_address, data, txid, txts });
+			if (!claim_txid) {
+				console.log(`claiming from pooled assistant failed, will try to claim myself`);
+				bClaimFromPooledAssistant = false;
+			}
+		}
+		if (!bClaimFromPooledAssistant)
+			claim_txid = await dst_api.sendClaim({ bridge_aa, amount: dst_amount, reward: dst_reward, claimed_asset, stake, staked_asset, sender_address, dest_address, data, txid, txts });
 		console.log(`claimed transfer from ${sender_address} amount ${dst_amount} reward ${dst_reward}: ${claim_txid}`);
 		if (claim_txid)
 			unconfirmedClaims[transfer_id] = { claim_txid, ts: Date.now() };
