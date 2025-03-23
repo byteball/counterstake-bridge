@@ -196,7 +196,7 @@ async function handleTransfer(transfer) {
 						&& dst_amount.lte(await dst_api.getMyBalance(claimed_asset))))
 				: stake.lte(await dst_api.getMyBalance(staked_asset));
 			if (!bHaveEnoughBalance) {
-				if (!transfer_id || transfer_id > 3663) // transfer_id available only when retrying from the db
+				if (!transfer_id || transfer_id > 6947) // transfer_id available only when retrying from the db
 					notifications.notifyAdmin(`not enough balance to claim ${dst_amount / 10 ** dst_asset_decimals} ${claimed_symbol} on ${dst_network} (${claimed_asset}) in transfer ${txid} from ${sender_address} (${src_network}) to ${dest_address}`);
 				return unlock();
 			}
