@@ -2,10 +2,15 @@
 const { ethers } = require("ethers");
 const conf = require('ocore/conf.js');
 
+function createProvider(url) {
+	return url.startsWith('wss://') ? new ethers.providers.WebSocketProvider(url) : new ethers.providers.JsonRpcProvider(url);
+}
 
 function getProvider(network, bFree) {
 	if (process.env.devnet)
 		return new ethers.providers.JsonRpcProvider("http://0.0.0.0:7545") // ganache
+	if (process.env[network + '_provider'])
+		return createProvider(process.env[network + '_provider']);
 	switch (network) {
 		case 'Ethereum':
 			if (process.env.testnet)
