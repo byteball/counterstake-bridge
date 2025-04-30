@@ -59,6 +59,8 @@ function isRateLimitError(errMsg) {
 		errMsg.includes("project ID request rate exceeded")
 		||
 		errMsg.includes("Too Many Requests")
+		||
+		errMsg.includes("Rate limited")
 	);
 }
 
