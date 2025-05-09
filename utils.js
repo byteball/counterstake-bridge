@@ -61,6 +61,8 @@ function isRateLimitError(errMsg) {
 		errMsg.includes("Too Many Requests")
 		||
 		errMsg.includes("Rate limited")
+		||
+		errMsg.includes("RequestRateLimitExceeded")
 	);
 }
 
