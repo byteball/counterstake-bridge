@@ -1106,12 +1106,24 @@ async function start() {
 		networkApi.Kava = new Kava();
 
 	let caughtUp = {};
+	let disconnected_ts = {};
+
+	setInterval(() => {
+		console.log('disconnected networks', disconnected_ts);
+		for (let network of disconnected_ts) {
+			const elapsed = Date.now() - disconnected_ts[network];
+			if (elapsed > 3600_000)
+				throw Error(`${network} disconnected for too long`);
+		}
+	}, 600_000)
 
 	// reconnect to Ethereum websocket
 	eventBus.on('network_disconnected', async (network) => {
 		if (!caughtUp[network])
 			throw Error(`${network} disconnected before having caught up`);
 		console.log('will reconnect to', network);
+		if (!disconnected_ts[network])
+			disconnected_ts[network] = Date.now();
 		if (network === 'Ethereum')
 			networkApi.Ethereum = new Ethereum();
 		else if (network === 'BSC')
@@ -1123,6 +1135,7 @@ async function start() {
 		else
 			throw Error(`unknown network disconnected ${network}`);
 		await restartNetwork(network);
+		delete disconnected_ts[network];
 	});
 
 	// some bridges might be incomplete: only import or only export
