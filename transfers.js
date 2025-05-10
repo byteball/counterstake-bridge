@@ -1110,7 +1110,7 @@ async function start() {
 
 	setInterval(() => {
 		console.log('disconnected networks', disconnected_ts);
-		for (let network of disconnected_ts) {
+		for (let network in disconnected_ts) {
 			const elapsed = Date.now() - disconnected_ts[network];
 			if (elapsed > 3600_000)
 				throw Error(`${network} disconnected for too long`);
