@@ -39,7 +39,7 @@ class Ethereum extends EvmChain {
 	}
 
 	getMaxBlockRange() {
-		return 1000;
+		return 500;
 	}
 
 	async getAddressBlocks(address, startblock, startts) {
