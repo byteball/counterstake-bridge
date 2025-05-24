@@ -1113,9 +1113,9 @@ async function start() {
 		for (let network in disconnected_ts) {
 			const elapsed = Date.now() - disconnected_ts[network];
 			if (elapsed > 3600_000)
-				throw Error(`${network} disconnected for too long`);
+				notifications.notifyAdmin(`${network} disconnected for too long`, `${network} disconnected for ${elapsed / 1000}s`);
 		}
-	}, 600_000)
+	}, 3600_000)
 
 	// reconnect to Ethereum websocket
 	eventBus.on('network_disconnected', async (network) => {
