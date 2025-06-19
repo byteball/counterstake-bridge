@@ -990,6 +990,7 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 		await handler.apply(thisArg, args);
 	}
 	console.log('processPastEvents', network, contract.address, since_block, to_block, `found ${events.length} events`);
+	await wait(50);
 	return events.length;
 }
 
