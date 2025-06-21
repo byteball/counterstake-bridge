@@ -113,11 +113,21 @@ class EvmChain {
 		return await token.balanceOf(this.#wallet.address);
 	}
 
-	async getBalance(address, asset) {
-		if (asset === AddressZero)
-			return await this.#provider.getBalance(address);
-		const token = new ethers.Contract(asset, erc20Json.abi, this.#provider);
-		return await token.balanceOf(address);
+	async getBalance(address, asset, bExternalAddress, attempt = 0) {
+		try {
+			if (asset === AddressZero)
+				return await this.#provider.getBalance(address);
+			const token = new ethers.Contract(asset, erc20Json.abi, this.#provider);
+			return await token.balanceOf(address);
+		}
+		catch (e) {
+			console.log(`getBalance ${address} ${asset} attempt ${attempt} failed`, e);
+			if (attempt >= 10)
+				throw e;
+			attempt++;
+			await wait(attempt * 30_000);
+			return getBalance(address, asset, bExternalAddress, attempt);
+		}
 	}
 	
 	async getTransaction(txid) {
