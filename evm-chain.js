@@ -126,7 +126,7 @@ class EvmChain {
 				throw e;
 			attempt++;
 			await wait(attempt * 30_000);
-			return getBalance(address, asset, bExternalAddress, attempt);
+			return this.getBalance(address, asset, bExternalAddress, attempt);
 		}
 	}
 	
