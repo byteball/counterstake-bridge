@@ -1001,8 +1001,10 @@ async function updateMaxAmounts() {
 		return unlock('updateMaxAmounts done, no active claimants');
 	}
 
+	let bTimedOut = false;
 	const timeout = setTimeout(() => {
-		unlock(`updateMaxAmounts is taking too long, aborting`);
+		bTimedOut = true;
+		unlock(`updateMaxAmounts is taking too long, abandoning`);
 	}, 1800 * 1000);
 
 	let _maxAmounts = {};
@@ -1064,7 +1066,8 @@ async function updateMaxAmounts() {
 	clearTimeout(timeout);
 	maxAmounts = _maxAmounts;
 	console.log('done updateMaxAmounts', maxAmounts);
-	unlock();
+	if (!bTimedOut)
+		unlock();
 }
 
 function getMaxAmounts() {
