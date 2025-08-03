@@ -15,12 +15,12 @@ async function waitBetweenRequests(base_url, bWithApiKey) {
 	}
 }
 
-async function getAddressHistory({ base_url, address, startblock, startts, api_key, bInternal = false, getUrl, getOptions, retry_count = 0 }) {
+async function getAddressHistory({ base_url, chainid, address, startblock, startts, api_key, bInternal = false, getUrl, getOptions, retry_count = 0 }) {
 	const unlock = await mutex.lock(base_url);
 	const retry = async (msg) => {
 		unlock(msg);
 		retry_count++;
-		return await getAddressHistory({ base_url, address, startblock, startts, api_key, bInternal, getUrl, getOptions, retry_count });
+		return await getAddressHistory({ base_url, chainid, address, startblock, startts, api_key, bInternal, getUrl, getOptions, retry_count });
 	};
 	const requestWithUnlock = async (url) => {
 		try {
@@ -35,7 +35,7 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 	await waitBetweenRequests(base_url, !!api_key);
 	if (startts && !startblock) {
 		const defaultGetUrl = () => {
-			let url = `${base_url}/api?module=block&action=getblocknobytime&timestamp=${startts}&closest=after`;
+			let url = `${base_url}/api?chainid=${chainid}&module=block&action=getblocknobytime&timestamp=${startts}&closest=after`;
 			if (api_key)
 				url += `&apikey=${api_key}`;
 			return url;
@@ -53,7 +53,7 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 	}
 	const defaultGetUrl = () => {
 		const action = bInternal ? 'txlistinternal' : 'txlist';
-		let url = `${base_url}/api?module=account&action=${action}&address=${address}`;
+		let url = `${base_url}/api?chainid=${chainid}&module=account&action=${action}&address=${address}`;
 		if (startblock)
 			url += `&startblock=${startblock}`;
 		if (api_key)
@@ -71,10 +71,10 @@ async function getAddressHistory({ base_url, address, startblock, startts, api_k
 	return history;
 }
 
-async function getAddressBlocks({ base_url, address, startblock, startts, api_key, getUrl, getOptions, count = 0 }) {
+async function getAddressBlocks({ base_url, chainid, address, startblock, startts, api_key, getUrl, getOptions, count = 0 }) {
 	try {
-		const ext_history = await getAddressHistory({ base_url, address, startblock, startts, api_key, bInternal: false, getUrl, getOptions });
-		const int_history = await getAddressHistory({ base_url, address, startblock, startts, api_key, bInternal: true, getUrl, getOptions });
+		const ext_history = await getAddressHistory({ base_url, chainid, address, startblock, startts, api_key, bInternal: false, getUrl, getOptions });
+		const int_history = await getAddressHistory({ base_url, chainid, address, startblock, startts, api_key, bInternal: true, getUrl, getOptions });
 		const history = ext_history.concat(int_history);
 		let blocks = _.uniq(history.map(tx => parseInt(tx.blockNumber)));
 		if (startblock) {
