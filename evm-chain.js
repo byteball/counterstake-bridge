@@ -34,6 +34,7 @@ class EvmChain {
 	#wallet;
 	#contractsByAddress = {};
 	#bCatchingUp = true;
+	#last_caughtup_block;
 	#last_tx_ts = 0;
 	#bWaitForMined = false; // set to true for unreliable providers that might lose a transaction
 	#approved = {};
@@ -836,10 +837,10 @@ class EvmChain {
 
 	// called on start-up to handle missed transfers
 	async catchup() {
-		console.log(`will catch up ${this.network}`);
+		console.log(`will catch up ${this.network}, last caught up block ${this.#last_caughtup_block}`);
 
 		// get events that are beyond the block range
-		const last_block = Math.max(await this.getLastBlock() - 100, 0);
+		const last_block = this.#last_caughtup_block || Math.max(await this.getLastBlock() - 100, 0);
 		const top_available_block = await this.getTopAvailableBlock();
 		if (top_available_block > last_block) {
 			for (let address in this.#contractsByAddress) {
@@ -856,7 +857,7 @@ class EvmChain {
 			}
 		}
 
-		const since_block = await this.getSinceBlock();
+		const since_block = (top_available_block || !this.#last_caughtup_block) ? await this.getSinceBlock() : this.#last_caughtup_block;
 		for (let address in this.#contractsByAddress) {
 			const contract = this.#contractsByAddress[address];
 			if (!contract.filters.NewClaim) // not a bridge, must be an assistant
@@ -867,7 +868,9 @@ class EvmChain {
 		unlock();
 		console.log(`catching up ${this.network} done`);
 		this.#bCatchingUp = false;
-		await this.updateLastBlock(await this.getBlockNumber());
+		const blockNumber = await this.getBlockNumber();
+		this.#last_caughtup_block = Math.max(blockNumber - 100, 0);
+		await this.updateLastBlock(blockNumber);
 	}
 
 	constructor(network, factory_contract_addresses, assistant_factory_contract_addresses, provider){
@@ -881,11 +884,15 @@ class EvmChain {
 		if (!cachedMinTxAges[network])
 			cachedMinTxAges[network] = {};
 
+		// we might miss some events if the provider doesn't send them
+		const catchupInterval = setInterval(() => this.catchup(), 12 * 3600 * 1000);
+
 		if (provider._websocket && !process.env.devnet) {
 			let closed = false;
 			const forgetAndEmitDisconnected = () => {
 				clearTimeout(scheduledReconnectTimeout);
 				clearInterval(interval);
+				clearInterval(catchupInterval);
 				closed = true;
 				this.forget();
 				provider._websocket.removeAllListeners();
