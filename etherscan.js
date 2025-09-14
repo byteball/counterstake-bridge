@@ -92,7 +92,7 @@ async function getAddressBlocks({ base_url, chainid, address, startblock, startt
 		console.log(`will retry getAddressBlocks ${base_url} in 60 sec`);
 		await wait(60 * 1000);
 		count++;
-		return await getAddressBlocks({ base_url, address, startblock, startts, api_key, getUrl, getOptions, count });
+		return await getAddressBlocks({ base_url, chainid, address, startblock, startts, api_key, getUrl, getOptions, count });
 	}
 }
 
