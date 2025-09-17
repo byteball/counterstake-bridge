@@ -38,7 +38,7 @@ class BSC extends EvmChain {
 	}
 
 	async getAddressBlocks(address, startblock, startts) {
-		return await getAddressBlocks({ base_url: etherscan_base_url, chainid: 56, address, startblock, startts, api_key: conf.bsc_api_key });
+		return await getAddressBlocks({ base_url: etherscan_base_url, chainid: 56, address, startblock, startts, api_key: conf.etherscan_api_key });
 	}
 
 }
