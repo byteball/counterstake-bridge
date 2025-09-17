@@ -4,7 +4,7 @@ const EvmChain = require('./evm-chain.js');
 const { getProvider } = require("./evm/provider.js");
 const { getAddressBlocks } = require("./etherscan.js");
 
-const etherscan_base_url = process.env.testnet ? 'https://api-testnet.bscscan.com' : 'https://api.bscscan.com';
+const etherscan_base_url = process.env.testnet ? 'https://api-testnet.bscscan.com' : 'https://api.etherscan.io/v2';
 
 let bCreated = false;
 
@@ -38,7 +38,7 @@ class BSC extends EvmChain {
 	}
 
 	async getAddressBlocks(address, startblock, startts) {
-		return await getAddressBlocks({ base_url: etherscan_base_url, address, startblock, startts, api_key: conf.bsc_api_key });
+		return await getAddressBlocks({ base_url: etherscan_base_url, chainid: 56, address, startblock, startts, api_key: conf.bsc_api_key });
 	}
 
 }
