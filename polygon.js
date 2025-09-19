@@ -5,7 +5,7 @@ const EvmChain = require('./evm-chain.js');
 const { getProvider } = require("./evm/provider.js");
 const { getAddressBlocks } = require("./etherscan.js");
 
-const etherscan_base_url = process.env.testnet ? 'https://api-testnet.polygonscan.com' : 'https://api.polygonscan.com';
+const etherscan_base_url = process.env.testnet ? 'https://api-testnet.polygonscan.com' : 'https://api.etherscan.io/v2';
 
 let bCreated = false;
 
@@ -47,7 +47,7 @@ class Polygon extends EvmChain {
 	}
 
 	async getAddressBlocks(address, startblock, startts) {
-		return await getAddressBlocks({ base_url: etherscan_base_url, address, startblock, startts, api_key: conf.polygon_api_key });
+		return await getAddressBlocks({ base_url: etherscan_base_url, chainid: 137, address, startblock, startts, api_key: conf.etherscan_api_key });
 	}
 
 }
