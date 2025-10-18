@@ -550,6 +550,9 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 
 async function handleWithdrawal(bridge, type, claim_num, withdrawal_txid) {
 	const { bridge_id, export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_asset, foreign_asset, stake_asset, home_symbol, home_network, foreign_network } = bridge;
+	const bCompleteBridge = import_aa && export_aa;
+	if (!bCompleteBridge)
+		return console.log(`skipping withdrawal of ${home_symbol} @ ${home_network}-${foreign_network} on bridge ${bridge_id} as the bridge is still incomplete`);
 	const network = type === 'expatriation' ? foreign_network : home_network;
 	const unlock = await mutex.lock(network);
 	const claim_info = { claim_num, bridge_id, type };
