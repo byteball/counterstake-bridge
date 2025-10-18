@@ -34,7 +34,7 @@ class BSC extends EvmChain {
 	}
 
 	getStaticGasPrice() {
-		return process.env.testnet ? 5 : 3; // in gwei
+		return process.env.testnet ? 5 : 0; // in gwei
 	}
 
 	async getAddressBlocks(address, startblock, startts) {
