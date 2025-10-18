@@ -796,8 +796,12 @@ async function recheckOldTransfers() {
 		return;
 	let unlock = await mutex.lock('recheckOldTransfers');
 	const transfers = await db.query(
-		`SELECT transfers.* FROM transfers LEFT JOIN claims USING(transfer_id)
+		`SELECT transfers.*
+		FROM transfers
+		LEFT JOIN claims USING(transfer_id)
+		LEFT JOIN bridges ON transfers.bridge_id=bridges.bridge_id
 		WHERE claim_num IS NULL AND is_confirmed=1 AND is_bad=0 AND transfers.reward>=0
+			AND export_aa IS NOT NULL AND import_aa IS NOT NULL
 			AND transfers.creation_date < ${db.addTime('-1 MINUTE')}
 			${process.env.testnet ? `AND transfers.creation_date > ${db.addTime('-30 DAY')}` : ''}
 		ORDER BY transfer_id`
