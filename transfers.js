@@ -484,8 +484,10 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 	if (!bridge.import_aa || !bridge.export_aa) // maybe it became complete while we were waiting for the lock?
 		bridge = await getBridge(bridge.bridge_id);
 	
-	const { bridge_id, export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_asset, foreign_asset, stake_asset, home_network, foreign_network } = bridge;
+	const { bridge_id, export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_asset, foreign_asset, stake_asset, home_symbol, home_network, foreign_network } = bridge;
 	const bCompleteBridge = import_aa && export_aa;
+	if (!bCompleteBridge)
+		return console.log(`skipping challenge of ${home_symbol} @ ${home_network}-${foreign_network} in challenge tx ${challenge_txid} of claim ${claim_num} on bridge ${bridge_id} as the bridge is still incomplete`);
 	const bridge_aa = type === 'expatriation' ? import_aa : export_aa;
 	if (!bridge_aa)
 		throw Error(`null aa in challenge ${challenge_txid} on claim ${claim_num}`);
