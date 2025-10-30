@@ -998,7 +998,7 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 			await wait(100);
 			return processPastEvents(contract, filter, since_block, to_block, thisArg, handler);
 		}
-		if (errMsg.includes("internal error") || errMsg.includes("temporarily unavailable")) {
+		if (errMsg.includes("internal error") || errMsg.includes("temporarily unavailable") || errMsg.includes("Request timeout on the free tier")) {
 			console.log(`transient, will retry later`);
 			await wait(10_000);
 			return processPastEvents(contract, filter, since_block, to_block, thisArg, handler);
