@@ -35,7 +35,7 @@ eventBus.on('headless_wallet_ready', async () => {
 process.on('unhandledRejection', up => {
 	console.error('unhandledRejection event', up, up.stack);
 	const errMsg = up.toString();
-	if (isRateLimitError(errMsg))
+	if (isRateLimitError(errMsg) || errMsg.includes("Cannot read properties of undefined (reading 'callback')"))
 		return console.error("ignored unhandledRejection");
 	throw up;
 });
