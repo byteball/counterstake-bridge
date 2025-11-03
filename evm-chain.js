@@ -1003,6 +1003,14 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 			await wait(10_000);
 			return processPastEvents(contract, filter, since_block, to_block, thisArg, handler);
 		}
+		let arrMatches = errMsg.match(/invalid block range: from (\d+) to (\d+)/);
+		if (arrMatches) {
+			const to = +arrMatches[2];
+			if (to === since_block - 1 && to_block === 0) {
+				console.log(`buggy getLogs latest, will retry with range [since_block, since_block]`);
+				return processPastEvents(contract, filter, since_block, since_block, thisArg, handler);
+			}
+		}
 		throw e;
 	}
 	for (let event of events) {
