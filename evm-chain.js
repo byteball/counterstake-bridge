@@ -91,7 +91,7 @@ class EvmChain {
 		if (!this.getMaxBlockRange())
 			return 0;
 		const currentBlockNumber = await this.getBlockNumber();
-		const top_available_block = currentBlockNumber - this.getMaxBlockRange() + 100;
+		const top_available_block = currentBlockNumber - Math.max(this.getMaxBlockRange() - 100, 0);
 		return top_available_block;
 	}
 
