@@ -678,7 +678,7 @@ class EvmChain {
 		if (block_range) {
 			const top_available_block = await this.getTopAvailableBlock();
 			if (top_available_block > since_block - 100) {
-				to_block = since_block + block_range;
+				to_block = since_block + block_range - 1;
 				console.log(`tx ${txid} exists but is out of block range, will scan events until block ${to_block}`);
 			}
 		}
