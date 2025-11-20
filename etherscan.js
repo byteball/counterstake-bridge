@@ -19,6 +19,7 @@ async function getAddressHistory({ base_url, chainid, address, startblock, start
 	const unlock = await mutex.lock(base_url);
 	const retry = async (msg) => {
 		unlock(msg);
+		await wait(30_000);
 		retry_count++;
 		return await getAddressHistory({ base_url, chainid, address, startblock, startts, api_key, bInternal, getUrl, getOptions, retry_count });
 	};
