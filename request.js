@@ -1,11 +1,12 @@
 const fetch = require('node-fetch');
 
 
-const request = async (url, options) => {
+const request = async (url, options, headers) => {
 	const response = await fetch(url, {
 		headers: {
 			Accept: 'application/json',
 			'Content-Type': 'application/json',
+			...headers
 		},
 		...options
 	})
