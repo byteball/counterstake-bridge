@@ -28,7 +28,7 @@ async function getAddressHistory({ base_url, chainid, address, startblock, start
 			return await request(url, getOptions ? getOptions() : {});
 		}
 		catch (e) {
-			console.log(`request ${url} failed`, e);
+			console.log(`request ${url} on chain ${chainid} failed`, e);
 			unlock();
 			throw e;
 		}
@@ -48,7 +48,7 @@ async function getAddressHistory({ base_url, chainid, address, startblock, start
 		startblock = getUrl ? resp : resp.result;
 		if (!startblock) {
 			unlock();
-			throw Error(`no block number from ${base_url} for ${startts}: ${JSON.stringify(resp)}`);
+			throw Error(`no block number from ${base_url} chain ${chainid} for ${startts}: ${JSON.stringify(resp)}`);
 		}
 		await waitBetweenRequests(base_url);
 	}
@@ -64,11 +64,11 @@ async function getAddressHistory({ base_url, chainid, address, startblock, start
 	const resp = await requestWithUnlock(getUrl ? getUrl('account-history', { address, bInternal, startblock }) : defaultGetUrl());
 	last_req_ts[base_url] = Date.now();
 	if (!getUrl && resp.message === 'NOTOK' && retry_count < 10)
-		return await retry(`got "${resp.result}", will retry`);
+		return await retry(`got "${resp.result}" on chain ${chainid}, will retry`);
 	unlock();
 	const history = getUrl ? resp : resp.result;
 	if (!Array.isArray(history))
-		throw Error(`no history from ${base_url} for ${address}: ${JSON.stringify(resp)}`);
+		throw Error(`no history from ${base_url} on chain ${chainid} for ${address}: ${JSON.stringify(resp)}`);
 	return history;
 }
 
@@ -87,10 +87,10 @@ async function getAddressBlocks({ base_url, chainid, address, startblock, startt
 		return blocks;
 	}
 	catch (e) {
-		console.log(`getAddressBlocks ${base_url} failed`, e);
+		console.log(`getAddressBlocks ${base_url} on chain ${chainid} failed`, e);
 		if (count > 5)
 			throw e;
-		console.log(`will retry getAddressBlocks ${base_url} in 60 sec`);
+		console.log(`will retry getAddressBlocks ${base_url} on chain ${chainid} in 60 sec`);
 		await wait(60 * 1000);
 		count++;
 		return await getAddressBlocks({ base_url, chainid, address, startblock, startts, api_key, getUrl, getOptions, count });
