@@ -63,8 +63,8 @@ async function getAddressHistory({ base_url, chainid, address, startblock, start
 	};
 	const resp = await requestWithUnlock(getUrl ? getUrl('account-history', { address, bInternal, startblock }) : defaultGetUrl());
 	last_req_ts[base_url] = Date.now();
-	if (!getUrl && resp.message === 'NOTOK' && retry_count < 10)
-		return await retry(`got "${resp.result}" on chain ${chainid}, will retry`);
+	if (!getUrl && (resp.message === 'NOTOK' || !resp.result) && retry_count < 10)
+		return await retry(`got "${resp.result}" "${resp.message}" on chain ${chainid}, will retry`);
 	unlock();
 	const history = getUrl ? resp : resp.result;
 	if (!Array.isArray(history))
