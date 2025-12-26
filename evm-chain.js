@@ -181,9 +181,10 @@ class EvmChain {
 				this.#cached_gas_price *= this.getGasPriceMultiplier();
 		}
 		catch (e) {
+			console.log('provider getGasPrice', this.network, 'failed', e, 'old cached value', this.#cached_gas_price);
 			if (!this.#cached_gas_price)
 				throw e;
-			console.log('provider getGasPrice', this.network, 'failed', e, 'using old cached value', this.#cached_gas_price);
+			console.log(this.network, 'using old cached value', this.#cached_gas_price);
 			this.#last_gas_price_ts = Date.now();
 			return this.#cached_gas_price;
 		}
