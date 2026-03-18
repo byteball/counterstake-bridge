@@ -1197,6 +1197,7 @@ async function start() {
 	}
 	await Promise.all(catchups);
 	console.log('catching up done');
+	console.error('catching up done');
 	bCatchingUp = false;
 	setTimeout(() => { bCatchingUpOrHandlingPostponedEvents = false; }, 3 * 60 * 1000);
 
