@@ -136,7 +136,7 @@ describe('Creating export transaction', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.bob, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("received stake 499998000 is less than the required stake 500000000")
+		expect(response.response.error?.message).to.be.eq("received stake 499998000 is less than the required stake 500000000")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.validUnit
 	})
@@ -218,7 +218,7 @@ describe('Creating export transaction', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.bob, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("this transfer has already been claimed")
+		expect(response.response.error?.message).to.be.eq("this transfer has already been claimed")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.validUnit
 	})
@@ -238,7 +238,7 @@ describe('Creating export transaction', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.alice, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("the outcome yes is already current")
+		expect(response.response.error?.message).to.be.eq("the outcome yes is already current")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.validUnit
 	})
@@ -258,7 +258,7 @@ describe('Creating export transaction', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.bob, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("challenging period is still ongoing")
+		expect(response.response.error?.message).to.be.eq("challenging period is still ongoing")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.null
 
@@ -326,7 +326,7 @@ describe('Creating export transaction', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.bob, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("already withdrawn")
+		expect(response.response.error?.message).to.be.eq("already withdrawn")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.null
 
@@ -349,7 +349,7 @@ describe('Creating export transaction', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.bob, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("this transfer has already been claimed")
+		expect(response.response.error?.message).to.be.eq("this transfer has already been claimed")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.validUnit
 	})
@@ -503,7 +503,7 @@ describe('Creating export transaction', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.bob, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("challenging period is still ongoing")
+		expect(response.response.error?.message).to.be.eq("challenging period is still ongoing")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.null
 	})
@@ -619,7 +619,7 @@ describe('Creating export transaction', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.alice, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("you are not the recipient and you didn't stake on the winning outcome or you have already withdrawn")
+		expect(response.response.error?.message).to.be.eq("you are not the recipient and you didn't stake on the winning outcome or you have already withdrawn")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.null
 	})

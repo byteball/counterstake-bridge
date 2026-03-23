@@ -537,7 +537,8 @@ describe('Import assistant', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.manager, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq(`one of secondary AAs bounced with error: ${this.import_aa}: this transfer has already been claimed`)
+		expect(response.response.error?.message).to.be.eq(`one of secondary AAs bounced with error: `)
+		expect(response.response.error.callChain.next.message).to.be.eq(`this transfer has already been claimed`)
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.null
 	})
@@ -561,7 +562,7 @@ describe('Import assistant', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.bob, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("no such claim or it is not finished yet")
+		expect(response.response.error?.message).to.be.eq("no such claim or it is not finished yet")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.null
 	})
@@ -655,7 +656,7 @@ describe('Import assistant', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.bob, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("this claim is already accounted for")
+		expect(response.response.error?.message).to.be.eq("this claim is already accounted for")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.null
 	})
@@ -676,7 +677,7 @@ describe('Import assistant', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.bob, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("already issued")
+		expect(response.response.error?.message).to.be.eq("already issued")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.null
 
@@ -701,7 +702,8 @@ describe('Import assistant', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.bob, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq(`one of secondary AAs bounced with error: ${this.import_aa}: this transfer has already been claimed`)
+		expect(response.response.error?.message).to.be.eq(`one of secondary AAs bounced with error: `)
+		expect(response.response.error.callChain.next.message).to.be.eq(`this transfer has already been claimed`)
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.null
 	})
@@ -854,7 +856,7 @@ describe('Import assistant', function () {
 		const { response } = await this.network.getAaResponseToUnitOnNode(this.bob, unit)
 	//	await this.network.witnessUntilStable(response.response_unit)
 
-		expect(response.response.error).to.be.eq("challenging period is still ongoing")
+		expect(response.response.error?.message).to.be.eq("challenging period is still ongoing")
 		expect(response.bounced).to.be.true
 		expect(response.response_unit).to.be.null
 	})
