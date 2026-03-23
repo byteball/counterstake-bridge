@@ -182,7 +182,7 @@
 					if ($amount > $balance)
 						bounce("your balance is only " || $balance);
 					foreach($names, 12, $name => {
-						if (var['choice_' || trigger.address || '_' || $name])
+						if (exists(var['choice_' || trigger.address || '_' || $name]))
 							bounce("support for " || $name || " not removed yet");
 					});
 				}`,
