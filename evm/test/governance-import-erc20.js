@@ -263,12 +263,12 @@ contract("Governance for importing with USDC stakes", async accounts => {
 	// });
 
 	it("alice suggests setting challenging periods that get shorter and fails", async () => {
-		let promise = challengingPeriodsVotedValue.voteAndDeposit([new BN(3600), new BN(1800)], ether('10'), { from: aliceAccount });
+		let promise = challengingPeriodsVotedValue.voteAndDeposit([new BN(13 * 3600), new BN(12 * 3600)], ether('10'), { from: aliceAccount });
 		await expectRevert(promise, "subsequent periods cannot get shorter");
 	});
 
 	it("alice suggests setting too long challenging periods and fails", async () => {
-		let promise = largeChallengingPeriodsVotedValue.voteAndDeposit([new BN(3600), new BN(3 * 365 * 24 * 3600 + 1)], ether('10'), { from: aliceAccount });
+		let promise = largeChallengingPeriodsVotedValue.voteAndDeposit([new BN(12 * 3600), new BN(3 * 365 * 24 * 3600 + 1)], ether('10'), { from: aliceAccount });
 		await expectRevert(promise, "some periods are longer than 3 years");
 	});
 
@@ -308,7 +308,7 @@ contract("Governance for importing with USDC stakes", async accounts => {
 	});
 
 	it("bob waits and commits ratio = 1.2", async () => {
-		await time.increase(10 * 24 * 3600);
+		await time.increase(11 * 24 * 3600);
 		const old_value = (await instance.settings()).ratio100;
 		expect(old_value).to.be.bignumber.equal(new BN(100));
 
@@ -608,7 +608,7 @@ contract("Governance for importing with USDC stakes", async accounts => {
 	});
 
 	it("alice waits and commits the bobs value", async () => {
-		await time.increase(10 * 24 * 3600);
+		await time.increase(11 * 24 * 3600);
 		let res = await challengingPeriodsVotedValue.commit({ from: aliceAccount });
 
 		const leader = await Promise.all([0, 1, 2, 3].map(async n => (await challengingPeriodsVotedValue.leader(n)).toNumber()));
@@ -708,7 +708,7 @@ contract("Governance for importing with USDC stakes", async accounts => {
 	})
 
 	it("alice tries to commit the old value and fails", async () => {
-		await time.increase(10 * 24 * 3600);
+		await time.increase(11 * 24 * 3600);
 		let promise = oracleVotedValue.commit({ from: aliceAccount });
 		await expectRevert(promise, "already equal to leader");
 	});
@@ -734,7 +734,7 @@ contract("Governance for importing with USDC stakes", async accounts => {
 	})
 
 	it("alice waits and commits the new oracle", async () => {
-		await time.increase(10 * 24 * 3600);
+		await time.increase(11 * 24 * 3600);
 		let res = await oracleVotedValue.commit({ from: aliceAccount });
 
 		// updated in the governed contract itself

@@ -201,6 +201,7 @@ library CounterstakeLibrary {
 		require(periods.length > 0, "empty periods");
 		uint prev_period = 0;
 		for (uint i = 0; i < periods.length; i++) {
+			require(periods[i] >= 12 hours, "some periods are shorter than 12 hours");
 			require(periods[i] < 3 * 365 days, "some periods are longer than 3 years");
 			require(periods[i] >= prev_period, "subsequent periods cannot get shorter");
 			prev_period = periods[i];

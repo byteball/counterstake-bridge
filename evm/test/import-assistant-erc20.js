@@ -755,6 +755,11 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		let manager_stake_balance_before = await token.balanceOf(managerAccount);
 		let manager_image_balance_before = await instance.balanceOf(managerAccount)
 
+		// occasional odd reverts from withdrawSuccessFee() at ERC20.sol:202. The balance must be sufficient.
+		const image_sf1 = this.image_profit.mul(new BN(25)).div(new BN(100))
+		console.log('image_sf1                     ', image_sf1.toString())
+		console.log('assistant_image_balance_before', assistant_image_balance_before.toString())
+
 		const res = await assistant.withdrawSuccessFee({ from: managerAccount });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 

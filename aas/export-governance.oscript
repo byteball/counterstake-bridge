@@ -9,7 +9,7 @@
 			$prev = {period: 0};
 			map($periods, 20, $period => {
 				$nPeriod = +$period;
-				if ($nPeriod <= 0 OR $nPeriod > 3*365*24)
+				if ($nPeriod < 12 OR $nPeriod > 3*365*24)
 					bounce("bad challenging period: " || $period);
 				if ($nPeriod < $prev.period)
 					bounce("subsequent periods cannot get shorter");
@@ -100,9 +100,9 @@
 					if (!$is_allowed_name($name))
 						bounce("unknown name: " || $name);
 					if (exists($value)){
-						if ($name == 'ratio' AND !(typeof($value) == 'number' AND $value > 0))
+						if ($name == 'ratio' AND !(typeof($value) == 'number' AND $value >= 0.1 AND $value <= 10))
 							bounce("invalid value");
-						if ($name == 'counterstake_coef' AND !(typeof($value) == 'number' AND $value > 1))
+						if ($name == 'counterstake_coef' AND !(typeof($value) == 'number' AND $value > 1 AND $value <= 10))
 							bounce("invalid value");
 						if ($name == 'min_stake' AND !(is_integer($value) AND $value >= 0))
 							bounce("invalid value");

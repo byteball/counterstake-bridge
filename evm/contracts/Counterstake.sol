@@ -102,7 +102,7 @@ abstract contract Counterstake is ReentrancyGuard {
 	}
 
 	function validateRatio(uint _ratio100) pure public {
-		require(_ratio100 > 0 && _ratio100 < 64000, "bad ratio");
+		require(_ratio100 >= 10 && _ratio100 <= 1000, "bad ratio");
 	}
 
 	function setRatio(uint _ratio100) onlyVotedValueContract external {
@@ -111,7 +111,7 @@ abstract contract Counterstake is ReentrancyGuard {
 
 	
 	function validateCounterstakeCoef(uint _counterstake_coef100) pure public {
-		require(_counterstake_coef100 > 100 && _counterstake_coef100 < 64000, "bad counterstake coef");
+		require(_counterstake_coef100 > 100 && _counterstake_coef100 <= 1000, "bad counterstake coef");
 	}
 
 	function setCounterstakeCoef(uint _counterstake_coef100) onlyVotedValueContract external {

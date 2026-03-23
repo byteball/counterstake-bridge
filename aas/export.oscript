@@ -58,7 +58,7 @@
 		if (trigger.data.address AND !is_valid_address(trigger.data.address))
 			bounce("invalid address: " || trigger.data.address);
 		
-		$governance_base_aa = 'HLNWXGGHGXWMZN27W2722MNJCHH2IVAO';
+		$governance_base_aa = 'PVE6WRDI5DO4K2QEZM6OWRT3KWGMVHDG';
 	}",
 	messages: {
 		cases: [
