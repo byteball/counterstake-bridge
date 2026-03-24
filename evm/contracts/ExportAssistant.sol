@@ -24,6 +24,8 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 	uint16 public exit_fee10000; // 0 by default
 
 	uint8 public exponent;
+
+	uint32 constant min_initial_shares = 1e6;
 	
 	uint constant default_profit_diffusion_period = 10 days;
 	uint public profit_diffusion_period = default_profit_diffusion_period;
@@ -286,12 +288,15 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		(uint gross_balance, int net_balance) = updateMFAndGetBalances(stake_asset_amount, true);
 		require((gross_balance == 0) == (totalSupply() == 0), "bad init state");
 		uint shares_amount;
-		if (totalSupply() == 0)
+		if (totalSupply() == 0){
 			shares_amount = stake_asset_amount / 10**(18 - decimals());
+			require(shares_amount >= min_initial_shares, "initial shares too low");
+		}
 		else {
 			require(net_balance > 0, "no net balance");
 			uint new_shares_supply = totalSupply() * getShares(uint(net_balance) + stake_asset_amount) / getShares(uint(net_balance));
 			shares_amount = new_shares_supply - totalSupply();
+			require(shares_amount > 0, "amount is too small to buy shares");
 		}
 		_mint(msg.sender, shares_amount);
 
@@ -301,6 +306,8 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 	function redeemShares(uint shares_amount) nonReentrant external {
 		uint old_shares_supply = totalSupply();
+		uint new_shares_supply = old_shares_supply - shares_amount;
+		require(new_shares_supply == 0 || new_shares_supply >= min_initial_shares, "remaining shares supply would be too low");
 
 		_burn(msg.sender, shares_amount);
 		(, int net_balance) = updateMFAndGetBalances(0, true);
@@ -312,7 +319,7 @@ contract ExportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 		require(uint(net_balance) > balance_in_work, "negative risk-free net balance");
 
-		uint stake_asset_amount = (uint(net_balance) - balance_in_work) * (old_shares_supply**exponent - (old_shares_supply - shares_amount)**exponent) / old_shares_supply**exponent;
+		uint stake_asset_amount = (uint(net_balance) - balance_in_work) * (old_shares_supply**exponent - new_shares_supply**exponent) / old_shares_supply**exponent;
 		stake_asset_amount -= stake_asset_amount * exit_fee10000/10000;
 		payStakeTokens(msg.sender, stake_asset_amount);
 	}

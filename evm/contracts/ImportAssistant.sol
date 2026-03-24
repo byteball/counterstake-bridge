@@ -33,6 +33,8 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 	uint8 public exponent;
 	
+	uint32 constant min_initial_shares = 1e6;
+
 	uint constant default_profit_diffusion_period = 10 days;
 	uint public profit_diffusion_period = default_profit_diffusion_period;
 
@@ -330,12 +332,14 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 		if (totalSupply() == 0){ // initial issue
 			require(stake_asset_amount > 0 && image_asset_amount > 0, "must supply both assets for initial issue");
 			shares_amount = getShares(stake_asset_amount, image_asset_amount) / 10**(18 - decimals());
+			require(shares_amount >= min_initial_shares, "initial shares too low");
 		}
 		else {
 			require(net_balance.stake > 0, "no stake net balance");
 			require(net_balance.image > 0, "no image net balance");
 			uint new_shares_supply = totalSupply() * getShares(uint(net_balance.stake) + stake_asset_amount, uint(net_balance.image) + image_asset_amount) / getShares(uint(net_balance.stake), uint(net_balance.image));
 			shares_amount = new_shares_supply - totalSupply();
+			require(shares_amount > 0, "amount is too small to buy shares");
 		}
 		_mint(msg.sender, shares_amount);
 
@@ -345,6 +349,8 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 	function redeemShares(uint shares_amount) nonReentrant external {
 		uint old_shares_supply = totalSupply();
+		uint new_shares_supply = old_shares_supply - shares_amount;
+		require(new_shares_supply == 0 || new_shares_supply >= min_initial_shares, "remaining shares supply would be too low");
 
 		_burn(msg.sender, shares_amount);
 		(, IntBalance memory net_balance) = updateMFAndGetBalances(0, 0, true);
@@ -362,10 +368,10 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 		// we charge a swap fee from redemptions, otherwise we leave an opportunity of free swaps by buying and instantly redeeming shares
 		
-		uint stake_asset_amount = (uint(net_balance.stake) - balance_in_work.stake) * (old_shares_supply**exponent - (old_shares_supply - shares_amount)**exponent) / old_shares_supply**exponent;
+		uint stake_asset_amount = (uint(net_balance.stake) - balance_in_work.stake) * (old_shares_supply**exponent - new_shares_supply**exponent) / old_shares_supply**exponent;
 		stake_asset_amount -= stake_asset_amount * (swap_fee10000 + exit_fee10000)/10000;
 
-		uint image_asset_amount = (uint(net_balance.image) - balance_in_work.image) * (old_shares_supply**exponent - (old_shares_supply - shares_amount)**exponent) / old_shares_supply**exponent;
+		uint image_asset_amount = (uint(net_balance.image) - balance_in_work.image) * (old_shares_supply**exponent - new_shares_supply**exponent) / old_shares_supply**exponent;
 		image_asset_amount -= image_asset_amount * (swap_fee10000 + exit_fee10000)/10000;
 		
 		payStakeTokens(msg.sender, stake_asset_amount);

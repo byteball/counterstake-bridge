@@ -106,6 +106,7 @@
 		$fee = 2000;
 		$asset_fee = ($stake_asset == 'base') ? $fee : 0;
 		$min_stake_asset_amount = ($stake_asset == 'base') ? 10000 : 0; // bounce fee
+		$min_initial_shares = 1e6;
 
 		$add_recent_profit = ($new_profit) => {
 			if ($new_profit <= 0)
@@ -118,7 +119,7 @@
 		if (!params.manager)
 			bounce("no initial manager");
 
-		$governance_base_aa = '4EBJCXXWESRLDPH2LM7MDDQKOAG5P3PH';
+		$governance_base_aa = 'KF37FZLTKJ5BLVKLM7VEO6SBQCXN4SUO';
 	}",
 	messages: {
 		cases: [
@@ -394,6 +395,9 @@
 					$coef = $shares_supply ? $shares_supply / $get_shares($balance) : 1;
 					$new_shares_supply = floor($coef * $get_shares($balance + $received_stake_amount));
 					$shares_amount = $new_shares_supply - $shares_supply;
+					if (!$shares_supply)
+						require($shares_amount >= $min_initial_shares, "initial shares should be at least " || $min_initial_shares);
+					require($shares_amount > 0, "stake amount is too small to buy shares");
 				}`,
 				messages: [
 					{
@@ -419,6 +423,8 @@
 			{
 				if: `{ $shares_asset AND $received_shares_amount > 0 AND $received_stake_amount <= $min_stake_asset_amount }`,
 				init: `{
+					if ($shares_supply - $received_shares_amount > 0)
+						require($shares_supply - $received_shares_amount >= $min_initial_shares, "remaining shares supply would be too low");
 					$check_balance();
 					$available_balance = $risk_free_balance - $get_unavailable_profit();
 					require($available_balance > 0, "negative available balance");
