@@ -143,8 +143,10 @@ library CounterstakeLibrary {
 		}
 		emit NewChallenge(claim_num, msg.sender, stake, stake_on, c.current_outcome, c.yes_stake, c.no_stake, c.expiry_ts, challenging_target);
 		if (excess > 0){
-			if (settings.tokenAddress == address(0))
-				payable(msg.sender).transfer(excess);
+			if (settings.tokenAddress == address(0)){
+				(bool success, ) = payable(msg.sender).call{value: excess}("");
+				require(success, "ETH transfer failed");
+			}
 			else
 				IERC20(settings.tokenAddress).safeTransfer(msg.sender, excess);
 		}

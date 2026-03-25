@@ -48,7 +48,8 @@ contract Export is Counterstake {
 	function sendWithdrawals(address payable to_address, uint paid_claimed_amount, uint won_stake) internal override {
 		uint total = won_stake + paid_claimed_amount;
 		if (settings.tokenAddress == address(0)) {
-			to_address.transfer(total);
+			(bool success, ) = to_address.call{value: total}("");
+			require(success, "ETH transfer failed");
 		}
 		else {
 			IERC20(settings.tokenAddress).safeTransfer(to_address, total);
@@ -61,7 +62,8 @@ contract Export is Counterstake {
 
 	function sendToClaimRecipient(address payable to_address, uint paid_amount) internal override {
 		if (settings.tokenAddress == address(0)) {
-			to_address.transfer(paid_amount);
+			(bool success, ) = to_address.call{value: paid_amount}("");
+			require(success, "ETH transfer failed");
 		}
 		else {
 			IERC20(settings.tokenAddress).safeTransfer(to_address, paid_amount);

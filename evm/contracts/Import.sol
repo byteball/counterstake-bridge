@@ -98,8 +98,10 @@ contract Import is ERC20, Counterstake {
 		if (paid_claimed_amount > 0){
 			_mint(to_address, paid_claimed_amount);
 		}
-		if (settings.tokenAddress == address(0))
-			to_address.transfer(won_stake);
+		if (settings.tokenAddress == address(0)){
+			(bool success, ) = to_address.call{value: won_stake}("");
+			require(success, "ETH transfer failed");
+		}
 		else
 			IERC20(settings.tokenAddress).safeTransfer(to_address, won_stake);
 	}

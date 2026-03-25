@@ -85,8 +85,10 @@ contract Governance is ReentrancyGuard {
 		require(amount <= balances[msg.sender], "not enough balance");
 		require(isUntiedFromAllVotes(msg.sender), "some votes not removed yet");
 		balances[msg.sender] -= amount;
-		if (votingTokenAddress == address(0))
-			payable(msg.sender).transfer(amount);
+		if (votingTokenAddress == address(0)){
+			(bool success, ) = payable(msg.sender).call{value: amount}("");
+			require(success, "ETH transfer failed");
+		}
 		else
 			IERC20(votingTokenAddress).safeTransfer(msg.sender, amount);
 		emit Withdrawal(msg.sender, amount);

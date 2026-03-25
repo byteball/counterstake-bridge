@@ -512,8 +512,10 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 	}
 
 	function payStakeTokens(address to, uint amount) internal {
-		if (tokenAddress == address(0))
-			payable(to).transfer(amount);
+		if (tokenAddress == address(0)){
+			(bool success, ) = payable(to).call{value: amount}("");
+			require(success, "ETH transfer failed");
+		}
 		else
 			IERC20(tokenAddress).safeTransfer(to, amount);
 	}
