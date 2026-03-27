@@ -25,6 +25,7 @@ const evmNetwork = 'Kava';
 const targetGasPrice = 35; // gwei
 
 const opts = {
+	maxPriorityFeePerGas: 30e9, // for Polygon
 //	gasPrice: 8e9
 };
 
@@ -60,17 +61,6 @@ async function deploy() {
 		});
 	}
 
-
-	async function createEvmOracle() {
-		console.error(`deploying oracle on ${evmNetwork}`);
-		const oracleFactory = ethers.ContractFactory.fromSolidity(oracleJson, ethWallet.connect(provider));
-		const oracle = await oracleFactory.deploy(opts);
-		console.error(evmNetwork, 'oracle', oracle.address);
-		await oracle.deployTransaction.wait();
-		console.log('mined');
-		await wait(5000);
-		return oracle;
-	}
 	
 	async function getGasPrice() {
 		return (await provider.getGasPrice()).toNumber() / 1e9;
