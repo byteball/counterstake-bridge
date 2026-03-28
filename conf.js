@@ -40,23 +40,27 @@ exports.max_ts_error = 60; // how far txts can be into the future due to clock d
 // Obyte
 exports.token_registry_aa = "O6H6ZIFI57X3PLTYHOCVYPP5A553CYFQ";
 
-exports.version = 'v1.1';
+exports.version = 'v1.2';
 
 exports.export_factory_aas = {
 	'v1': 'YOOQMPDNU3YU6CIN3MOVU6ILY3EVDTLE',
 	'v1.1': 'FMAJSIMYTPFG2RIJJJGCYF4X6C6IP3MU',
+	'v1.2': 'Z26ZZQUTSRNNCZPW5KGVY7CHO6X7QT5F',
 };
 exports.import_factory_aas = {
 	'v1': 'KFAJZYLH6T3W2U6LNQJYIWXJVSBB24FN',
 	'v1.1': '7D2CD23PJNIECSMQ4M5AMPTHH3FGGLQJ',
+	'v1.2': 'YYDGG4RW23T7KJJNQCUS6ZLWBFHQO7HZ',
 };
 exports.export_assistant_factory_aas = {
 	'v1': 'EKZPWMJOKI6LTRKQTEUD7IFK4BBR5GMK',
 	'v1.1': 'HTK3O7RYNVO2BEUI5SZ2NAKRFUGXFMDX',
+	'v1.2': 'T3RGXNGIMNFEJ2N4TTBCURX2NZD7U32I',
 };
 exports.import_assistant_factory_aas = {
 	'v1': 'BRDUWQBFJZ277E3QUQXTMDGP3LLLGUO3',
 	'v1.1': 'HS2PH23XIXELNUAUGXU3QYEVBI3WH3KP',
+	'v1.2': 'RTYXZJLELQGTOPN4O7QLNC2DVKZAYBA5',
 };
 // exports.export_factory_aa = 'FVRNLCHSQA3XTR56OTMITTCYUYY5JDP6';
 // exports.import_factory_aa = 'O2EWQTP5GC5O76FHNBFUYAHQRBGOONK7';
@@ -141,32 +145,40 @@ else { // mainnet
 	exports.ethereum_factory_contract_addresses = {
 		'v1': '0x13C34d1b3928B13255F3619D3CA6645Fbadaf6BF',
 		'v1.1': '0x077231Cc83303dF37406C604c9d3F12b9DFcFc3A',
+		'v1.2': '0xC7D635B61a0d06D190a8DFD3b798e5FD74762C53',
 	};
 	exports.ethereum_assistant_factory_contract_addresses = {
 		'v1': '0x12d40AA1861f32a08508ecE504269a1f12759F72',
 		'v1.1': '0x0B7f26083d6892Ca6b410FEffA2b24A4304Fa739',
+		'v1.2': '0xA46DD5429Dbe51Ea611366186cF7d68C86A3b323',
 	};
 	exports.bsc_factory_contract_addresses = {
 		'v1': '0x91C79A253481bAa22E7E481f6509E70e5E6A883F',
 		'v1.1': '0x472Af6Fdf5677C5B4A7F718Dc6baF8c9f86db7FB',
+		'v1.2': '0xf4089feb50e95C82987c6BeD9E3107e066c5c2d2',
 	};
 	exports.bsc_assistant_factory_contract_addresses = {
 		'v1': '0xd634330ca14524A43d193E1c2e92cbaB72952896',
 		'v1.1': '0x65f7CB5A76c975ff763BeAE41b761861D019301c',
+		'v1.2': '0x47FBc05cF59Fc39cA979deB6d26d9fA23B9154dE',
 	};
 	exports.polygon_factory_contract_addresses = {
 		'v1': '0x7EF26EF55FcE4032281783c70726af1bfB1d51e8',
 		'v1.1': '0x0E9C3A7d5467a8EB53800ca457Db778d3f0491c1',
+		'v1.2': '0x6e3Dd4562d8cce2F541462bDa8e9F55BeF502089',
 	};
 	exports.polygon_assistant_factory_contract_addresses = {
 		'v1': '0xE740C62aC78bB2666Fa9465052D0a292D7C27A11',
 		'v1.1': '0xc8320F465A0012c9bb4230BC0D0C35aB50E263Ff',
+		'v1.2': '0x17649890853aDaB9bc408Fe5F8323624243C9964',
 	};
 	exports.kava_factory_contract_addresses = {
 		'v1.1': '0xdD52899A001a4260CDc43307413A5014642f37A2',
+		'v1.2': '0x3De4C2Eec4bCf1DFF74B74c96B3bdb3eE2e16Fe7',
 	};
 	exports.kava_assistant_factory_contract_addresses = {
 		'v1.1': '0x61636B08483D8010B1210ecF9c4Ab81bbCd24A38',
+		'v1.2': '0x097743f847dE1F14D7120C4b9a58320bf14860A3',
 	};
 }
 
