@@ -175,7 +175,8 @@
 			{ // withdraw balance - only after all votes are untied
 				if: `{ trigger.data.withdraw }`,
 				init: `{
-					$balance = var['balance_' || trigger.address] + trigger.output[[asset=$asset]];
+					require(!trigger.output[[asset=$asset]], "don't send tokens while withdrawing");
+					$balance = var['balance_' || trigger.address];
 					if (!$balance)
 						bounce("you have no deposited balance and cannot withdraw");
 					$amount = trigger.data.amount OTHERWISE $balance;

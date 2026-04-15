@@ -182,7 +182,7 @@
 		if (!params.manager)
 			bounce("no initial manager");
 
-		$governance_base_aa = 'KF37FZLTKJ5BLVKLM7VEO6SBQCXN4SUO';
+		$governance_base_aa = 'PHJY4BR7CBWAEOKFYEZQLV3U7SI4IYQN';
 	}",
 	messages: {
 		cases: [
