@@ -274,7 +274,7 @@ async function removeTransfer(transfer) {
 async function recheckClaim({ claim_num, bridge_id, type }) {
 	console.log('rechecking claim', { claim_num, bridge_id, type });
 	const [db_claim] = await db.query("SELECT * FROM claims WHERE claim_num=? AND bridge_id=? AND type=?", [claim_num, bridge_id, type]);
-	if (db_claim)
+	if (!db_claim)
 		throw Error(`claim ${claim_num} not found`);
 	const { transfer_id, claim_txid } = db_claim;
 	if (!transfer_id)
