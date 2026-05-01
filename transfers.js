@@ -289,6 +289,21 @@ async function recheckClaim({ claim_num, bridge_id, type }) {
 	await attackClaim(bridge, type, claim_num, claim_txid);
 }
 
+async function recheckRemovedTransfers() {
+	const transfers = await db.query(`SELECT * FROM transfers WHERE is_confirmed IS NULL AND creation_date > ${db.addTime('-30 DAY')} AND creation_date < ${db.addTime('-15 MINUTE')}`);
+	if (transfers.length > 0) // crash and double-check before attacking
+		throw Error(`found ${transfers.length} removed transfers ${JSON.stringify(transfers, null, 2)}`);
+	for (let { transfer_id, bridge_id, type } of transfers) {
+		const [db_claim] = await db.query("SELECT * FROM claims WHERE transfer_id=?", [transfer_id]);
+		if (!db_claim) {
+			console.log(`removed transfer ${transfer_id} never claimed`);
+			continue;
+		}
+		const bridge = await getBridge(bridge_id);
+		await attackClaim(bridge, type, db_claim.claim_num, db_claim.claim_txid);
+	}
+}
+
 
 async function attackClaim(bridge, type, claim_num, claim_txid) {
 	if (!conf.bWatchdog)
@@ -1208,6 +1223,9 @@ async function start() {
 	
 	setTimeout(recheckOldTransfers, 61 * 1000);
 	setInterval(recheckOldTransfers, 3600 * 1000); // every hour, in case gas price was too high when the claim was received, and then it got lower
+
+	setTimeout(recheckRemovedTransfers, 65 * 1000);
+	setInterval(recheckRemovedTransfers, 6 * 3600 * 1000);
 
 	if (conf.webPort) {
 		try {
