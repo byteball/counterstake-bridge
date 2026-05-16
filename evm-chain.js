@@ -993,7 +993,7 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 	}
 	catch (e) {
 		console.log(`processPastEvents failed`, network, contract.address, since_block, to_block, e);
-		const errMsg = e.toString();
+		const errMsg = JSON.stringify(e);
 		if (isRateLimitError(errMsg)) {
 			console.log(`will retry later`);
 			await wait(100);
