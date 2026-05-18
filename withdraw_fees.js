@@ -42,11 +42,14 @@ async function withdrawFromObyteAssistant(assistant_address) {
 	const dag = require('aabot/dag.js');
 	const network = require('ocore/network.js');
 	const db_import = require('./db_import.js');
+	const light_wallet = require("ocore/light_wallet.js");
 
 	await headlessWallet.waitTillReady();
 	await db_import.initDB();
 	await operator.start();
-	network.start();
+	await network.start();
+	await light_wallet.waitUntilFirstHistoryReceived();
+	await network.waitTillSyncIdle();
 
 	console.log(`withdrawing management fee from ${assistant_address} on Obyte...`);
 	const unit1 = await dag.sendAARequest(assistant_address, { withdraw_management_fee: 1 });
