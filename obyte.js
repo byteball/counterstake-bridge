@@ -210,6 +210,52 @@ class Obyte {
 		return txid;
 	}
 
+	async withdrawManagementFeeFromPooledAssistant(assistant_aa) {
+		const txid = await dag.sendAARequest(assistant_aa, { withdraw_management_fee: 1 });
+		console.log(`sent management fee withdrawal request to pooled assistant ${assistant_aa}: ${txid}`);
+		return txid;
+	}
+
+	async withdrawSuccessFeeFromPooledAssistant(assistant_aa) {
+		const txid = await dag.sendAARequest(assistant_aa, { withdraw_success_fee: 1 });
+		console.log(`sent success fee withdrawal request to pooled assistant ${assistant_aa}: ${txid}`);
+		return txid;
+	}
+
+	async getAccruedManagementFee(assistant_aa) {
+		return await dag.readAAStateVar(assistant_aa, 'mf');
+	}
+
+	// Returns the net balance of a pooled assistant AA, i.e. gross balance minus accrued management fee and success fee.
+	// Returns a single number (stake asset) for both export and import assistants.
+	async getPooledAssistantNetBalance(assistant_aa, stake_asset) {
+		const currentTs = Math.floor(Date.now() / 1000);
+		const params = await dag.readAAParams(assistant_aa);
+		const mfVar = await dag.readAAStateVar(assistant_aa, 'mf');
+
+		if (mfVar && typeof mfVar === 'object' && 'ts' in mfVar) {
+			// import assistant: stake asset only
+			const stake_profit = await dag.readAAStateVar(assistant_aa, 'stake_profit');
+			const gross_stake_balance = await this.getBalance(assistant_aa, stake_asset, true);
+			const elapsed = (currentTs - mfVar.ts) / (360 * 24 * 3600);
+			const stake_mf = mfVar.stake + gross_stake_balance * params.management_fee * elapsed;
+			const stake_sf = Math.max(Math.floor((stake_profit || 0) * params.success_fee), 0);
+			return gross_stake_balance - stake_mf - stake_sf;
+		}
+		else {
+			// export assistant: single stake asset
+			const [ts, profit] = await Promise.all([
+				dag.readAAStateVar(assistant_aa, 'ts'),
+				dag.readAAStateVar(assistant_aa, 'profit'),
+			]);
+			const gross_balance = await this.getBalance(assistant_aa, stake_asset, true);
+			const elapsed = (currentTs - ts) / (360 * 24 * 3600);
+			const mf = (mfVar || 0) + gross_balance * params.management_fee * elapsed;
+			const sf = Math.max(Math.floor((profit || 0) * params.success_fee), 0);
+			return gross_balance - mf - sf;
+		}
+	}
+
 	async sendWithdrawalRequest(bridge_aa, claim_num, to_address) {
 		let data = { withdraw: 1, claim_num };
 		if (to_address)

@@ -445,6 +445,40 @@ class EvmChain {
 		return txid;
 	}
 
+	async withdrawManagementFeeFromPooledAssistant(assistant_aa) {
+		const unlock = await mutex.lock(this.network + 'Tx');
+		await this.waitBetweenTransactions();
+		const contract = this.#contractsByAddress[assistant_aa];
+		let opts = {};
+		if (this.getGasPriceMultiplier())
+			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
+		const res = await contract.withdrawManagementFee(opts);
+		const txid = res.hash;
+		console.log(`sent management fee withdrawal request to pooled assistant ${assistant_aa}: ${txid}`);
+		this.#last_tx_ts = Date.now();
+		if (this.#bWaitForMined)
+			await res.wait();
+		unlock();
+		return txid;
+	}
+
+	async withdrawSuccessFeeFromPooledAssistant(assistant_aa) {
+		const unlock = await mutex.lock(this.network + 'Tx');
+		await this.waitBetweenTransactions();
+		const contract = this.#contractsByAddress[assistant_aa];
+		let opts = {};
+		if (this.getGasPriceMultiplier())
+			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
+		const res = await contract.withdrawSuccessFee(opts);
+		const txid = res.hash;
+		console.log(`sent success fee withdrawal request to pooled assistant ${assistant_aa}: ${txid}`);
+		this.#last_tx_ts = Date.now();
+		if (this.#bWaitForMined)
+			await res.wait();
+		unlock();
+		return txid;
+	}
+
 	async sendWithdrawalRequest(bridge_aa, claim_num, to_address) {
 		const unlock = await mutex.lock(this.network + 'Tx');
 		await this.waitBetweenTransactions();
