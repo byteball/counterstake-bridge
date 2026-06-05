@@ -1035,7 +1035,7 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 			await wait(100);
 			return processPastEvents(contract, filter, since_block, to_block, thisArg, handler, attempt_count + 1);
 		}
-		if (errMsg.includes("internal error") || errMsg.includes("temporarily unavailable") || errMsg.includes("Request timeout on the free tier") || errMsg.includes("from block is greater than latest block") || errMsg.includes("invalid block range params")) {
+		if (errMsg.includes("internal error") || errMsg.includes("temporarily unavailable") || errMsg.includes("Request timeout on the free tier") || errMsg.includes("from block is greater than latest block") || errMsg.includes("invalid block range params") || errMsg.includes("timeout")) {
 			console.log(`transient, will retry later, attempt ${attempt_count}`);
 			await wait(10_000);
 			return processPastEvents(contract, filter, since_block, to_block, thisArg, handler, attempt_count + 1);
