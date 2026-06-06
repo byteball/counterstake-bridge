@@ -786,7 +786,7 @@ class EvmChain {
 			}
 
 			const since_block = await this.getSinceBlock();
-			await processPastEventsOnContract(since_block, 0);
+			await processPastEventsOnContract(since_block, await this.getBlockNumber());
 		}
 	}
 
@@ -851,7 +851,7 @@ class EvmChain {
 			}
 
 			const since_block = await this.getSinceBlock();
-			await processPastEventsOnContract(since_block, 0);
+			await processPastEventsOnContract(since_block, await this.getBlockNumber());
 		}
 	}
 
@@ -897,7 +897,7 @@ class EvmChain {
 			const contract = this.#contractsByAddress[address];
 			if (!contract.filters.NewClaim) // not a bridge, must be an assistant
 				continue;
-			await this.processPastEventsOnBridgeContract(contract, since_block, 0);
+			await this.processPastEventsOnBridgeContract(contract, since_block, await this.getBlockNumber());
 		}
 		const unlock = await mutex.lock(this.network + 'Event'); // take the last place in the queue after all real events
 		unlock();
