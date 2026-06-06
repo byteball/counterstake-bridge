@@ -39,7 +39,7 @@ class Polygon extends EvmChain {
 
 	getMaxBlockRange() {
 	//	return 100000; // infura
-		return 500;
+		return 250;
 	}
 
 	getGasPriceMultiplier() {
