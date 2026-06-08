@@ -897,7 +897,7 @@ async function handleNewExportAA(export_aa, home_network, home_asset, home_asset
 			return unlock(`home asset mismatch: existing half-bridge ${bridge_id}: ${bridge.home_asset}, new export: ${home_asset}`);
 		if (bridge.foreign_network !== foreign_network)
 			return unlock(`foreign network mismatch: existing half-bridge ${bridge_id}: ${bridge.foreign_network}, new export: ${foreign_network}`);
-		const [claim] = await db.query(`SELECT * FROM claims WHERE bridge_id=? AND transfer_id IS NULL LIMIT 1`);
+		const [claim] = await db.query(`SELECT * FROM claims WHERE bridge_id=? AND transfer_id IS NULL LIMIT 1`, [bridge_id]);
 		if (claim)
 			return unlock(`already had at least one invalid claim ${claim.claim_num} on half-complete import-only bridge ${bridge_id}, will not complete the bridge`);
 		await db.query(`UPDATE bridges SET export_aa=?, home_asset_decimals=?, home_symbol=?, foreign_symbol=?, e_v=? WHERE bridge_id=?`, [export_aa, home_asset_decimals, home_symbol, foreign_symbol, version, bridge_id]);
@@ -940,7 +940,7 @@ async function handleNewImportAA(import_aa, home_network, home_asset, foreign_ne
 			return unlock(`home asset mismatch: existing half-bridge ${bridge_id}: ${bridge.home_asset}, new import: ${home_asset}`);
 		if (bridge.foreign_network !== foreign_network)
 			return unlock(`foreign network mismatch: existing half-bridge ${bridge_id}: ${bridge.foreign_network}, new import: ${foreign_network}`);
-		const [claim] = await db.query(`SELECT * FROM claims WHERE bridge_id=? AND transfer_id IS NULL LIMIT 1`);
+		const [claim] = await db.query(`SELECT * FROM claims WHERE bridge_id=? AND transfer_id IS NULL LIMIT 1`, [bridge_id]);
 		if (claim)
 			return unlock(`already had at least one invalid claim ${claim.claim_num} on half-complete export-only bridge ${bridge_id}, will not complete the bridge`);
 		await db.query(`UPDATE bridges SET import_aa=?, foreign_asset_decimals=?, stake_asset=?, home_symbol=?, foreign_symbol=?, i_v=? WHERE bridge_id=?`, [import_aa, foreign_asset_decimals, stake_asset, home_symbol, foreign_symbol, version, bridge_id]);
