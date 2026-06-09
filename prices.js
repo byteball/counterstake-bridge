@@ -127,7 +127,7 @@ function getCoingeckoId(currency) {
 		case 'gbyte': return 'byteball';
 		case 'eth': return 'ethereum';
 		case 'bnb': return 'binancecoin';
-		case 'matic': return 'polygon-pos';
+		case 'matic': return 'polygon-ecosystem-token';
 		default: return currency;
 	}
 }
