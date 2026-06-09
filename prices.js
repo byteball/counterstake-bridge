@@ -174,9 +174,7 @@ const fetchObyteTokenPricesCached = cachify(fetchObyteTokenPrices, 0)
 async function fetchExchangeRateCached(in_currency, out_currency, cached) {
 	in_currency = in_currency.toUpperCase();
 	out_currency = out_currency.toUpperCase();
-	return in_currency === 'GBYTE'
-		? await fetchCoingeckoExchangeRateCached(in_currency, out_currency, cached)
-		: await fetchCryptocompareExchangeRateCached(in_currency, out_currency, cached);
+	return await fetchCoingeckoExchangeRateCached(in_currency, out_currency, cached);
 }
 
 const coingeckoChainIds = {
