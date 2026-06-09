@@ -1022,6 +1022,7 @@ function getType(address, bridge) {
 async function processPastEvents(contract, filter, since_block, to_block, thisArg, handler, attempt_count = 0) {
 	const network = thisArg ? thisArg.network : null;
 	console.log('processPastEvents', network, contract.address, since_block, to_block, filter);
+	const entry_e = new Error();
 	try {
 		var events = await contract.queryFilter(filter, since_block, to_block || 'latest');
 	}
@@ -1048,6 +1049,7 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 				return processPastEvents(contract, filter, since_block, since_block, thisArg, handler, attempt_count + 1);
 			}
 		}
+		console.error('entry trace', entry_e.stack);
 		throw e;
 	}
 	for (let event of events) {
