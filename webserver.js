@@ -172,9 +172,10 @@ app.use(cors());
 app.use(router.routes());
 
 function start() {
-	if (conf.webPort)
+	if (conf.webPort) {
 		console.error(`Starting web server on port ${conf.webPort}`);
 		app.listen(conf.webPort);
+	}
 }
 
 exports.start = start;
