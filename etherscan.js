@@ -83,7 +83,7 @@ async function getAddressBlocks({ base_url, chainid, address, startblock, startt
 			blocks = blocks.filter(b => b >= startblock); // kava explorer seems to ignore startblock and return the entire history
 			console.log(`${address} txs since ${startblock}: ${initLen} before filtering, ${blocks.length} after filtering`);
 		}
-		blocks.sort();
+		blocks.sort((a, b) => a - b);
 		return blocks;
 	}
 	catch (e) {
