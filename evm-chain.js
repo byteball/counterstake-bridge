@@ -893,17 +893,17 @@ class EvmChain {
 		}
 
 		const since_block = (top_available_block || !this.#last_caughtup_block) ? await this.getSinceBlock() : this.#last_caughtup_block;
+		const blockNumber = await this.getBlockNumber();
 		for (let address in this.#contractsByAddress) {
 			const contract = this.#contractsByAddress[address];
 			if (!contract.filters.NewClaim) // not a bridge, must be an assistant
 				continue;
-			await this.processPastEventsOnBridgeContract(contract, since_block, await this.getBlockNumber());
+			await this.processPastEventsOnBridgeContract(contract, since_block, blockNumber);
 		}
 		const unlock = await mutex.lock(this.network + 'Event'); // take the last place in the queue after all real events
 		unlock();
 		console.log(`catching up ${this.network} done`);
 		this.#bCatchingUp = false;
-		const blockNumber = await this.getBlockNumber();
 		this.#last_caughtup_block = Math.max(blockNumber - 100, 0);
 		await this.updateLastBlock(blockNumber);
 	}
