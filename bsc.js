@@ -28,7 +28,7 @@ class BSC extends EvmChain {
 	}
 
 	getMaxBlockRange() {
-		return 500;
+		return 200;
 	}
 
 	getStaticGasPrice() {
