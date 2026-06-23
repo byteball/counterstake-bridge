@@ -317,7 +317,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 
 	// share issue/redeem functions
 
-	function buyShares(uint stake_asset_amount, uint image_asset_amount) payable nonReentrant external {
+	function buyShares(uint stake_asset_amount, uint image_asset_amount, uint min_shares_amount) payable nonReentrant external {
 		if (tokenAddress == address(0))
 			require(msg.value == stake_asset_amount, "wrong amount received");
 		else {
@@ -341,6 +341,7 @@ contract ImportAssistant is ERC20, ReentrancyGuard, CounterstakeReceiver, ERC165
 			shares_amount = new_shares_supply - totalSupply();
 			require(shares_amount > 0, "amount is too small to buy shares");
 		}
+		require(shares_amount >= min_shares_amount, "would be less than min");
 		_mint(msg.sender, shares_amount);
 
 		// this should overflow now, not when we try to redeem. We won't see the error message, will revert while trying to evaluate the expression

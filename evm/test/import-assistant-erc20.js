@@ -233,7 +233,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		const usdc_amount = ether('1000')
 		const gbyte_amount = ether('40')
 		const shares_amount = ether('200')
-		let res = await assistant.buyShares(usdc_amount, gbyte_amount, { from: bobAccount });
+		let res = await assistant.buyShares(usdc_amount, gbyte_amount, 0, { from: bobAccount });
 		expectEvent(res, 'Transfer', { from: a0, to: bobAccount, value: shares_amount });
 		this.ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 		this.stake_mf = bn0;
@@ -673,7 +673,7 @@ contract("Importing GBYTE with USDC staking and assistance", async accounts => {
 		const gbyte_amount = ether('3')
 		const usdc_amount = ether('120')
 
-		const res = await assistant.buyShares(usdc_amount, gbyte_amount, { from: aliceAccount });
+		const res = await assistant.buyShares(usdc_amount, gbyte_amount, 0, { from: aliceAccount });
 		const ts = (await web3.eth.getBlock(res.receipt.blockNumber)).timestamp;
 
 		const delta_stake_mf = assistant_stake_balance_before.mul(new BN(ts - this.ts)).div(year).mul(new BN(1)).div(new BN(100))
