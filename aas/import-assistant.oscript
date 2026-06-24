@@ -496,6 +496,8 @@
 					if (!$shares_supply)
 						require($shares_amount >= $min_initial_shares, "initial shares should be at least " || $min_initial_shares);
 					require($shares_amount > 0, "amount is too small to buy shares");
+					if (trigger.data.min_shares_amount)
+						require($shares_amount >= trigger.data.min_shares_amount, "shares amount "||$shares_amount||" would be less than min "||trigger.data.min_shares_amount);
 				}`,
 				messages: [
 					{
