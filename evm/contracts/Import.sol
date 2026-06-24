@@ -90,7 +90,9 @@ contract Import is ERC20, Counterstake {
 		require(num > 0, "price num must be positive");
 		require(den > 0, "price den must be positive");
 		uint stake_in_image_asset = amount * settings.ratio100 / 100;
-		return Math.max(Math.max(stake_in_image_asset * num / den, stake_in_image_asset * min_price20 / 1e20), settings.min_stake);
+		uint required_stake = Math.max(Math.max(stake_in_image_asset * num / den, stake_in_image_asset * min_price20 / 1e20), settings.min_stake);
+		require(required_stake > 0, "required stake must be positive"); // can round to 0
+		return required_stake;
 	}
 
 

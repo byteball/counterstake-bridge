@@ -188,6 +188,7 @@
 						bounce("received wrong amount in image asset " || trigger.output[[asset=$asset]] || ", expected " || $paid_amount);
 
 					$required_stake = $get_required_stake(trigger.data.amount);
+					require($required_stake > 0, "required stake must be positive"); // the oracle might return 0 price
 					if ($stake < $required_stake)
 						bounce("received stake " || $stake || " is less than the required stake " || $required_stake);
 
