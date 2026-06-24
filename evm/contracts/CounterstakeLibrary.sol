@@ -80,6 +80,8 @@ library CounterstakeLibrary {
 			req.recipient_address = payable(msg.sender);
 		if (req.reward < 0)
 			require(req.recipient_address == payable(msg.sender), "the sender disallowed third-party claiming by setting a negative reward");
+		requireNoUnderscores(req.txid);
+		requireNoUnderscores(req.sender_address);
 		string memory claim_id = getClaimId(req.sender_address, req.recipient_address, req.txid, req.txts, req.amount, req.reward, req.data);
 		require(claim_nums[claim_id] == 0, "this transfer has already been claimed");
 		bool is_large = (settings.large_threshold > 0 && req.stake >= settings.large_threshold);
@@ -208,6 +210,12 @@ library CounterstakeLibrary {
 			require(periods[i] >= prev_period, "subsequent periods cannot get shorter");
 			prev_period = periods[i];
 		}
+	}
+
+	function requireNoUnderscores(string memory s) private pure {
+		bytes memory b = bytes(s);
+		for (uint i = 0; i < b.length; i++)
+			require(b[i] != '_', "params must not contain underscores");
 	}
 
 	function getClaimId(string memory sender_address, address recipient_address, string memory txid, uint32 txts, uint amount, int reward, string memory data) public pure returns (string memory){
