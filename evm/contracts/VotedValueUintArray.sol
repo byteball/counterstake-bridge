@@ -64,7 +64,7 @@ contract VotedValueUintArray is VotedValue {
 		validationCallback(value);
 		uint[] storage prev_choice = choices[msg.sender];
 		bool hadVote = hasVote[msg.sender];
-		if (equal(prev_choice, leader) && hadVote)
+		if (equal(prev_choice, leader) && !equal(value, prev_choice) && hadVote)
 			checkVoteChangeLock();
 
 		// remove one's vote from the previous choice first

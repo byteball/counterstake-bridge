@@ -56,7 +56,7 @@ contract VotedValueAddress is VotedValue {
 		validationCallback(value);
 		address prev_choice = choices[msg.sender];
 		bool hadVote = hasVote[msg.sender];
-		if (prev_choice == leader && hadVote)
+		if (prev_choice == leader && value != prev_choice && hadVote)
 			checkVoteChangeLock();
 
 		// first, remove votes from the previous choice
