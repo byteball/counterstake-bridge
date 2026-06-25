@@ -27,6 +27,10 @@ let deploymentUnits = {};
 
 async function deployAA(filename) {
 	const unit = await dag.deployAAFromFile('./aas/' + filename);
+	if (!unit) {
+		console.error(`${filename} already deployed, skipping`);
+		return null;
+	}
 	console.error(`deployed ${filename} in tx ${unit}`);
 	return unit;
 }
@@ -37,8 +41,10 @@ async function waitForDeploymentDependencies(aa) {
 		return;
 	for (let dependency_aa of dependencies) {
 		const dependency_unit = deploymentUnits[dependency_aa];
-		if (!dependency_unit)
-			return console.error(`dependency AA ${dependency_aa} not deployed`);
+		if (!dependency_unit) {
+			console.error(`dependency AA ${dependency_aa} was already deployed before this run, no wait needed`);
+			continue;
+		}
 		console.error(`waiting for stability of ${dependency_aa} unit ${dependency_unit}`);
 		await headlessWallet.waitUntilMyUnitBecameStable(dependency_unit);
 		console.error(`${dependency_unit} is stable`);
