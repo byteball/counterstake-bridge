@@ -563,7 +563,7 @@ class EvmChain {
 		const transfer = { bridge_id, type: 'expatriation', amount, reward, sender_address, dest_address: foreign_address, data, txid, txts };
 		console.log('transfer', transfer);
 		event.removed ? await transfers.removeTransfer(transfer) : await transfers.addTransfer(transfer, true);
-		await this.updateLastBlock(event.blockNumber);
+	//	await this.updateLastBlock(event.blockNumber);
 		unlock();
 	}
 
@@ -578,7 +578,7 @@ class EvmChain {
 			throw Error(`repatriation on non-export address? import_aa=${import_aa}, address=${event.address}`);
 		const transfer = { bridge_id, type: 'repatriation', amount, reward, sender_address, dest_address: home_address, data, txid, txts };
 		event.removed ? await transfers.removeTransfer(transfer) : await transfers.addTransfer(transfer, true);
-		await this.updateLastBlock(event.blockNumber);
+	//	await this.updateLastBlock(event.blockNumber);
 		unlock();
 	}
 
@@ -593,7 +593,7 @@ class EvmChain {
 		const dest_address = recipient_address;
 		const claimant_address = author_address;
 		await transfers.handleNewClaim(bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, event.transactionHash);
-		await this.updateLastBlock(event.blockNumber);
+	//	await this.updateLastBlock(event.blockNumber);
 		unlock();
 	}
 
@@ -606,7 +606,7 @@ class EvmChain {
 		const bridge = await transfers.getBridgeByAddress(event.address, true);
 		const type = getType(event.address, bridge);
 		await transfers.handleChallenge(bridge, type, claim_num, author_address, outcome ? 'yes' : 'no', stake, event.transactionHash);
-		await this.updateLastBlock(event.blockNumber);
+	//	await this.updateLastBlock(event.blockNumber);
 		unlock();
 	}
 
@@ -619,7 +619,7 @@ class EvmChain {
 		const bridge = await transfers.getBridgeByAddress(event.address, true);
 		const type = getType(event.address, bridge);
 		await transfers.handleWithdrawal(bridge, type, claim_num, event.transactionHash);
-		await this.updateLastBlock(event.blockNumber);
+	//	await this.updateLastBlock(event.blockNumber);
 		unlock();
 	}
 
