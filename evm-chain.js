@@ -549,6 +549,13 @@ class EvmChain {
 		contract.on('NewClaim', this.onNewClaim.bind(this));
 		contract.on('NewChallenge', this.onNewChallenge.bind(this));
 		contract.on('FinishedClaim', this.onFinishedClaim.bind(this));
+		contract.on('error', (error, event) => {
+			console.log(`event decode error on ${this.network} contract ${contract.address}`, error, event);
+			notifications.notifyAdmin(
+				`event decode error on ${this.network} contract ${contract.address}`,
+				`failed to decode a '${event && event.event}' event in tx ${event && event.transactionHash}: ${error && error.message}\n${JSON.stringify(event)}`
+			);
+		});
 	}
 
 	async onNewExpatriation(sender_address, amount, reward, foreign_address, data, event) {
