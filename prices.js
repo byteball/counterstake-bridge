@@ -110,6 +110,8 @@ const fetchERC20ExchangeRate = async (chain, token_address, quote) => {
 			return getObyteAssetPrice('kNWO9R4/oiZ7m+3k4RgBxR2Lrdb/rtfIYB2XKVytCc0=');
 		}
 	}
+	if (token_address === '0xfA9343C3897324496A05fC75abeD6bAC29f8A40f') // Kava USDC Multichain
+		return 0;
 	const data = await request(`https://api.coingecko.com/api/v3/coins/${chain}/contract/${token_address.toLowerCase()}`)
 	const prices = data.market_data.current_price
 	quote = quote.toLowerCase()
