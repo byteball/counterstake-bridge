@@ -76,14 +76,16 @@ class EvmChain {
 		return last_block;
 	}
 
-	async getBlockNumber() {
+	async getBlockNumber(attempt = 0) {
 		try {
 			return await this.#provider.getBlockNumber();
 		}
 		catch (e) {
-			console.log(`getBlockNumber ${this.network} failed, will try again after waiting`, e);
-			await wait(100);
-			return await this.getBlockNumber();
+			console.log(`getBlockNumber ${this.network} attempt ${attempt} failed, will try again after waiting`, e);
+			if (attempt >= 10)
+				throw e;
+			await wait(1000 * (attempt + 1));
+			return await this.getBlockNumber(attempt + 1);
 		}
 	}
 
