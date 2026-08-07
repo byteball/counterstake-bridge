@@ -76,6 +76,7 @@ async function getAddressBlocks({ base_url, chainid, address, startblock, startt
 	try {
 		const ext_history = await getAddressHistory({ base_url, chainid, address, startblock, startts, api_key, bInternal: false, getUrl, getOptions });
 		const int_history = await getAddressHistory({ base_url, chainid, address, startblock, startts, api_key, bInternal: true, getUrl, getOptions });
+		console.log(`history for ${address} on chain ${chainid}: external ${ext_history.map(tx => tx.blockNumber).join(',')}; internal ${int_history.map(tx => tx.blockNumber).join(',')}`);
 		const history = ext_history.concat(int_history);
 		let blocks = _.uniq(history.map(tx => parseInt(tx.blockNumber)));
 		if (startblock) {
