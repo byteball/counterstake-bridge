@@ -124,7 +124,7 @@ class EvmChain {
 			return await token.balanceOf(address);
 		}
 		catch (e) {
-			console.log(`getBalance ${address} ${asset} attempt ${attempt} failed`, e);
+			console.log(`getBalance ${this.network} ${address} ${asset} attempt ${attempt} failed`, e);
 			if (attempt >= 10)
 				throw e;
 			attempt++;
@@ -156,7 +156,7 @@ class EvmChain {
 		const last_finalized_block_number = Math.max(currentBlockNumber - conf.evm_count_blocks_for_finality, 0);
 		const block = await this.#provider.getBlock(last_finalized_block_number);
 		if (!block)
-			throw Error(`failed to get block ${last_finalized_block_number}`);
+			throw Error(`failed to get block ${last_finalized_block_number} on ${this.network}`);
 		return block.timestamp;
 	}
 
@@ -200,7 +200,7 @@ class EvmChain {
 		console.log('getMinReward', type, claimed_asset, src_network, src_asset, bWithAssistant);
 		const gas = bWithAssistant ? conf.evm_required_gas_with_pooled_assistant : conf.evm_required_gas;
 		const fee = gas * (await this.getGasPrice()) / 1e9; // in Ether, 1 gwei = 1e-9 ETH
-		console.log(`required gas for claim+withdraw (${bWithAssistant ? 'pooled' : 'solo'}): ${fee} ${this.getNativeSymbol()}`);
+		console.log(`${this.network} required gas for claim+withdraw (${bWithAssistant ? 'pooled' : 'solo'}): ${fee} ${this.getNativeSymbol()}`);
 		if (claimed_asset === AddressZero)
 			return fee;
 		const rate = await fetchExchangeRateInNativeAsset(type, this.network, claimed_asset, src_network, src_asset, bCached);
@@ -355,7 +355,7 @@ class EvmChain {
 			await this.addAccessListIfNecessary(opts, claimed_asset, staked_asset, dest_address);
 			const res = await contract.claim(txid, txts, amount, reward, stake, sender_address, dest_address, data, opts);
 			const claim_txid = res.hash;
-			console.log(`sent claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
+			console.log(`${this.network} sent claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
 			this.#last_tx_ts = Date.now();
 			if (this.#bWaitForMined)
 				await res.wait();
@@ -365,14 +365,14 @@ class EvmChain {
 			return claim_txid;
 		}
 		catch (e) {
-			console.log(`failed to send claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}`, e);
+			console.log(`${this.network} failed to send claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}`, e);
 			unlock();
 			if (e.toString().includes('has already been claimed')) {
-				console.log(`transfer ${txid} already claimed, maybe we missed the event?`);
+				console.log(`${this.network} transfer ${txid} already claimed, maybe we missed the event?`);
 				process.nextTick(async () => {
-					console.log(`will rescan events since ${txts}`);
+					console.log(`${this.network} will rescan events since ${txts}`);
 					const blocks = await this.getAddressBlocks(bridge_aa, 0, txts);
-					console.log(`blocks since ${txts}:`, blocks);
+					console.log(`${this.network} blocks since ${txts}:`, blocks);
 					for (let blockNumber of blocks) {
 						await this.processPastEventsOnBridgeContract(contract, blockNumber, blockNumber);
 					}
@@ -397,7 +397,7 @@ class EvmChain {
 			await this.addAccessListIfNecessary(opts, claimed_asset, staked_asset, dest_address);
 			const res = await contract.claim(txid, txts, amount, reward, sender_address, dest_address, data, opts);
 			const claim_txid = res.hash;
-			console.log(`sent assistant claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
+			console.log(`${this.network} sent assistant claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
 			this.#last_tx_ts = Date.now();
 			if (this.#bWaitForMined)
 				await res.wait();
@@ -405,7 +405,7 @@ class EvmChain {
 			return claim_txid;
 		}
 		catch (e) {
-			console.log(`failed to send assistant claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}`, e);
+			console.log(`${this.network} failed to send assistant claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}`, e);
 			unlock();
 			return null;
 		}
@@ -421,7 +421,7 @@ class EvmChain {
 			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 		const res = await contract['challenge(uint256,uint8,uint256)'](claim_num, side, counterstake, opts);
 		const txid = res.hash;
-		console.log(`sent counterstake ${counterstake} for "${stake_on}" to challenge claim ${claim_num}: ${txid}`);
+		console.log(`${this.network} sent counterstake ${counterstake} for "${stake_on}" to challenge claim ${claim_num}: ${txid}`);
 		this.#last_tx_ts = Date.now();
 		if (this.#bWaitForMined)
 			await res.wait();
@@ -439,7 +439,7 @@ class EvmChain {
 			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 		const res = await contract.challenge(claim_num, side, counterstake, opts);
 		const txid = res.hash;
-		console.log(`sent assistant counterstake ${counterstake} for "${stake_on}" to challenge claim ${claim_num}: ${txid}`);
+		console.log(`${this.network} sent assistant counterstake ${counterstake} for "${stake_on}" to challenge claim ${claim_num}: ${txid}`);
 		this.#last_tx_ts = Date.now();
 		if (this.#bWaitForMined)
 			await res.wait();
@@ -456,7 +456,7 @@ class EvmChain {
 			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 		const res = await contract.withdrawManagementFee(opts);
 		const txid = res.hash;
-		console.log(`sent management fee withdrawal request to pooled assistant ${assistant_aa}: ${txid}`);
+		console.log(`${this.network} sent management fee withdrawal request to pooled assistant ${assistant_aa}: ${txid}`);
 		this.#last_tx_ts = Date.now();
 		if (this.#bWaitForMined)
 			await res.wait();
@@ -473,7 +473,7 @@ class EvmChain {
 			opts.gasPrice = Math.round(1e9 * (await this.getGasPrice()));
 		const res = await contract.withdrawSuccessFee(opts);
 		const txid = res.hash;
-		console.log(`sent success fee withdrawal request to pooled assistant ${assistant_aa}: ${txid}`);
+		console.log(`${this.network} sent success fee withdrawal request to pooled assistant ${assistant_aa}: ${txid}`);
 		this.#last_tx_ts = Date.now();
 		if (this.#bWaitForMined)
 			await res.wait();
@@ -501,7 +501,7 @@ class EvmChain {
 			? await contract['withdraw(uint256,address)'](claim_num, to_address, opts)
 			: await contract['withdraw(uint256)'](claim_num, opts);
 		const txid = res.hash;
-		console.log(`sent withdrawal request on claim ${claim_num} to ${to_address || 'self'}: ${txid}`);
+		console.log(`${this.network} sent withdrawal request on claim ${claim_num} to ${to_address || 'self'}: ${txid}`);
 		this.#last_tx_ts = Date.now();
 		if (this.#bWaitForMined)
 			await res.wait();
@@ -525,7 +525,7 @@ class EvmChain {
 			res = await contract.transfer(address, amount, opts);
 		}
 		const txid = res.hash;
-		console.log(`sent payment ${amount} ${asset} to ${address}: ${txid}`);
+		console.log(`${this.network} sent payment ${amount} ${asset} to ${address}: ${txid}`);
 		if (this.#bWaitForMined)
 			await res.wait();
 		return txid;
@@ -641,7 +641,7 @@ class EvmChain {
 			return await token.decimals();
 		}
 		catch (e) {
-			console.log(`getDecimals(${tokenAddress}) failed`, e);
+			console.log(`${this.network} getDecimals(${tokenAddress}) failed`, e);
 			return null;
 		}
 	}
@@ -654,7 +654,7 @@ class EvmChain {
 			return await token.symbol();
 		}
 		catch (e) {
-			console.log(`getSymbol(${tokenAddress}) failed`, e);
+			console.log(`${this.network} getSymbol(${tokenAddress}) failed`, e);
 			return null;
 		}
 	}
@@ -668,11 +668,11 @@ class EvmChain {
 		try {
 			const allowance = await token.allowance(this.#wallet.address, spenderAddress);
 			if (allowance.gt(0)) {
-				console.log(`spender ${spenderAddress} already approved`);
+				console.log(`${this.network} spender ${spenderAddress} already approved`);
 				this.#approved[tokenAddress + '-' + spenderAddress] = true;
 				return "already approved";
 			}
-			console.log(`will approve spender ${spenderAddress} to spend our token ${tokenAddress}`);
+			console.log(`${this.network} will approve spender ${spenderAddress} to spend our token ${tokenAddress}`);
 			const res = await token.approve(spenderAddress, BigNumber.from(2).pow(256).sub(1));
 			if (this.#bWaitForMined)
 				await res.wait();
@@ -680,7 +680,7 @@ class EvmChain {
 			return res;
 		}
 		catch (e) {
-			console.log(`approve(${spenderAddress}) failed`, e);
+			console.log(`${this.network} approve(${spenderAddress}) failed`, e);
 			return null;
 		}
 	}
@@ -692,7 +692,7 @@ class EvmChain {
 	async waitForTransaction(txid) {
 		const receipt = await this.#provider.waitForTransaction(txid);
 		if (!receipt.status)
-			console.log(`tx ${txid} reverted: `, receipt);
+			console.log(`${this.network} tx ${txid} reverted: `, receipt);
 		return receipt.status;
 	}
 
@@ -748,7 +748,7 @@ class EvmChain {
 		const onNewExport = async (contractAddress, tokenAddress, foreign_network, foreign_asset, event) => {
 			const decimals = await this.getDecimals(tokenAddress);
 			if (decimals === null)
-				return console.log(`not adding new export contract ${contractAddress} as its token ${tokenAddress} didn't return decimals`);
+				return console.log(`${this.network} not adding new export contract ${contractAddress} as its token ${tokenAddress} didn't return decimals`);
 			/*if (tokenAddress !== AddressZero && conf.bUseOwnFunds) {
 				console.log(`will approve the export contract to spend our ERC20 ${tokenAddress}`);
 				const approval_res = await this.approve(tokenAddress, contractAddress);
@@ -757,7 +757,7 @@ class EvmChain {
 			}*/
 			const version = getVersion(this.#factory_contract_addresses, event.address);
 			if (!version)
-				throw Error(`undefined version of new export ${contractAddress} ${JSON.stringify(event)}`);
+				throw Error(`${this.network} undefined version of new export ${contractAddress} ${JSON.stringify(event)}`);
 			const bAdded = await transfers.handleNewExportAA(contractAddress, this.network, tokenAddress, decimals, foreign_network, foreign_asset, version);
 			if (bAdded)
 				this.startWatchingExportAA(contractAddress);
@@ -765,7 +765,7 @@ class EvmChain {
 		const onNewImport = async (contractAddress, home_network, home_asset, symbol, stakeTokenAddress, event) => {
 			const version = getVersion(this.#factory_contract_addresses, event.address);
 			if (!version)
-				throw Error(`undefined version of new import ${contractAddress} ${JSON.stringify(event)}`);
+				throw Error(`${this.network} undefined version of new import ${contractAddress} ${JSON.stringify(event)}`);
 			const bAdded = await transfers.handleNewImportAA(contractAddress, home_network, home_asset, this.network, contractAddress, 18, stakeTokenAddress, version);
 			if (bAdded)
 				this.startWatchingImportAA(contractAddress);
@@ -816,10 +816,10 @@ class EvmChain {
 		const onNewExportAssistant = async (assistantAddress, bridgeAddress, manager, symbol, event) => {
 		//	if (manager !== this.#wallet.address)
 		//		return console.log(`new assistant ${assistantAddress} with another manager, will skip`);
-			console.log(`new export assistant ${assistantAddress}, shares ${symbol}`);
+			console.log(`${this.network} new export assistant ${assistantAddress}, shares ${symbol}`);
 			const version = getVersion(this.#assistant_factory_contract_addresses, event.address);
 			if (!version)
-				throw Error(`undefined version of new export assistant ${assistantAddress} ${JSON.stringify(event)}`);
+				throw Error(`${this.network} undefined version of new export assistant ${assistantAddress} ${JSON.stringify(event)}`);
 			const bAdded = await transfers.handleNewAssistantAA('export', assistantAddress, bridgeAddress, this.network, manager, assistantAddress, symbol, version);
 			if (bAdded)
 				this.startWatchingExportAssistantAA(assistantAddress);
@@ -827,10 +827,10 @@ class EvmChain {
 		const onNewImportAssistant = async (assistantAddress, bridgeAddress, manager, symbol, event) => {
 		//	if (manager !== this.#wallet.address)
 		//		return console.log(`new assistant ${assistantAddress} with another manager, will skip`);
-			console.log(`new import assistant ${assistantAddress}, shares ${symbol}`);
+			console.log(`${this.network} new import assistant ${assistantAddress}, shares ${symbol}`);
 			const version = getVersion(this.#assistant_factory_contract_addresses, event.address);
 			if (!version)
-				throw Error(`undefined version of new import assistant ${assistantAddress} ${JSON.stringify(event)}`);
+				throw Error(`${this.network} undefined version of new import assistant ${assistantAddress} ${JSON.stringify(event)}`);
 			const bAdded = await transfers.handleNewAssistantAA('import', assistantAddress, bridgeAddress, this.network, manager, assistantAddress, symbol, version);
 			if (bAdded)
 				this.startWatchingImportAssistantAA(assistantAddress);
@@ -998,13 +998,13 @@ class EvmChain {
 			provider._websocket.on('close', () => {
 				console.log('====== !!!!! websocket connection closed', this.network);
 				if (closed)
-					return console.log('close event: ws already closed');
+					return console.log('close event: ws already closed', this.network);
 				forgetAndEmitDisconnected();
 			});
 			provider._websocket.on('error', (error) => {
 				console.log('====== !!!!! websocket error', this.network, error);
 				if (closed)
-					return console.log('error event: ws already closed');
+					return console.log('error event: ws already closed', this.network);
 				closeSocket();
 				forgetAndEmitDisconnected();
 			});
@@ -1041,12 +1041,12 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 			throw e;
 		const errMsg = JSON.stringify(e);
 		if (isRateLimitError(errMsg)) {
-			console.log(`will retry later, attempt ${attempt_count}`);
+			console.log(`${network} will retry later, attempt ${attempt_count}`);
 			await wait(100);
 			return processPastEvents(contract, filter, since_block, to_block, thisArg, handler, attempt_count + 1);
 		}
 		if (errMsg.includes("internal error") || errMsg.includes("temporarily unavailable") || errMsg.includes("Request timeout on the free tier") || errMsg.includes("from block is greater than latest block") || errMsg.includes("invalid block range params") || errMsg.includes("timeout") || errMsg.includes("timed out")) {
-			console.log(`transient, will retry later, attempt ${attempt_count}`);
+			console.log(`${network} transient, will retry later, attempt ${attempt_count}`);
 			await wait(10_000);
 			return processPastEvents(contract, filter, since_block, to_block, thisArg, handler, attempt_count + 1);
 		}
@@ -1054,7 +1054,7 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 		if (arrMatches) {
 			const to = +arrMatches[2];
 			if (to === since_block - 1 && to_block === 0) {
-				console.log(`buggy getLogs latest, will retry with range [since_block, since_block], attempt ${attempt_count}`);
+				console.log(`${network} buggy getLogs latest, will retry with range [since_block, since_block], attempt ${attempt_count}`);
 				return processPastEvents(contract, filter, since_block, since_block, thisArg, handler, attempt_count + 1);
 			}
 		}
