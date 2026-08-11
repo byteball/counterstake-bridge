@@ -6,6 +6,7 @@ const conf = require('ocore/conf.js');
 const db = require('ocore/db.js');
 const mutex = require('ocore/mutex.js');
 const desktopApp = require("ocore/desktop_app.js");
+const string_utils = require("ocore/string_utils.js");
 const notifications = require('./notifications.js');
 const transfers = require('./transfers.js');
 const { fetchExchangeRateInNativeAsset } = require('./prices.js');
@@ -240,6 +241,12 @@ class EvmChain {
 	}
 
 	isValidData(data) {
+		if (!data)
+			return true;
+		// data is always a string
+		// using toWellFormedJsonStringify() to correctly account for emojis and the like
+		if (string_utils.getJsonSourceString(data).length > 500)
+			return false;
 		return true;
 	}
 
