@@ -229,7 +229,7 @@ class EvmChain {
 	}
 
 	isValidTxid(txid) {
-		return !!txid.match(/^0x[0-9a-f]{64}$/);
+		return typeof txid === 'string' && !!txid.match(/^0x[0-9a-f]{64}$/);
 	}
 
 	isValidNonnativeAsset(asset) {
