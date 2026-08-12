@@ -10,6 +10,7 @@ const chains = {
 	1: 'eth',
 	56: 'bsc',
 	137: 'polygon',
+	97: 'bsc testnet',
 };
 
 async function waitBetweenRequests() {
