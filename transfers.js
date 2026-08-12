@@ -356,8 +356,12 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	console.log(`handling claim ${claim_num} in tx ${claim_txid}`);
 
 	const [db_claim] = await db.query("SELECT * FROM claims WHERE claim_num=? AND bridge_id=? AND type=?", [claim_num, bridge.bridge_id, type]);
-	if (db_claim)
-		return unlock(`duplicate claim ${claim_num} in tx ${claim_txid}`);
+	if (db_claim) {
+		if (db_claim.claim_txid === claim_txid)
+			return unlock(`duplicate claim ${claim_num} in tx ${claim_txid}`);
+		else // will crash when inserting later
+			notifications.notifyAdmin(`new claim with the same number ${claim_num} on ${network}, possible reorg`, `new tx ${claim_txid}, existing tx ${db_claim.claim_txid}, bridge ${bridge.bridge_id}`);
+	}
 
 	// make sure the opposite network is up to date and we know all the transfers initiated there
 	const opposite_network = type === 'expatriation' ? bridge.home_network : bridge.foreign_network;
