@@ -421,6 +421,11 @@ class EvmChain {
 	async sendChallenge(bridge_aa, claim_num, stake_on, asset, counterstake) {
 		const unlock = await mutex.lock(this.network + 'Tx');
 		await this.waitBetweenTransactions();
+		if (asset !== AddressZero) {
+			const approval_res = await this.approve(asset, bridge_aa);
+			if (!approval_res)
+				throw Error(`sendChallenge: failed to approve ${bridge_aa} to spend our ${asset}`);
+		}
 		const side = stake_on === 'yes' ? 1 : 0;
 		const contract = this.#contractsByAddress[bridge_aa];
 		let opts = { value: (asset === AddressZero) ? counterstake : 0 };
