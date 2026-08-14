@@ -83,7 +83,7 @@ class Obyte {
 			return true;
 		// data is always a string
 		// using toWellFormedJsonStringify() to correctly account for emojis and the like
-		if (string_utils.getJsonSourceString(data).length > 500)
+		if (string_utils.getJsonSourceString(data).length > 400)
 			return false;
 		try {
 			JSON.parse(data);
