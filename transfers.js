@@ -681,11 +681,12 @@ async function sendChallenge(network, bridge_aa, assistant_aa, { claim_num, brid
 	const api = networkApi[network];
 	let bClaimFromPooledAssistant = !!assistant_aa;
 	if (bClaimFromPooledAssistant) {
-		const bAssistantHasEnoughBalance = counterstake.lte(await api.getBalance(assistant_aa, asset));
+		const assistantBalance = await api.getBalance(assistant_aa, asset);
+		const bAssistantHasEnoughBalance = counterstake.lte(assistantBalance) && !counterstake.isZero();
 		if (bAssistantHasEnoughBalance)
 			console.log(`will challenge claim ${claim_num} with ${stake_on} from assistant AA ${assistant_aa}`);
 		else {
-			console.log(`assistant AA ${assistant_aa} has insufficient balance to challenge claim ${claim_num} with ${stake_on}, will try to challenge myself`);
+			console.log(`assistant AA ${assistant_aa} has insufficient balance ${assistantBalance} to challenge claim ${claim_num} with ${counterstake} on ${stake_on}, will try to challenge myself`);
 			bClaimFromPooledAssistant = false;
 		}
 	}
