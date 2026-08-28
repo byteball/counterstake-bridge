@@ -16,6 +16,8 @@ async function waitBetweenRequests(base_url, bWithApiKey) {
 }
 
 async function getAddressHistory({ base_url, chainid, address, startblock, startts, api_key, bInternal = false, getUrl, getOptions, retry_count = 0 }) {
+	if (base_url.includes('etherscan') && bInternal) // now scanning by logs
+		return [];
 	const unlock = await mutex.lock(base_url);
 	const retry = async (msg) => {
 		unlock(msg);
@@ -54,9 +56,11 @@ async function getAddressHistory({ base_url, chainid, address, startblock, start
 	}
 	const defaultGetUrl = () => {
 		const action = bInternal ? 'txlistinternal' : 'txlist';
-		let url = `${base_url}/api?chainid=${chainid}&module=account&action=${action}&address=${address}`;
+	//	let url = `${base_url}/api?chainid=${chainid}&module=account&action=${action}&address=${address}`;
+		let url = `${base_url}/api?chainid=${chainid}&module=logs&action=getLogs&address=${address}`;
 		if (startblock)
-			url += `&startblock=${startblock}`;
+		//	url += `&startblock=${startblock}`;
+			url += `&fromBlock=${startblock}`;
 		if (api_key)
 			url += `&apikey=${api_key}`;
 		return url;
