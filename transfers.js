@@ -338,7 +338,7 @@ async function attackClaim(bridge, type, claim_num, claim_txid) {
 	if (!asset)
 		throw Error(`null asset in claim ${claim_num}`);
 	const counterstake = await getCounterstakeAmount(network, assistant_aa, required_counterstake, asset);
-	if (counterstake.isZero())
+	if (counterstake.isZero() && !required_counterstake.isZero())
 		return notifications.notifyAdmin(`0 balance available to counterstake claim ${claim_num} received in tx ${claim_txid}`);
 	if (counterstake.lt(required_counterstake))
 		notifications.notifyAdmin(`counterstaking ${counterstake} out of ${required_counterstake} on claim ${claim_num} received in tx ${claim_txid}`);
@@ -557,7 +557,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 		if (required_counterstake.lte(0))
 			throw Error(`required counterstake is ${required_counterstake} after challenge ${challenge_txid} on claim ${claim_num}`)
 		const counterstake = await getCounterstakeAmount(network, assistant_aa, required_counterstake, asset);
-		if (counterstake.isZero()) {
+		if (counterstake.isZero() && !required_counterstake.isZero()) {
 			notifications.notifyAdmin(`0 balance available to counterstake claim ${claim_num} challenged in tx ${challenge_txid}`);
 			return unlock(`0 balance available to counterstake claim ${claim_num} challenged in tx ${challenge_txid}`);
 		}
