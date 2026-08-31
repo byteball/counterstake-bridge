@@ -554,7 +554,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 			return unlock();
 		}
 		const required_counterstake = BigNumber.from(claim.challenging_target).sub(claim.stakes[valid_outcome]);
-		if (required_counterstake.lte(0))
+		if (required_counterstake.lte(0) && BigNumber.from(claim.stakes[valid_outcome]).gt(0))
 			throw Error(`required counterstake is ${required_counterstake} after challenge ${challenge_txid} on claim ${claim_num}`)
 		const counterstake = await getCounterstakeAmount(network, assistant_aa, required_counterstake, asset);
 		if (counterstake.isZero() && !required_counterstake.isZero()) {
