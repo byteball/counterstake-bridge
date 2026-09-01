@@ -56,7 +56,7 @@ class EvmChain {
 		return 0;
 	}
 
-	async getAddressBlocks(address, startblock, startts) {
+	async getAddressBlocks(address, startblock, startts, endblock) {
 		throw Error(`getAddressBlocks() unimplemented on ${this.network}`);
 	}
 
@@ -378,7 +378,8 @@ class EvmChain {
 				console.log(`${this.network} transfer ${txid} already claimed, maybe we missed the event?`);
 				process.nextTick(async () => {
 					console.log(`${this.network} will rescan events since ${txts}`);
-					const blocks = await this.getAddressBlocks(bridge_aa, 0, txts);
+					const blockNumber = await this.getBlockNumber();
+					const blocks = await this.getAddressBlocks(bridge_aa, 0, txts, blockNumber);
 					console.log(`${this.network} blocks since ${txts}:`, blocks);
 					for (let blockNumber of blocks) {
 						await this.processPastEventsOnBridgeContract(contract, blockNumber, blockNumber);
@@ -799,15 +800,21 @@ class EvmChain {
 			const top_available_block = await this.getTopAvailableBlock();
 			if (top_available_block > last_block) {
 				console.log(this.network, 'factories top available block', top_available_block, '> last block', last_block);
-				const blocks = await this.getAddressBlocks(factory_contract_address, last_block);
+				const blocks = await this.getAddressBlocks(factory_contract_address, last_block, undefined, top_available_block);
 				console.log('factories blocks of missed txs', this.network, blocks);
 				for (let blockNumber of blocks) {
 					await processPastEventsOnContract(blockNumber, blockNumber);
 				}
 			}
 
-			const since_block = await this.getSinceBlock();
-			await processPastEventsOnContract(since_block, await this.getBlockNumber());
+			// reuse the top_available_block snapshot taken above rather than letting getSinceBlock() re-query a
+			// fresh, later one - the address-based rescan above can take a while, and a fresh value here would
+			// leave a gap between where that rescan stopped and where this direct RPC scan starts
+			const since_block = this.getMaxBlockRange() ? Math.max(last_block, top_available_block) : last_block;
+			const blockNumber = await this.getBlockNumber();
+			// blockNumber is fetched after the rescan above, so it may now be more than getMaxBlockRange() ahead of since_block
+			for (const [from_block, to_block] of getBlockRanges(since_block, blockNumber, this.getMaxBlockRange()))
+				await processPastEventsOnContract(from_block, to_block);
 		}
 	}
 
@@ -864,15 +871,21 @@ class EvmChain {
 			const top_available_block = await this.getTopAvailableBlock();
 			if (top_available_block > last_block) {
 				console.log(this.network, 'assistants top available block', top_available_block, '> last block', last_block);
-				const blocks = await this.getAddressBlocks(assistant_factory_contract_address, last_block);
+				const blocks = await this.getAddressBlocks(assistant_factory_contract_address, last_block, undefined, top_available_block);
 				console.log('assistants blocks of missed txs', this.network, blocks);
 				for (let blockNumber of blocks) {
 					await processPastEventsOnContract(blockNumber, blockNumber);
 				}
 			}
 
-			const since_block = await this.getSinceBlock();
-			await processPastEventsOnContract(since_block, await this.getBlockNumber());
+			// reuse the top_available_block snapshot taken above rather than letting getSinceBlock() re-query a
+			// fresh, later one - the address-based rescan above can take a while, and a fresh value here would
+			// leave a gap between where that rescan stopped and where this direct RPC scan starts
+			const since_block = this.getMaxBlockRange() ? Math.max(last_block, top_available_block) : last_block;
+			const blockNumber = await this.getBlockNumber();
+			// blockNumber is fetched after the rescan above, so it may now be more than getMaxBlockRange() ahead of since_block
+			for (const [from_block, to_block] of getBlockRanges(since_block, blockNumber, this.getMaxBlockRange()))
+				await processPastEventsOnContract(from_block, to_block);
 		}
 	}
 
@@ -903,7 +916,7 @@ class EvmChain {
 				const contract = this.#contractsByAddress[address];
 				if (!contract.filters.NewClaim) // not a bridge, must be an assistant
 					continue;
-				const blocks = await this.getAddressBlocks(address, last_block);
+				const blocks = await this.getAddressBlocks(address, last_block, undefined, top_available_block);
 				console.log(`${this.network} contract ${address} blocks of missed txs since ${last_block}`, blocks);
 				for (let blockNumber of blocks) {
 					const count = await this.processPastEventsOnBridgeContract(contract, blockNumber, blockNumber);
@@ -913,13 +926,21 @@ class EvmChain {
 			}
 		}
 
-		const since_block = (top_available_block || !this.#last_caughtup_block) ? await this.getSinceBlock() : this.#last_caughtup_block;
+		// reuse the top_available_block snapshot taken above rather than letting getSinceBlock() re-query a fresh,
+		// later one - the address-based rescan above can take a while, and a fresh value here would leave a gap
+		// between where that rescan stopped and where this direct RPC scan starts
+		const since_block = (top_available_block || !this.#last_caughtup_block)
+			? (this.getMaxBlockRange() ? Math.max(last_block, top_available_block) : last_block)
+			: this.#last_caughtup_block;
 		const blockNumber = await this.getBlockNumber();
+		// blockNumber is fetched after the rescan above, so it may now be more than getMaxBlockRange() ahead of since_block
+		const block_ranges = getBlockRanges(since_block, blockNumber, this.getMaxBlockRange());
 		for (let address in this.#contractsByAddress) {
 			const contract = this.#contractsByAddress[address];
 			if (!contract.filters.NewClaim) // not a bridge, must be an assistant
 				continue;
-			await this.processPastEventsOnBridgeContract(contract, since_block, blockNumber);
+			for (const [from_block, to_block] of block_ranges)
+				await this.processPastEventsOnBridgeContract(contract, from_block, to_block);
 		}
 		const unlock = await mutex.lock(this.network + 'Event'); // take the last place in the queue after all real events
 		unlock();
@@ -1030,6 +1051,17 @@ class EvmChain {
 
 }
 
+
+// splits [from_block, to_block] into windows no larger than max_range, since blockNumber (to_block) is often
+// fetched well after since_block was determined and the gap between them can exceed the provider's range limit
+function getBlockRanges(from_block, to_block, max_range) {
+	if (!max_range)
+		return [[from_block, to_block]];
+	const ranges = [];
+	for (let start = from_block; start <= to_block; start += max_range)
+		ranges.push([start, Math.min(start + max_range - 1, to_block)]);
+	return ranges;
+}
 
 function getType(address, bridge) {
 	const { bridge_id, export_aa, import_aa } = bridge;

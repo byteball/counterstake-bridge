@@ -55,25 +55,26 @@ async function getBlockByTimestamp(dataset, ts) {
 	return block_number;
 }
 
-// streams the logs emitted by `address` (like etherscan's getLogs) from fromBlock to the current finalized head
+// streams the logs emitted by `address` (like etherscan's getLogs) from fromBlock up to toBlock
 // and returns the sorted list of unique block numbers they appeared in.
 // Uses /finalized-stream (rather than /stream) so that we never have to deal with reorgs (no parentBlockHash tracking needed).
-async function getAddressLogBlocks({ dataset, address, fromBlock, retry_count = 0 }) {
+async function getAddressLogBlocks({ dataset, address, fromBlock, toBlock, retry_count = 0 }) {
 	const blocks = new Set();
 	let cursor = fromBlock || 0;
+	const lc_address = address.toLowerCase();
 	const body = {
 		type: 'evm',
 		fields: {
 			block: { number: true },
-			log: { transactionHash: true },
+			log: { address: true, transactionHash: true },
 		},
 		logs: [{ address: [address] }],
 	};
-	while (true) {
+	while (toBlock === undefined || cursor <= toBlock) {
 		const response = await portalRequest(dataset, `${PORTAL_BASE_URL}/datasets/${dataset}/finalized-stream`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ ...body, fromBlock: cursor }),
+			body: JSON.stringify({ ...body, fromBlock: cursor, ...(toBlock !== undefined && { toBlock }) }),
 		});
 		if (response.status === 204) // range is above the dataset's finalized head, nothing more to fetch
 			break;
@@ -81,17 +82,20 @@ async function getAddressLogBlocks({ dataset, address, fromBlock, retry_count = 
 			const text = await response.text();
 			let error;
 			try { ({ error } = JSON.parse(text)); } catch (e) { }
-			// rate_limit_error/availability_error are transient (e.g. "overloaded"), retry with backoff regardless of the HTTP status used
+			// rate_limit_error/availability_error are transient (e.g. "overloaded"), retry with backoff regardless of the HTTP status used.
+			// Only *consecutive* failures count against the cap (reset below on success), so a long scan that occasionally
+			// hits congestion keeps making progress instead of blowing the whole scan and restarting from fromBlock again.
 			if (error && (error.type === 'rate_limit_error' || error.type === 'availability_error')) {
 				if (++retry_count > 10)
-					throw Error(`too many retries on sqd dataset ${dataset} after ${error.type} (${error.code})`);
-				const retry_after = parseInt(response.headers.get('retry-after')) || 10;
-				console.log(`sqd ${error.type} (${error.code}) on dataset ${dataset}, will wait ${retry_after} sec`);
+					throw Error(`too many consecutive retries on sqd dataset ${dataset} after ${error.type} (${error.code})`);
+				const retry_after = parseInt(response.headers.get('retry-after')) || Math.min(60, 5 * 2 ** (retry_count - 1));
+				console.log(`sqd ${error.type} (${error.code}) on dataset ${dataset}, will wait ${retry_after} sec (consecutive retry ${retry_count})`);
 				await wait(retry_after * 1000);
 				continue;
 			}
 			throw Error(`sqd finalized-stream ${dataset} from ${cursor} failed: ${response.status} ${text}`);
 		}
+		retry_count = 0;
 		const text = await response.text();
 		console.log(`sqd response text for dataset ${dataset} address ${address} from ${cursor}:\n${text}`);
 		const lines = text.trim().split('\n').filter(Boolean);
@@ -100,25 +104,43 @@ async function getAddressLogBlocks({ dataset, address, fromBlock, retry_count = 
 		let last_block = cursor - 1;
 		for (const line of lines) {
 			const block = JSON.parse(line);
-			if (Array.isArray(block.logs) && block.logs.length > 0)
+			// don't trust the server-side filter blindly: boundary blocks are always included even without a match,
+			// and (block.logs || []) might in principle contain logs from other addresses, so re-check address here
+			if (Array.isArray(block.logs) && block.logs.some(log => log.address && log.address.toLowerCase() === lc_address))
 				blocks.add(block.header.number);
 			last_block = block.header.number;
 		}
 		if (last_block < cursor) // safety net, shouldn't normally happen
 			break;
 		cursor = last_block + 1;
+		console.log(`sqd scan of ${address} on ${dataset}: now at block ${cursor}, ${blocks.size} matches so far`);
 	}
 	return Array.from(blocks);
 }
 
-async function getAddressBlocks({ dataset, chainid, address, startblock, startts, count = 0 }) {
+async function getAddressBlocks({ dataset, chainid, address, startblock, startts, endblock, count = 0 }) {
 	dataset = dataset || datasets[chainid];
 	if (!dataset)
 		throw Error(`no sqd dataset known for chain ${chainid}`);
 	try {
 		if (startts && !startblock)
 			startblock = await getBlockByTimestamp(dataset, startts);
-		let blocks = await getAddressLogBlocks({ dataset, address, fromBlock: startblock });
+		// don't chase the last few minutes before the live head: there, /finalized-stream batches collapse to
+		// just 1-3 blocks per request (vs thousands further back), so an open-ended scan can crawl for a very
+		// long time without ever finishing. Only apply this fallback margin if the caller didn't already give us
+		// an explicit endblock (e.g. evm-chain.js's top_available_block) - that's a well-defined, usually much
+		// closer target, and capping it further here would silently leave an unscanned gap before it.
+		let toBlock = endblock;
+		if (toBlock === undefined) {
+			const now = Math.floor(Date.now() / 1000);
+			try {
+				toBlock = await getBlockByTimestamp(dataset, now);
+			}
+			catch (e) {
+				console.log(`sqd couldn't resolve a recent toBlock for dataset ${dataset}, will scan unbounded`, e);
+			}
+		}
+		let blocks = await getAddressLogBlocks({ dataset, address, fromBlock: startblock, toBlock });
 		console.log(`sqd history for ${address} on ${dataset}: ${blocks.join(',')}`);
 		if (startblock) {
 			const initLen = blocks.length;
@@ -135,7 +157,7 @@ async function getAddressBlocks({ dataset, chainid, address, startblock, startts
 		console.log(`will retry getAddressBlocks sqd ${dataset} in 60 sec`);
 		await wait(60 * 1000);
 		count++;
-		return await getAddressBlocks({ dataset, chainid, address, startblock, startts, count });
+		return await getAddressBlocks({ dataset, chainid, address, startblock, startts, endblock, count });
 	}
 }
 

@@ -35,8 +35,8 @@ class BSC extends EvmChain {
 		return process.env.testnet ? 5 : 0; // in gwei
 	}
 
-	async getAddressBlocks(address, startblock, startts) {
-		return await getAddressBlocks({ chainid: process.env.testnet ? 97 : 56, address, startblock, startts });
+	async getAddressBlocks(address, startblock, startts, endblock) {
+		return await getAddressBlocks({ chainid: process.env.testnet ? 97 : 56, address, startblock, startts, endblock });
 	}
 
 }
