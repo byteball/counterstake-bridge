@@ -2,7 +2,7 @@
 const conf = require('ocore/conf.js');
 const EvmChain = require('./evm-chain.js');
 const { getProvider } = require("./evm/provider.js");
-const { getAddressBlocks } = require("./moralis.js");
+const { getAddressBlocks } = require("./sqd.js");
 
 let bCreated = false;
 
