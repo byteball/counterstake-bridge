@@ -1,4 +1,5 @@
 const _ = require('lodash');
+const conf = require('ocore/conf.js');
 const mutex = require('ocore/mutex.js');
 const { request } = require('./request.js');
 const { wait } = require('./utils.js');
