@@ -76,7 +76,7 @@ async function getAddressHistory({ base_url, chainid, address, startblock, start
 	return history;
 }
 
-async function getAddressBlocks({ base_url, chainid, address, startblock, startts, api_key, getUrl, getOptions, count = 0 }) {
+async function getAddressBlocks({ base_url = 'https://api.etherscan.io/v2', chainid, address, startblock, startts, api_key = conf.etherscan_api_key, getUrl, getOptions, count = 0 }) {
 	try {
 		const ext_history = await getAddressHistory({ base_url, chainid, address, startblock, startts, api_key, bInternal: false, getUrl, getOptions });
 		const int_history = await getAddressHistory({ base_url, chainid, address, startblock, startts, api_key, bInternal: true, getUrl, getOptions });
