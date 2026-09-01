@@ -93,6 +93,7 @@ async function getAddressLogBlocks({ dataset, address, fromBlock, retry_count = 
 			throw Error(`sqd finalized-stream ${dataset} from ${cursor} failed: ${response.status} ${text}`);
 		}
 		const text = await response.text();
+		console.log(`sqd response text for dataset ${dataset} from ${cursor}:\n${text}`);
 		const lines = text.trim().split('\n').filter(Boolean);
 		if (lines.length === 0)
 			break;
