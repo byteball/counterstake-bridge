@@ -48,6 +48,8 @@ router.get('/bridges', async (ctx) => {
 	await Promise.all(gas_networks.map(n => networkApi[n].getGasPrice()));
 	console.log('refreshed gas prices of', gas_networks);
 	for (let bridge of bridges) {
+		if (['2QKTUICV24RVZOPCLIID6YNUW3R5R2HQ', 'QU7EKYNXTJCQCRKRBH2X7OT7NRHX2ONI', 'IZJRNBJORDYHHKVR5SSVC4WLBWWJRUDT'].includes(bridge.import_aa))
+			continue; // deprecated unused bridges
 		const { bridge_id, home_asset, foreign_asset, home_network, foreign_network } = bridge;
 		bridge.min_expatriation_reward = await networkApi[foreign_network].getMinReward('expatriation', foreign_asset, home_network, home_asset, false, true);
 		bridge.min_repatriation_reward = await networkApi[home_network].getMinReward('repatriation', home_asset, foreign_network, foreign_asset, false, true);
