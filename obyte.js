@@ -103,11 +103,14 @@ class Obyte {
 			// it's ok if the object was json-stringified without sorting when sending.
 			// there is a degree of freedom when sending but not when claiming as the data is part of the hash
 			const obj_sent_data = JSON.parse(sent_data);
+			if (!obj_sent_data && !claimed_data) // "0" and "false" are treated as no data
+				return true;
 			const sorted_sent_data = string_utils.getJsonSourceString(obj_sent_data, false);
 			console.log('sorted sent data', sorted_sent_data);
 			return sorted_sent_data === claimed_data;
 		}
 		catch (e) {
+			// if sent_data is an invalid JSON (JSON.parse throws) or includes null/overflow (getJsonSourceString throws), it's unclaimable
 			console.log(`error in dataMatches`, e);
 			return false;
 		}
@@ -137,6 +140,14 @@ class Obyte {
 		return await dag.executeGetter(bridge_aa, 'get_min_tx_age');
 	}
 
+	addDataToTrigger(trigger_data, data) {
+		if (data) {
+			const parsed_data = JSON.parse(data); // invalid json already rejected by isValidData()
+			if (parsed_data) // this interprets "0" and "false" in the original data string as no data
+				trigger_data.data = parsed_data; // the claim will fail if the data includes null or Infinity
+		}
+	}
+
 	async sendClaim({ bridge_aa, amount, reward, claimed_asset, stake, staked_asset, sender_address, dest_address, data, txid, txts }) {
 		amount = amount.toNumber();
 		reward = reward.toNumber();
@@ -148,8 +159,7 @@ class Obyte {
 			txid,
 			txts,
 		};
-		if (data)
-			trigger_data.data = JSON.parse(data);
+		this.addDataToTrigger(trigger_data, data);
 		if (dest_address)
 			trigger_data.address = dest_address;
 		const bThirdPartyClaiming = (dest_address && dest_address !== operator.getAddress());
@@ -189,8 +199,7 @@ class Obyte {
 			txid,
 			txts,
 		};
-		if (data)
-			trigger_data.data = JSON.parse(data);
+		this.addDataToTrigger(trigger_data, data);
 		const claim_txid = await dag.sendAARequest(assistant_aa, trigger_data);
 		console.log(`sent assistant claim for ${amount} with reward ${reward} sent in tx ${txid} from ${sender_address}: ${claim_txid}`);
 		return claim_txid;
