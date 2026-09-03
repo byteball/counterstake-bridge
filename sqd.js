@@ -77,7 +77,7 @@ async function getAddressLogBlocks({ dataset, address, fromBlock, toBlock, retry
 			body: JSON.stringify({ ...body, fromBlock: cursor, ...(toBlock !== undefined && { toBlock }) }),
 		});
 		if (response.status === 204) { // range is above the dataset's finalized head, nothing more to fetch
-			console.log(`sqd finished ${dataset} with 204 at cursor ${cursor} while toBlock=${toBlock}, no more blocks to fetch`);
+			console.log(`sqd finished ${dataset} for address ${address} with 204 at cursor ${cursor} while toBlock=${toBlock}, no more blocks to fetch`);
 			break;
 		}
 		if (!response.ok) {
