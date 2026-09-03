@@ -41,15 +41,14 @@ router.get('/bridges', async (ctx) => {
 	const maxAmounts = getMaxAmounts();
 	
 	const networks = Object.keys(networkApi);
-	const bridges = await db.query("SELECT * FROM bridges WHERE import_aa IS NOT NULL AND export_aa IS NOT NULL AND home_network IN(?) AND foreign_network IN(?)", [networks, networks]);
+	let bridges = await db.query("SELECT * FROM bridges WHERE import_aa IS NOT NULL AND export_aa IS NOT NULL AND home_network IN(?) AND foreign_network IN(?)", [networks, networks]);
 	console.log(`-- getting bridges`);
 	const start_ts = Date.now();
 	const gas_networks = networks.filter(n => networkApi[n].getGasPrice);
 	await Promise.all(gas_networks.map(n => networkApi[n].getGasPrice()));
 	console.log('refreshed gas prices of', gas_networks);
+	bridges = bridges.filter(bridge => !['2QKTUICV24RVZOPCLIID6YNUW3R5R2HQ', 'QU7EKYNXTJCQCRKRBH2X7OT7NRHX2ONI', 'IZJRNBJORDYHHKVR5SSVC4WLBWWJRUDT'].includes(bridge.import_aa)); // remove deprecated unused bridges
 	for (let bridge of bridges) {
-		if (['2QKTUICV24RVZOPCLIID6YNUW3R5R2HQ', 'QU7EKYNXTJCQCRKRBH2X7OT7NRHX2ONI', 'IZJRNBJORDYHHKVR5SSVC4WLBWWJRUDT'].includes(bridge.import_aa))
-			continue; // deprecated unused bridges
 		const { bridge_id, home_asset, foreign_asset, home_network, foreign_network } = bridge;
 		bridge.min_expatriation_reward = await networkApi[foreign_network].getMinReward('expatriation', foreign_asset, home_network, home_asset, false, true);
 		bridge.min_repatriation_reward = await networkApi[home_network].getMinReward('repatriation', home_asset, foreign_network, foreign_asset, false, true);
