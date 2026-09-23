@@ -487,7 +487,10 @@ async function setupEvm2ObyteBridge(tokenAddress, symbol, obyte_symbol, ethereum
 	if (tokenAddress !== AddressZero) {
 		const oracleAddress = oracleAddresses[evmNetwork];
 		const oracle = new ethers.Contract(oracleAddress, oracleJson.abi, signer);
-		const res = await oracle.setPrice(symbol, "_NATIVE_", usd_price, evmNativePrice);
+		// ExportAssistant.getGasCostInStakeTokens() multiplies raw native wei by num/den directly, so num/den must be a raw-to-raw
+		// conversion factor, not a display-unit price; rescale by the token's decimals (relative to the 18-decimal native asset)
+		const scaled_usd_price = ethers.BigNumber.from(usd_price).mul(ethers.BigNumber.from(10).pow(18 - ethereum_decimals));
+		const res = await oracle.setPrice(symbol, "_NATIVE_", scaled_usd_price, evmNativePrice);
 		await res.wait();
 		await wait(2000);
 	}
