@@ -848,6 +848,56 @@ async function recheckOldTransfers() {
 	unlock = null;
 }
 
+// fraudulent claims might remain unchallenged, e.g. if we didn't have enough funds at the time
+async function recheckFraudulentClaims() {
+	if (!conf.bWatchdog || !conf.bAttack)
+		return console.log('skipping recheck of fraudulent claims as watchdog or attacking function is off');
+	console.log('rechecking fraudulent claims');
+	const rows = await db.query(
+		`SELECT claims.claim_num, claims.type, claims.claim_txid, bridges.*
+		FROM claims
+		CROSS JOIN bridges USING(bridge_id)
+		WHERE claims.transfer_id IS NULL AND claims.is_finished=0
+			AND export_aa IS NOT NULL AND import_aa IS NOT NULL
+			AND claims.creation_date > ${db.addTime('-30 DAY')}
+		ORDER BY claims.creation_date`
+	);
+	console.log(`${rows.length} unfinished fraudulent claims`);
+	for (let { claim_num, type, claim_txid, ...bridge } of rows) {
+		const { bridge_id, export_aa, import_aa, home_network, foreign_network } = bridge;
+		const network = type === 'expatriation' ? foreign_network : home_network;
+		const api = networkApi[network];
+		if (!api)
+			continue;
+		const bridge_aa = type === 'expatriation' ? import_aa : export_aa;
+		const unlock = await mutex.lock(network);
+		try {
+			// the claim might have been challenged by someone else or finished in the meantime
+			const claim = await api.getClaim(bridge_aa, claim_num, false, false);
+			if (!claim) {
+				console.log(`fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} is not ongoing anymore`);
+				continue;
+			}
+			if (claim.current_outcome !== 'yes') { // current outcome for a fraudulent claim is 'no'
+				console.log(`fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} is already challenged`);
+				continue;
+			}
+			if (claim.expiry_ts < Date.now() / 1000) {
+				console.log(`challenging period of fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} has expired`);
+				continue;
+			}
+			await attackClaim(bridge, type, claim_num, claim_txid);
+		}
+		catch (e) {
+			console.log(`rechecking fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} failed`, e);
+		}
+		finally {
+			unlock();
+		}
+	}
+	console.log('done rechecking fraudulent claims');
+}
+
 function forgetOldUnconfirmedClaims() {
 	for (let transfer_id in unconfirmedClaims) {
 		const { claim_txid, ts } = unconfirmedClaims[transfer_id];
@@ -1223,6 +1273,9 @@ async function start() {
 
 	await checkUnfinishedClaims();
 	setInterval(checkUnfinishedClaims, (process.env.testnet || process.env.devnet ? 2 : 30) * 60 * 1000); // every half an hour
+
+	setTimeout(recheckFraudulentClaims, 91 * 1000); // initial check after 91 seconds
+	setInterval(recheckFraudulentClaims, 12 * 3600 * 1000); // every 12 hours
 
 	setInterval(forgetOldUnconfirmedClaims, 3600 * 1000);
 	
