@@ -864,7 +864,7 @@ async function recheckFraudulentClaims() {
 	);
 	console.log(`${rows.length} unfinished fraudulent claims`);
 	for (let { claim_num, type, claim_txid, ...bridge } of rows) {
-		const { bridge_id, export_aa, import_aa, home_network, foreign_network } = bridge;
+		const { bridge_id, export_aa, import_aa, home_network, foreign_network, home_symbol } = bridge;
 		const network = type === 'expatriation' ? foreign_network : home_network;
 		const api = networkApi[network];
 		if (!api)
@@ -875,21 +875,21 @@ async function recheckFraudulentClaims() {
 			// the claim might have been challenged by someone else or finished in the meantime
 			const claim = await api.getClaim(bridge_aa, claim_num, false, false);
 			if (!claim) {
-				console.log(`fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} is not ongoing anymore`);
+				console.log(`fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} ${home_symbol}: ${home_network}->${foreign_network} (${type}) is not ongoing anymore`);
 				continue;
 			}
 			if (claim.current_outcome !== 'yes') { // current outcome for a fraudulent claim is 'no'
-				console.log(`fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} is already challenged`);
+				console.log(`fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} ${home_symbol}: ${home_network}->${foreign_network} (${type}) is already challenged`);
 				continue;
 			}
 			if (claim.expiry_ts < Date.now() / 1000) {
-				console.log(`challenging period of fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} has expired`);
+				console.log(`challenging period of fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} ${home_symbol}: ${home_network}->${foreign_network} (${type}) has expired`);
 				continue;
 			}
 			await attackClaim(bridge, type, claim_num, claim_txid);
 		}
 		catch (e) {
-			console.log(`rechecking fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} failed`, e);
+			console.log(`rechecking fraudulent claim ${claim_num} in ${claim_txid} on bridge ${bridge_id} ${home_symbol}: ${home_network}->${foreign_network} (${type}) failed`, e);
 		}
 		finally {
 			unlock();
