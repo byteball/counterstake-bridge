@@ -50,7 +50,8 @@
 					{
 						app: 'data',
 						payload: {
-							buy_shares: 1
+							buy_shares: 1,
+							min_shares_amount: `{trigger.data.min_shares_amount OTHERWISE 0}`
 						}
 					}
 				]
