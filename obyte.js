@@ -86,7 +86,8 @@ class Obyte {
 		if (string_utils.getJsonSourceString(data).length > 400)
 			return false;
 		try {
-			JSON.parse(data);
+			const objData = JSON.parse(data); // throws if invalid JSON
+			string_utils.getJsonSourceString(objData); // check if it throws (null, Infinity, {}, [])
 			return true;
 		}
 		catch (e) {
