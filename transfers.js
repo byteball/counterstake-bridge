@@ -22,6 +22,7 @@ let bCatchingUp = true;
 let bCatchingUpOrHandlingPostponedEvents = true;
 let unconfirmedClaims = {}; // transfer_id => {claim_txid, ts}
 let unconfirmeWithdrawals = {};
+const MAX_FIRST_CHALLENGING_PERIOD = 10 * 24 * 3600; // seconds
 
 async function getBridge(bridge_id) {
 	const [bridge] = await db.query("SELECT * FROM bridges WHERE bridge_id=?", [bridge_id]);
@@ -169,6 +170,13 @@ async function handleTransfer(transfer) {
 			return unlock(`transfer ${txid} #${transfer_id} from ${sender_address} already claimed`);
 		if (unconfirmedClaims[transfer_id])
 			return unlock(`we have already claimed transfer ${txid} #${transfer_id} from ${sender_address} in tx ${unconfirmedClaims[transfer_id].claim_txid} and it's still unconfirmed`);
+
+		// the settings can be changed by governance, don't lock our funds in claims for too long
+		const { small: small_period, large: large_period } = await dst_api.getFirstChallengingPeriods(bridge_aa);
+		if (small_period > MAX_FIRST_CHALLENGING_PERIOD || large_period > MAX_FIRST_CHALLENGING_PERIOD) {
+			notifications.notifyAdmin(`first challenging period is too long, will not claim transfer ${txid} on ${dst_network}`, `first challenging periods on bridge ${bridge_id}, ${dst_network}, AA ${bridge_aa}: small ${small_period / 3600}h, large ${large_period / 3600}h, the limit is ${MAX_FIRST_CHALLENGING_PERIOD / 3600}h\ntransfer ${txid} from ${sender_address} (${src_network}) to ${dest_address}, amount ${dst_amount / 10 ** dst_asset_decimals} ${claimed_symbol}`);
+			return unlock(`first challenging periods on ${bridge_aa} are too long (small ${small_period}s, large ${large_period}s), will not claim ${txid}`);
+		}
 		
 		let stake = await dst_api.getRequiredStake(bridge_aa, dst_amount);
 		stake = BigNumber.from(stake);

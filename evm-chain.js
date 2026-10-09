@@ -25,6 +25,7 @@ const { BigNumber, constants: { AddressZero } } = ethers;
 const TIMEOUT_BETWEEN_TRANSACTIONS = 3000;
 
 let cachedMinTxAges = {};
+let cachedFirstChallengingPeriods = {};
 
 
 class EvmChain {
@@ -321,6 +322,32 @@ class EvmChain {
 				return this.getMinTxAge(bridge_aa, attempt + 1);
 			}
 			throw Error(`getMinTxAge ${this.network} ${bridge_aa} failed: ${e.toString()}`);
+		}
+	}
+
+	// returns the first challenging periods in seconds for small and large transfers
+	async getFirstChallengingPeriods(bridge_aa, attempt = 0) {
+		const contract = this.#contractsByAddress[bridge_aa];
+		if (!contract)
+			throw Error(`no contract by bridge AA ${bridge_aa}`);
+		try {
+			const [small, large] = await asyncCallWithTimeout(Promise.all([contract.getChallengingPeriod(0, false), contract.getChallengingPeriod(0, true)]), 120 * 1000);
+			const periods = { small: small.toNumber(), large: large.toNumber() };
+			cachedFirstChallengingPeriods[this.network][bridge_aa] = periods;
+			return periods;
+		}
+		catch (e) {
+			console.log(`error in getFirstChallengingPeriods attempt=${attempt}`, this.network, bridge_aa, e);
+			if (cachedFirstChallengingPeriods[this.network][bridge_aa]) {
+				console.log(`using cached value for first challenging periods`);
+				return cachedFirstChallengingPeriods[this.network][bridge_aa];
+			}
+			if (attempt < 5) {
+				console.log(`will retry getFirstChallengingPeriods in 30s`);
+				await wait(30_000);
+				return this.getFirstChallengingPeriods(bridge_aa, attempt + 1);
+			}
+			throw Error(`getFirstChallengingPeriods ${this.network} ${bridge_aa} failed: ${e.toString()}`);
 		}
 	}
 
@@ -960,6 +987,8 @@ class EvmChain {
 		this.#wallet = wallet.connect(provider);
 		if (!cachedMinTxAges[network])
 			cachedMinTxAges[network] = {};
+		if (!cachedFirstChallengingPeriods[network])
+			cachedFirstChallengingPeriods[network] = {};
 
 		// we might miss some events if the provider doesn't send them
 		const catchupInterval = setInterval(() => this.catchup(), 12 * 3600 * 1000);

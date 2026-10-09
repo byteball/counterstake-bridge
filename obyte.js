@@ -141,6 +141,13 @@ class Obyte {
 		return await dag.executeGetter(bridge_aa, 'get_min_tx_age');
 	}
 
+	// returns the first challenging periods in seconds for small and large transfers
+	async getFirstChallengingPeriods(bridge_aa) {
+		const small = await dag.executeGetter(bridge_aa, 'get_challenging_period', [0, false]);
+		const large = await dag.executeGetter(bridge_aa, 'get_challenging_period', [0, true]);
+		return { small: Number(small), large: Number(large) };
+	}
+
 	addDataToTrigger(trigger_data, data) {
 		if (data) {
 			const parsed_data = JSON.parse(data); // invalid json already rejected by isValidData()
