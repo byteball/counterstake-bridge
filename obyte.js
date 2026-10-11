@@ -470,7 +470,7 @@ class Obyte {
 			const amount = trigger.outputs[type === 'expatriation' ? home_asset : foreign_asset];
 			if (!amount)
 				throw Error(`started ${type} without payment in source asset? ${trigger_unit}`);
-			const reward = trigger.data.reward || 0;
+			const reward = parseFloat(trigger.data.reward || 0); // it might be a string
 			const dest_address = trigger.data[type === 'expatriation' ? 'foreign_address' : 'home_address'];
 			if (!dest_address)
 				throw Error(`no dest address in transfer ${trigger_unit}`);

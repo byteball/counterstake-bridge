@@ -1,6 +1,7 @@
 "use strict";
 const _ = require('lodash');
 const { ethers: { BigNumber, utils } } = require("ethers");
+const constants = require('ocore/constants.js');
 const eventBus = require('ocore/event_bus.js');
 const conf = require('ocore/conf.js');
 const mutex = require('ocore/mutex.js');
@@ -80,7 +81,7 @@ async function handleTransfer(transfer) {
 		return console.log(msg);
 	}
 
-	if (typeof reward === 'number' && !validationUtils.isInteger(reward))
+	if (typeof reward === 'number' && (!validationUtils.isInteger(reward) || Math.abs(reward) > constants.MAX_CAP))
 		return markAsBad(`invalid reward ${reward} in transfer ${txid} from ${sender_address} on bridge ${bridge_id}, will not claim`);
 	if (!BigNumber.isBigNumber(amount))
 		amount = BigNumber.from(amount);
@@ -110,6 +111,9 @@ async function handleTransfer(transfer) {
 		return markAsBad(`transfer ${txid} on bridge ${bridge_id} amounts do not match: src ${amount.toString()}/${src_asset_decimals} dst ${dst_amount.toString()}/${dst_asset_decimals}, will not claim`);
 	if (!amountsMatch(reward, src_asset_decimals, dst_reward, dst_asset_decimals))
 		return markAsBad(`transfer ${txid} on bridge ${bridge_id} rewards do not match: src ${reward.toString()}/${src_asset_decimals} dst ${dst_reward.toString()}/${dst_asset_decimals}, will not claim`);
+	// Obyte amounts are JS numbers capped at MAX_CAP, BigNumber.toNumber() would throw on larger values
+	if (dst_network === 'Obyte' && (dst_amount.gt(constants.MAX_CAP) || dst_reward.abs().gt(constants.MAX_CAP)))
+		return markAsBad(`transfer ${txid} on bridge ${bridge_id} dst amount ${dst_amount.toString()} or reward ${dst_reward.toString()} exceeds MAX_CAP, will not claim`);
 	const fDstAmount = parseFloat(dst_amount.toString()) / 10 ** dst_asset_decimals;
 	const fDstReward = parseFloat(dst_reward.toString()) / 10 ** dst_asset_decimals;
 	const src_api = networkApi[src_network];
@@ -384,9 +388,9 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	const assistant_aa = type === 'expatriation' ? import_assistant_aa : export_assistant_aa;
 
 	let amountsValid = true;
-	if (typeof amount === 'number' && !validationUtils.isPositiveInteger(amount))
+	if (typeof amount === 'number' && (!validationUtils.isPositiveInteger(amount) || amount > constants.MAX_CAP))
 		amountsValid = false;
-	if (typeof reward === 'number' && !validationUtils.isInteger(reward))
+	if (typeof reward === 'number' && (!validationUtils.isInteger(reward) || Math.abs(reward) > constants.MAX_CAP))
 		amountsValid = false;
 	const txidValid = networkApi[opposite_network].isValidTxid(txid);
 	
