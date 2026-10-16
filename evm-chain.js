@@ -23,6 +23,7 @@ const importAssistantJson = require('./evm/build/contracts/ImportAssistant.json'
 const assistantFactoryJson = require('./evm/build/contracts/AssistantFactory.json');
 
 const { BigNumber, constants: { AddressZero } } = ethers;
+const { defaultAbiCoder, Utf8ErrorFuncs, toUtf8String } = ethers.utils;
 const TIMEOUT_BETWEEN_TRANSACTIONS = 3000;
 
 let cachedMinTxAges = {};
@@ -269,13 +270,22 @@ class EvmChain {
 
 	async getClaim(bridge_aa, claim_num, bFinished, bThrowIfNotFound) {
 		const contract = this.#contractsByAddress[bridge_aa];
-		let claim = await contract['getClaim(uint256)'](claim_num);
+		let claim;
+		try {
+			claim = await contract['getClaim(uint256)'](claim_num);
+			claim = claim && claim.amount ? Object.assign({}, claim) : claim; // throws if a string is not valid UTF-8
+		}
+		catch (e) {
+			if (e.code !== ethers.errors.INVALID_ARGUMENT)
+				throw e;
+			console.log(`${this.network} claim ${claim_num} in ${bridge_aa} has malformed strings`, e.message);
+			claim = await this.getClaimWithMalformedStrings(contract, claim_num);
+		}
 		if (!claim || !claim.amount) {
 			if (bThrowIfNotFound)
 				throw Error(`claim ${claim_num} not found in ${this.network}, bFinished=${bFinished}`);
 			return null;
 		}
-		claim = Object.assign({}, claim);
 		claim.current_outcome = claim.current_outcome ? 'yes' : 'no';
 		claim.stakes = { yes: claim.yes_stake, no: claim.no_stake };
 
@@ -285,6 +295,18 @@ class EvmChain {
 		claim.challenging_target = winning_stake.mul(settings.counterstake_coef100).div(100);
 
 		return claim;
+	}
+
+	// the strings are decoded as bytes and then converted lossily
+	async getClaimWithMalformedStrings(contract, claim_num) {
+		const data = contract.interface.encodeFunctionData('getClaim(uint256)', [claim_num]);
+		const raw = await this.#provider.call({ to: contract.address, data });
+		const [claim] = defaultAbiCoder.decode(getClaimOutputs, raw);
+		const res = Object.assign({}, claim);
+		res.sender_address = toUtf8String(res.sender_address, Utf8ErrorFuncs.replace);
+		res.data = toUtf8String(res.data, Utf8ErrorFuncs.replace);
+		res.bMalformed = true;
+		return res;
 	}
 
 	async getMyStake(bridge_aa, claim_num, outcome, assistant_aa) {
@@ -593,12 +615,40 @@ class EvmChain {
 		contract.on('NewChallenge', this.onNewChallenge.bind(this));
 		contract.on('FinishedClaim', this.onFinishedClaim.bind(this));
 		contract.on('error', (error, event) => {
-			console.log(`event decode error on ${this.network} contract ${contract.address}`, error, util.inspect(event, { depth: null }));
-			notifications.notifyAdmin(
-				`event decode error on ${this.network} contract ${contract.address}`,
-				`failed to decode a '${event && event.event}' event in tx ${event && event.transactionHash}: ${error && error.message}\n${util.inspect(event, { depth: null })}`
-			);
+			this.onEventDecodeError(contract, error, event).catch(e => {
+				console.log(`handling of event decode error on ${this.network} contract ${contract.address} failed`, e);
+				notifications.notifyAdmin(`handling of event decode error on ${this.network} contract ${contract.address} failed`, e && e.stack || String(e));
+			});
 		});
+	}
+
+	async onEventDecodeError(contract, error, event) {
+		console.log(`event decode error on ${this.network} contract ${contract.address}`, error, util.inspect(event, { depth: null }));
+		notifications.notifyAdmin(
+			`event decode error on ${this.network} contract ${contract.address}`,
+			`failed to decode a '${event && event.event}' event in tx ${event && event.transactionHash}: ${error && error.message}\n${util.inspect(event, { depth: null })}`
+		);
+		// a claim with strings that are not valid UTF-8 can't be genuine, handle it as a fraudulent one
+		if (event && event.event === 'NewClaim')
+			await this.onMalformedNewClaim(event);
+	}
+
+	async onMalformedNewClaim(event) {
+		if (event.removed)
+			return console.log(`the malformed claim event was removed, ignoring`);
+		const [author_address, sender_address, recipient_address, txid, txts, amount, reward, stake, data, expiry_ts] = defaultAbiCoder.decode(newClaimNonIndexedTypes, event.data);
+		const claim_num = BigNumber.from(event.topics[1]).toNumber();
+		const lossy = bytes => toUtf8String(bytes, Utf8ErrorFuncs.replace);
+		console.log('malformed NewClaim event', this.network, claim_num, author_address, lossy(sender_address), recipient_address, lossy(txid), txts, amount.toString(), reward.toString(), stake.toString(), lossy(data), expiry_ts, event);
+		const unlock = await mutex.lock(this.network + 'Event');
+		try {
+			const bridge = await transfers.getBridgeByAddress(event.address, true);
+			const type = getType(event.address, bridge);
+			await transfers.handleNewClaim(bridge, type, claim_num, lossy(sender_address), recipient_address, author_address, lossy(data), amount, reward, stake, lossy(txid), txts, event.transactionHash, true);
+		}
+		finally {
+			unlock();
+		}
 	}
 
 	async onNewExpatriation(sender_address, amount, reward, foreign_address, data, event) {
@@ -1093,6 +1143,17 @@ function getBlockRanges(from_block, to_block, max_range) {
 	return ranges;
 }
 
+// same as the param but with `string` replaced by `bytes` so that invalid UTF-8 doesn't fail the decoding
+function stringsToBytes(param) {
+	const res = { ...param, type: param.type.replace(/string/g, 'bytes') };
+	if (param.components)
+		res.components = param.components.map(stringsToBytes);
+	return res;
+}
+
+const newClaimNonIndexedTypes = exportJson.abi.find(item => item.type === 'event' && item.name === 'NewClaim').inputs.filter(input => !input.indexed).map(stringsToBytes);
+const getClaimOutputs = exportJson.abi.find(item => item.type === 'function' && item.name === 'getClaim' && item.inputs[0].type === 'uint256').outputs.map(stringsToBytes);
+
 function getType(address, bridge) {
 	const { bridge_id, export_aa, import_aa } = bridge;
 	if (export_aa && address === export_aa)
@@ -1137,7 +1198,18 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 	}
 	for (let event of events) {
 		console.log('--- past event', network, event);
-		let args = event.args.concat();
+		let args;
+		try {
+			if (event.decodeError)
+				throw event.decodeError;
+			args = event.args.concat(); // throws if any arg failed to decode
+		}
+		catch (e) {
+			if (!thisArg || !thisArg.onEventDecodeError)
+				throw e;
+			await thisArg.onEventDecodeError(contract, e, event);
+			continue;
+		}
 		args.push(event);
 		await handler.apply(thisArg, args);
 	}

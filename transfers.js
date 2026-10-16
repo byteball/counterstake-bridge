@@ -358,7 +358,7 @@ async function attackClaim(bridge, type, claim_num, claim_txid) {
 }
 
 
-async function handleNewClaim(bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid) {
+async function handleNewClaim(bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid, bMalformed) {
 
 	if (!conf.bWatchdog)
 		return console.log(`will skip claim ${claim_txid} as watchdog function is off`);
@@ -397,7 +397,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	// in case we need to delay handling of the claim
 	const tryAgain = () => {
 		console.log(`retrying handling of claim ${claim_num}`);
-		handleNewClaim(bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid);
+		handleNewClaim(bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid, bMalformed);
 	};
 
 	// sender_address and dest_address are case-sensitive! For Ethereum, use mixed case checksummed addresses only
@@ -407,13 +407,15 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		return transfers;
 	};
 	let transfers = [];
-	if (!amountsValid)
+	if (bMalformed) // strings that are not valid UTF-8 can't match any transfer
+		console.log(`malformed strings in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
+	else if (!amountsValid)
 		console.log(`invalid amounts in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
 	else if (!txidValid)
 		console.log(`invalid txid in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
 	else
 		transfers = await findTransfers();
-	if (!transfers[0] && amountsValid && txidValid) {
+	if (!transfers[0] && amountsValid && txidValid && !bMalformed) {
 		console.log(`no transfer found matching claim ${claim_num} of txid ${txid} in claim tx ${claim_txid} bridge ${bridge_id}`);
 		const retryAfterTxOrTimeout = (timeout) => {
 			const t = setTimeout(tryAgain, timeout * 1000);
