@@ -114,6 +114,8 @@ router.get('/pooled_assistants', async (ctx) => {
 
 router.get('/transfer/:txid*', async (ctx) => {
 	const txid = ctx.params.txid ? decodeURIComponent(ctx.params.txid) : ctx.query.txid;
+	if (typeof txid !== 'string')
+		return setError(ctx, 'txid must be a single string');
 	const [transfer] = await db.query("SELECT * FROM transfers WHERE txid=? AND is_confirmed=1", [txid]);
 	if (!transfer)
 		return setError(ctx, 'no such transfer ' + txid);
@@ -142,6 +144,8 @@ router.get('/transfer/:txid*', async (ctx) => {
 
 router.get('/transfers/:address*', async (ctx) => {
 	const address = ctx.params.address ? decodeURIComponent(ctx.params.address) : ctx.query.address;
+	if (typeof address !== 'string')
+		return setError(ctx, 'address must be a single string');
 	const all = !!ctx.query.all;
 	const transfers = await db.query(`SELECT transfers.*, claim_txid, claim_num, claimant_address, is_finished, transfer_units.is_stable AS transfer_is_stable, claim_units.is_stable AS claim_is_stable
 		FROM transfers
