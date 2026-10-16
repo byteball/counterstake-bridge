@@ -1,5 +1,6 @@
 "use strict";
 const fs = require("fs");
+const util = require("util");
 const { ethers } = require("ethers");
 const eventBus = require('ocore/event_bus.js');
 const conf = require('ocore/conf.js');
@@ -592,10 +593,10 @@ class EvmChain {
 		contract.on('NewChallenge', this.onNewChallenge.bind(this));
 		contract.on('FinishedClaim', this.onFinishedClaim.bind(this));
 		contract.on('error', (error, event) => {
-			console.log(`event decode error on ${this.network} contract ${contract.address}`, error, event);
+			console.log(`event decode error on ${this.network} contract ${contract.address}`, error, util.inspect(event, { depth: null }));
 			notifications.notifyAdmin(
 				`event decode error on ${this.network} contract ${contract.address}`,
-				`failed to decode a '${event && event.event}' event in tx ${event && event.transactionHash}: ${error && error.message}\n${JSON.stringify(event)}`
+				`failed to decode a '${event && event.event}' event in tx ${event && event.transactionHash}: ${error && error.message}\n${util.inspect(event, { depth: null })}`
 			);
 		});
 	}
