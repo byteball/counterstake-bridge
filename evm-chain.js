@@ -23,7 +23,7 @@ const importAssistantJson = require('./evm/build/contracts/ImportAssistant.json'
 const assistantFactoryJson = require('./evm/build/contracts/AssistantFactory.json');
 
 const { BigNumber, constants: { AddressZero } } = ethers;
-const { defaultAbiCoder, Utf8ErrorFuncs, toUtf8String } = ethers.utils;
+const { defaultAbiCoder, Utf8ErrorFuncs, toUtf8String, arrayify } = ethers.utils;
 const TIMEOUT_BETWEEN_TRANSACTIONS = 3000;
 
 let cachedMinTxAges = {};
@@ -636,15 +636,16 @@ class EvmChain {
 	async onMalformedNewClaim(event) {
 		if (event.removed)
 			return console.log(`the malformed claim event was removed, ignoring`);
-		const [author_address, sender_address, recipient_address, txid, txts, amount, reward, stake, data, expiry_ts] = defaultAbiCoder.decode(newClaimNonIndexedTypes, event.data);
+		const [author_address, sender_address_bytes, recipient_address, txid_bytes, txts, amount, reward, stake, data_bytes, expiry_ts] = defaultAbiCoder.decode(newClaimNonIndexedTypes, event.data);
 		const claim_num = BigNumber.from(event.topics[1]).toNumber();
-		const lossy = bytes => toUtf8String(bytes, Utf8ErrorFuncs.replace);
-		console.log('malformed NewClaim event', this.network, claim_num, author_address, lossy(sender_address), recipient_address, lossy(txid), txts, amount.toString(), reward.toString(), stake.toString(), lossy(data), expiry_ts, event);
+		// invalid strings are passed as Buffers and stored as BLOBs: one-to-one with the raw bytes and never equal to any TEXT value, so the unique index on claims can't collide
+		const [sender_address, txid, data] = [sender_address_bytes, txid_bytes, data_bytes].map(bytesToStringOrBuffer);
+		console.log('malformed NewClaim event', this.network, claim_num, author_address, sender_address, recipient_address, txid, txts, amount.toString(), reward.toString(), stake.toString(), data, expiry_ts, event);
 		const unlock = await mutex.lock(this.network + 'Event');
 		try {
 			const bridge = await transfers.getBridgeByAddress(event.address, true);
 			const type = getType(event.address, bridge);
-			await transfers.handleNewClaim(bridge, type, claim_num, lossy(sender_address), recipient_address, author_address, lossy(data), amount, reward, stake, lossy(txid), txts, event.transactionHash, true);
+			await transfers.handleNewClaim(bridge, type, claim_num, sender_address, recipient_address, author_address, data, amount, reward, stake, txid, txts, event.transactionHash, true);
 		}
 		finally {
 			unlock();
@@ -1149,6 +1150,15 @@ function stringsToBytes(param) {
 	if (param.components)
 		res.components = param.components.map(stringsToBytes);
 	return res;
+}
+
+function bytesToStringOrBuffer(bytes) {
+	try {
+		return toUtf8String(bytes);
+	}
+	catch (e) {
+		return Buffer.from(arrayify(bytes));
+	}
 }
 
 const newClaimNonIndexedTypes = exportJson.abi.find(item => item.type === 'event' && item.name === 'NewClaim').inputs.filter(input => !input.indexed).map(stringsToBytes);
