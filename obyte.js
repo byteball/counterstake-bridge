@@ -354,6 +354,15 @@ class Obyte {
 		if (!trigger.data)
 			return unlock(`no data message in trigger ${trigger_unit}`);
 
+		function unwrapOneElementArrays(value) {
+			return validationUtils.isArrayOfLength(value, 1) ? unwrapOneElementArrays(value[0]) : value;
+		}
+		let isWrapped = false;
+		if (Array.isArray(trigger.data)) {
+			trigger.data = unwrapOneElementArrays(trigger.data);
+			isWrapped = true; // will challenge such claims
+		}
+
 		// updated symbol
 		if (aa_address === conf.token_registry_aa) {
 			if (!response_unit)
@@ -497,7 +506,7 @@ class Obyte {
 				stake -= paid_amount;
 			}
 			const data = trigger.data.data ? string_utils.getJsonSourceString(trigger.data.data) : '';
-			await transfers.handleNewClaim(bridge, type, new_claim_num, trigger.data.sender_address, dest_address, claimant_address, data, amount, reward, stake, trigger.data.txid, trigger.data.txts, trigger_unit);
+			await transfers.handleNewClaim(bridge, type, new_claim_num, trigger.data.sender_address, dest_address, claimant_address, data, amount, reward, stake, trigger.data.txid, trigger.data.txts, trigger_unit, isWrapped);
 		}
 		// challenge
 		else if (message.startsWith('current outcome')) {

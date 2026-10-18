@@ -454,8 +454,8 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		return transfers;
 	};
 	let transfers = [];
-	if (bMalformed) // strings that are not valid UTF-8 can't match any transfer
-		console.log(`malformed strings in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
+	if (bMalformed) // strings that are not valid UTF-8 can't match any transfer, wrapped trigger data is not allowed
+		console.log(`malformed strings or wrapped trigger data in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
 	else if (!amountsValid)
 		console.log(`invalid amounts in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
 	else if (!txidValid)
