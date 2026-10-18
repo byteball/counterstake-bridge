@@ -24,6 +24,8 @@ let bCatchingUpOrHandlingPostponedEvents = true;
 let unconfirmedClaims = {}; // transfer_id => {claim_txid, ts}
 let unconfirmeWithdrawals = {};
 const MAX_FIRST_CHALLENGING_PERIOD = 10 * 24 * 3600; // seconds
+const bridgesWithSuccessfulFraud = new Set(); // bridge_id, never cleared as the loss is permanent
+const failedFraudulentClaims = new Set(); // `${bridge_id}-${type}-${claim_num}` of fraudulent claims that lost
 
 async function getBridge(bridge_id) {
 	const [bridge] = await db.query("SELECT * FROM bridges WHERE bridge_id=?", [bridge_id]);
@@ -40,6 +42,38 @@ async function getBridgeByAddress(bridge_aa, bThrowIfNotFound) {
 	return bridge;
 }
 
+
+// A fraudulent expatriation that won mints unbacked foreign tokens, a fraudulent repatriation that won drains the home asset from the export AA
+async function hadSuccessfulFraudulentClaims(bridge) {
+	const { bridge_id, import_aa, export_aa, foreign_network, home_network } = bridge;
+	if (bridgesWithSuccessfulFraud.has(bridge_id))
+		return true;
+	const rows = await db.query("SELECT claim_num, type, claim_txid FROM claims WHERE bridge_id=? AND transfer_id IS NULL ORDER BY claim_num", [bridge_id]);
+	for (let { claim_num, type, claim_txid } of rows) {
+		const key = `${bridge_id}-${type}-${claim_num}`;
+		if (failedFraudulentClaims.has(key))
+			continue;
+		const network = type === 'expatriation' ? foreign_network : home_network;
+		const bridge_aa = type === 'expatriation' ? import_aa : export_aa;
+		const api = networkApi[network];
+		if (!api)
+			throw Error(`${network} not active, cannot check bridge ${bridge_id} for fraudulent ${type}s`);
+		let claim = await api.getClaim(bridge_aa, claim_num, true, false);
+		const bFinished = !!claim;
+		if (!claim)
+			claim = await api.getClaim(bridge_aa, claim_num, false, true);
+		const bSettled = bFinished || claim.finished || claim.expiry_ts < Date.now() / 1000;
+		if (!bSettled)
+			continue;
+		if (claim.current_outcome === 'yes') {
+			bridgesWithSuccessfulFraud.add(bridge_id);
+			notifications.notifyAdmin(`bridge ${bridge_id} had a successful fraudulent ${type}, it might be insolvent, will not claim repatriations`, `fraudulent claim ${claim_num} in ${claim_txid} on ${network}, bridge AA ${bridge_aa}`);
+			return true;
+		}
+		failedFraudulentClaims.add(key);
+	}
+	return false;
+}
 
 async function addTransfer(transfer, bRewritable) {
 	const { bridge_id, type, amount, reward, sender_address, dest_address, data, txid, txts } = transfer;
@@ -174,6 +208,19 @@ async function handleTransfer(transfer) {
 			return unlock(`transfer ${txid} #${transfer_id} from ${sender_address} already claimed`);
 		if (unconfirmedClaims[transfer_id])
 			return unlock(`we have already claimed transfer ${txid} #${transfer_id} from ${sender_address} in tx ${unconfirmedClaims[transfer_id].claim_txid} and it's still unconfirmed`);
+
+		if (type === 'repatriation') {
+			let bInsolvent;
+			try {
+				bInsolvent = await hadSuccessfulFraudulentClaims(bridge);
+			}
+			catch (e) {
+				console.log(`failed to check bridge ${bridge_id} for fraudulent claims`, e);
+				return unlock(`unable to verify solvency of bridge ${bridge_id}, will not claim ${txid}`);
+			}
+			if (bInsolvent)
+				return unlock(`bridge ${bridge_id} had successful fraudulent claims and might be insolvent, will not claim repatriation ${txid}`);
+		}
 
 		// the settings can be changed by governance, don't lock our funds in claims for too long
 		const { small: small_period, large: large_period } = await dst_api.getFirstChallengingPeriods(bridge_aa);
