@@ -482,7 +482,7 @@ class Obyte {
 			if (!trigger.data.txid || !trigger.data.amount)
 				throw Error(`no trigger data in claim ${trigger_unit}`);
 			const type = (aa_address === export_aa) ? 'repatriation' : 'expatriation';
-			const dest_address = trigger.data.address || trigger_address;
+			const dest_address = validationUtils.isValidAddress(trigger.data.address) ? trigger.data.address : trigger_address;
 			const claimant_address = trigger_address;
 			const amount = parseFloat(trigger.data.amount); // it might be a string
 			const reward = parseFloat(trigger.data.reward || 0); // it might be a string
