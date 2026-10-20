@@ -15,7 +15,7 @@ const Ethereum = require('./ethereum.js');
 const BSC = require('./bsc.js');
 const Polygon = require('./polygon.js');
 const Kava = require('./kava.js');
-const { wait, asyncCallWithTimeout } = require('./utils.js');
+const { wait, asyncCallWithTimeout, safeToString } = require('./utils.js');
 
 const networkApi = {};
 let maxAmounts;
@@ -89,7 +89,7 @@ async function addTransfer(transfer, bRewritable) {
 		}
 	}
 	console.log(`inserting transfer`, transfer);
-	const res = await db.query("INSERT " + db.getIgnore() + " INTO transfers (bridge_id, type, amount, reward, sender_address, dest_address, data, txid, txts) VALUES (?,?, ?,?, ?,?,?, ?,?)", [bridge_id, type, amount.toString(), reward.toString(), sender_address, dest_address, data, txid, txts]);
+	const res = await db.query("INSERT " + db.getIgnore() + " INTO transfers (bridge_id, type, amount, reward, sender_address, dest_address, data, txid, txts) VALUES (?,?, ?,?, ?,?,?, ?,?)", [bridge_id, type, amount.toString(), reward.toString(), sender_address, safeToString(dest_address), data, txid, txts]);
 	const bInserted = res.insertId && res.affectedRows;
 	console.log(bInserted ? `inserted transfer ${res.insertId}` : `duplicate transfer`);
 	if (bInserted) {
@@ -441,6 +441,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	if (typeof reward === 'number' && (!validationUtils.isInteger(reward) || Math.abs(reward) > constants.MAX_CAP))
 		amountsValid = false;
 	const txidValid = networkApi[opposite_network].isValidTxid(txid);
+	const senderValid = networkApi[opposite_network].isValidAddress(sender_address);
 	
 	// in case we need to delay handling of the claim
 	const tryAgain = () => {
@@ -461,9 +462,11 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		console.log(`invalid amounts in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
 	else if (!txidValid)
 		console.log(`invalid txid in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
+	else if (!senderValid)
+		console.log(`invalid sender address in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`, sender_address);
 	else
 		transfers = await findTransfers();
-	if (!transfers[0] && amountsValid && txidValid && !bMalformed) {
+	if (!transfers[0] && amountsValid && txidValid && senderValid && !bMalformed) {
 		console.log(`no transfer found matching claim ${claim_num} of txid ${txid} in claim tx ${claim_txid} bridge ${bridge_id}`);
 		const retryAfterTxOrTimeout = (timeout) => {
 			const t = setTimeout(tryAgain, timeout * 1000);
@@ -538,7 +541,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	const my_stake = (networkApi[network].isMyAddress(claimant_address) || claimant_address === assistant_aa) ? stake.toString() : '0';
 
 	// log the claim either way, valid or not valid
-	await db.query("INSERT INTO claims (claim_num, bridge_id, type, amount, reward, sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake) VALUES (?,?,?, ?,?, ?,?,?, ?, ?,?, ?, ?,?)", [claim_num, bridge_id, type, amount.toString(), reward.toString(), sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake]);
+	await db.query("INSERT INTO claims (claim_num, bridge_id, type, amount, reward, sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake) VALUES (?,?,?, ?,?, ?,?,?, ?, ?,?, ?, ?,?)", [claim_num, bridge_id, type, amount.toString(), reward.toString(), safeToString(sender_address), dest_address, claimant_address, data, safeToString(txid), txts, transfer_id, claim_txid, my_stake]);
 
 	if (!transfer) { // not valid, attack it
 		eventBus.emit('fraudulent_claim', bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid);

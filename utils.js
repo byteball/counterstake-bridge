@@ -66,8 +66,13 @@ function isRateLimitError(errMsg) {
 	);
 }
 
+function safeToString(value) {
+	return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
 exports.asyncCallWithTimeout = asyncCallWithTimeout;
 exports.wait = wait;
 exports.watchForDeadlock = watchForDeadlock;
 exports.getVersion = getVersion;
 exports.isRateLimitError = isRateLimitError;
+exports.safeToString = safeToString;
