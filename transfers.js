@@ -93,6 +93,7 @@ async function addTransfer(transfer, bRewritable) {
 	const bInserted = res.insertId && res.affectedRows;
 	console.log(bInserted ? `inserted transfer ${res.insertId}` : `duplicate transfer`);
 	if (bInserted) {
+		transfer.transfer_id = res.insertId;
 		// check that the numbers were inserted correctly
 		const [t] = await db.query("SELECT amount, reward FROM transfers WHERE transfer_id=?", [res.insertId]);
 		if (t.amount !== amount.toString() || t.reward !== reward.toString())
@@ -111,7 +112,7 @@ async function handleTransfer(transfer) {
 	let { amount, reward } = transfer;
 
 	async function markAsBad(msg) {
-		await db.query("UPDATE transfers SET is_bad=1 WHERE txid=? AND bridge_id=?", [txid, bridge_id]);
+		await db.query("UPDATE transfers SET is_bad=1 WHERE transfer_id=?", [transfer_id]);
 		return console.log(msg);
 	}
 
