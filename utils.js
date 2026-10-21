@@ -66,8 +66,13 @@ function isRateLimitError(errMsg) {
 	);
 }
 
+// mirrors how Oscript's || stringifies operands in claim_hash: objects (incl. arrays) become "true". Buffers are malformed EVM strings, stored as BLOBs
 function safeToString(value) {
-	return typeof value === 'string' ? value : JSON.stringify(value);
+	if (typeof value === 'string' || Buffer.isBuffer(value))
+		return value;
+	if (typeof value === 'number' || typeof value === 'boolean')
+		return String(value);
+	return 'true';
 }
 
 exports.asyncCallWithTimeout = asyncCallWithTimeout;
