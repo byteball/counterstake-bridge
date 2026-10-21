@@ -706,7 +706,11 @@ class EvmChain {
 			return unlock(`the challenge event was removed, ignoring`);
 		const bridge = await transfers.getBridgeByAddress(event.address, true);
 		const type = getType(event.address, bridge);
-		await transfers.handleChallenge(bridge, type, claim_num, author_address, outcome ? 'yes' : 'no', stake, event.transactionHash);
+		// several challenges can be sent from one tx but challenges are identified by txid, add -2, -3, ... to the 2nd, 3rd, ... challenge in the tx
+		const receipt = await this.#provider.getTransactionReceipt(event.transactionHash);
+		const prev_count = receipt.logs.filter(log => log.address === event.address && log.topics[0] === event.topics[0] && log.logIndex < event.logIndex).length;
+		const challenge_txid = prev_count === 0 ? event.transactionHash : event.transactionHash + '-' + (prev_count + 1);
+		await transfers.handleChallenge(bridge, type, claim_num, author_address, outcome ? 'yes' : 'no', stake, challenge_txid);
 	//	await this.updateLastBlock(event.blockNumber);
 		unlock();
 	}

@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS challenges (
 	address VARCHAR(50) NOT NULL,
 	stake_on VARCHAR(3) NOT NULL, -- yes or no
 	stake VARCHAR(78) NOT NULL,
-	challenge_txid VARCHAR(66) NOT NULL, -- including 0x
+	challenge_txid VARCHAR(70) NOT NULL, -- including 0x, EVM: plus -2, -3, ... for 2nd, 3rd, ... challenge in the same tx
 	creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	UNIQUE (challenge_txid, bridge_id),
 	FOREIGN KEY (claim_num, bridge_id, type) REFERENCES claims(claim_num, bridge_id, type),
