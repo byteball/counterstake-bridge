@@ -505,6 +505,8 @@ class Obyte {
 				const paid_amount = (dest_address !== trigger_address) ? amount - reward : 0;
 				stake -= paid_amount;
 			}
+			if (!['number', 'string'].includes(typeof trigger.data.txts))
+				isWrapped = true; // wrapped in an array in v1 AAs
 			const data = trigger.data.data ? string_utils.getJsonSourceString(trigger.data.data) : '';
 			await transfers.handleNewClaim(bridge, type, new_claim_num, trigger.data.sender_address, dest_address, claimant_address, data, amount, reward, stake, trigger.data.txid, +trigger.data.txts, trigger_unit, isWrapped);
 		}
