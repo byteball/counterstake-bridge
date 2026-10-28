@@ -157,7 +157,7 @@ async function handleTransfer(transfer) {
 		return console.log(`${dst_network} disabled, will not claim transfer ${txid}`);
 
 	if (!dst_api.isValidAddress(dest_address))
-		return markAsBad(`invalid dest address ${dest_address} in transfer ${txid}, will not claim`);
+		return markAsBad(`invalid dest address ${safeToString(dest_address)} in transfer ${txid}, will not claim`);
 
 	if (data && !dst_api.isValidData(data))
 		return markAsBad(`invalid data ${data} in transfer ${txid}, will not claim`);
@@ -440,6 +440,9 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		amountsValid = false;
 	if (typeof reward === 'number' && (!validationUtils.isInteger(reward) || Math.abs(reward) > constants.MAX_CAP))
 		amountsValid = false;
+	const txtsValid = validationUtils.isPositiveInteger(txts) && txts <= 2 ** 31 - 1; // old AAs accepted any txts
+	if (!txtsValid)
+		amountsValid = false;
 	const txidValid = networkApi[opposite_network].isValidTxid(txid);
 	const senderValid = networkApi[opposite_network].isValidAddress(sender_address);
 	
@@ -457,11 +460,11 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	};
 	let transfers = [];
 	if (bMalformed) // strings that are not valid UTF-8 can't match any transfer, wrapped trigger data is not allowed
-		console.log(`malformed strings or wrapped trigger data in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
+		console.log(`malformed strings or wrapped trigger data in claim ${claim_num} claim tx ${claim_txid}, tx ${safeToString(txid)}, bridge ${bridge_id}`);
 	else if (!amountsValid)
-		console.log(`invalid amounts in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
+		console.log(`invalid amounts in claim ${claim_num} claim tx ${claim_txid}, tx ${safeToString(txid)}, bridge ${bridge_id}`);
 	else if (!txidValid)
-		console.log(`invalid txid in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`);
+		console.log(`invalid txid in claim ${claim_num} claim tx ${claim_txid}, tx ${safeToString(txid)}, bridge ${bridge_id}`);
 	else if (!senderValid)
 		console.log(`invalid sender address in claim ${claim_num} claim tx ${claim_txid}, tx ${txid}, bridge ${bridge_id}`, sender_address);
 	else
@@ -541,7 +544,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	const my_stake = (networkApi[network].isMyAddress(claimant_address) || claimant_address === assistant_aa) ? stake.toString() : '0';
 
 	// log the claim either way, valid or not valid
-	await db.query("INSERT INTO claims (claim_num, bridge_id, type, amount, reward, sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake) VALUES (?,?,?, ?,?, ?,?,?, ?, ?,?, ?, ?,?)", [claim_num, bridge_id, type, amount.toString(), reward.toString(), safeToString(sender_address), dest_address, claimant_address, data, safeToString(txid), txts, transfer_id, claim_txid, my_stake]);
+	await db.query("INSERT INTO claims (claim_num, bridge_id, type, amount, reward, sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake) VALUES (?,?,?, ?,?, ?,?,?, ?, ?,?, ?, ?,?)", [claim_num, bridge_id, type, amount.toString(), reward.toString(), safeToString(sender_address), dest_address, claimant_address, data, safeToString(txid), txtsValid ? txts : 0, transfer_id, claim_txid, my_stake]);
 
 	if (!transfer) { // not valid, attack it
 		eventBus.emit('fraudulent_claim', bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid);

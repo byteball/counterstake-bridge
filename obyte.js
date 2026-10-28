@@ -16,7 +16,7 @@ const dag = require('aabot/dag.js');
 const operator = require('aabot/operator.js');
 const notifications = require('./notifications.js');
 const transfers = require('./transfers.js');
-const { watchForDeadlock, getVersion } = require('./utils.js');
+const { watchForDeadlock, getVersion, safeToString, toNumberOrNaN } = require('./utils.js');
 
 let bCreated = false;
 
@@ -479,7 +479,7 @@ class Obyte {
 			const amount = trigger.outputs[type === 'expatriation' ? home_asset : foreign_asset];
 			if (!amount)
 				throw Error(`started ${type} without payment in source asset? ${trigger_unit}`);
-			const reward = parseFloat(trigger.data.reward || 0); // it might be a string
+			const reward = toNumberOrNaN(trigger.data.reward || 0); // it might be a string
 			const dest_address = trigger.data[type === 'expatriation' ? 'foreign_address' : 'home_address'];
 			if (!dest_address)
 				throw Error(`no dest address in transfer ${trigger_unit}`);
@@ -493,8 +493,8 @@ class Obyte {
 			const type = (aa_address === export_aa) ? 'repatriation' : 'expatriation';
 			const dest_address = validationUtils.isValidAddress(trigger.data.address) ? trigger.data.address : trigger_address;
 			const claimant_address = trigger_address;
-			const amount = parseFloat(trigger.data.amount); // it might be a string
-			const reward = parseFloat(trigger.data.reward || 0); // it might be a string
+			const amount = toNumberOrNaN(trigger.data.amount); // it might be a string
+			const reward = toNumberOrNaN(trigger.data.reward || 0); // it might be a string
 			const asset = type === 'expatriation' ? stake_asset : home_asset;
 			let stake = trigger.outputs[asset];
 			if (!stake)
@@ -508,7 +508,7 @@ class Obyte {
 			if (!['number', 'string'].includes(typeof trigger.data.txts))
 				isWrapped = true; // wrapped in an array in v1 AAs
 			const data = trigger.data.data ? string_utils.getJsonSourceString(trigger.data.data) : '';
-			await transfers.handleNewClaim(bridge, type, new_claim_num, trigger.data.sender_address, dest_address, claimant_address, data, amount, reward, stake, trigger.data.txid, +trigger.data.txts, trigger_unit, isWrapped);
+			await transfers.handleNewClaim(bridge, type, new_claim_num, trigger.data.sender_address, dest_address, claimant_address, data, amount, reward, stake, trigger.data.txid, toNumberOrNaN(trigger.data.txts), trigger_unit, isWrapped);
 		}
 		// challenge
 		else if (message.startsWith('current outcome')) {

@@ -81,3 +81,14 @@ exports.watchForDeadlock = watchForDeadlock;
 exports.getVersion = getVersion;
 exports.isRateLimitError = isRateLimitError;
 exports.safeToString = safeToString;
+
+// old AAs didn't check that amount, reward and txts are integers: they can be objects, whose conversion throws
+function toNumberOrNaN(value) {
+	if (typeof value === 'number')
+		return value;
+	if (typeof value === 'string' && value.trim() !== '')
+		return Number(value);
+	return NaN;
+}
+
+exports.toNumberOrNaN = toNumberOrNaN;
