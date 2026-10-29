@@ -544,7 +544,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	const my_stake = (networkApi[network].isMyAddress(claimant_address) || claimant_address === assistant_aa) ? stake.toString() : '0';
 
 	// log the claim either way, valid or not valid
-	await db.query("INSERT INTO claims (claim_num, bridge_id, type, amount, reward, sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake) VALUES (?,?,?, ?,?, ?,?,?, ?, ?,?, ?, ?,?)", [claim_num, bridge_id, type, amount.toString(), reward.toString(), safeToString(sender_address), dest_address, claimant_address, data, safeToString(txid), txtsValid ? txts : 0, transfer_id, claim_txid, my_stake]);
+	await db.query("INSERT INTO claims (claim_num, bridge_id, type, amount, reward, sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake) VALUES (?,?,?, ?,?, ?,?,?, ?, ?,?, ?, ?,?)", [claim_num, bridge_id, type, amount.toString(), reward.toString(), safeToString(sender_address), dest_address, claimant_address, data, safeToString(txid), Number.isFinite(txts) ? txts : 0, transfer_id, claim_txid, my_stake]);
 
 	if (!transfer) { // not valid, attack it
 		eventBus.emit('fraudulent_claim', bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid);
