@@ -1204,7 +1204,7 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 		const errMsg = JSON.stringify(e);
 		if (isRateLimitError(errMsg)) {
 			console.log(`${network} will retry later, attempt ${attempt_count}`);
-			await wait(100);
+			await wait(300);
 			return processPastEvents(contract, filter, since_block, to_block, thisArg, handler, attempt_count + 1);
 		}
 		if (errMsg.includes("internal error") || errMsg.includes("temporarily unavailable") || errMsg.includes("Request timeout on the free tier") || errMsg.includes("from block is greater than latest block") || errMsg.includes("invalid block range params") || errMsg.includes("timeout") || errMsg.includes("timed out")) {
@@ -1241,7 +1241,7 @@ async function processPastEvents(contract, filter, since_block, to_block, thisAr
 		await handler.apply(thisArg, args);
 	}
 	console.log('processPastEvents', network, contract.address, since_block, to_block, `found ${events.length} events`);
-	await wait(50);
+	await wait(100);
 	return events.length;
 }
 
