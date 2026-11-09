@@ -270,16 +270,29 @@ class EvmChain {
 
 	async getClaim(bridge_aa, claim_num, bFinished, bThrowIfNotFound) {
 		const contract = this.#contractsByAddress[bridge_aa];
+		const retryIfRateLimited = async (f) => {
+			for (let attempt = 0; ; attempt++) {
+				try {
+					return await f();
+				}
+				catch (e) {
+					if (attempt >= 10 || !isRateLimitError(JSON.stringify(e) + ' ' + (e && e.message)))
+						throw e;
+					console.log(`${this.network} getClaim ${claim_num} in ${bridge_aa} rate limited, will retry, attempt ${attempt}`);
+					await wait(1000 * (attempt + 1));
+				}
+			}
+		};
 		let claim;
 		try {
-			claim = await contract['getClaim(uint256)'](claim_num);
+			claim = await retryIfRateLimited(() => contract['getClaim(uint256)'](claim_num));
 			claim = claim && claim.amount ? Object.assign({}, claim) : claim; // throws if a string is not valid UTF-8
 		}
 		catch (e) {
 			if (e.code !== ethers.errors.INVALID_ARGUMENT)
 				throw e;
 			console.log(`${this.network} claim ${claim_num} in ${bridge_aa} has malformed strings`, e.message);
-			claim = await this.getClaimWithMalformedStrings(contract, claim_num);
+			claim = await retryIfRateLimited(() => this.getClaimWithMalformedStrings(contract, claim_num));
 		}
 		if (!claim || !claim.amount) {
 			if (bThrowIfNotFound)
@@ -291,7 +304,7 @@ class EvmChain {
 
 		// challenging_target was removed to save gas, recalculate it
 		const winning_stake = claim.current_outcome === 'yes' ? claim.yes_stake : claim.no_stake;
-		const settings = await contract.settings();
+		const settings = await retryIfRateLimited(() => contract.settings());
 		claim.challenging_target = winning_stake.mul(settings.counterstake_coef100).div(100);
 
 		return claim;
