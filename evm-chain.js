@@ -71,8 +71,18 @@ class EvmChain {
 	}
 
 	async updateLastBlock(last_block) {
-		if (!this.#bCatchingUp) // we handle events out of order while catching up
-			await db.query("UPDATE last_blocks SET last_block=? WHERE network=?", [last_block, this.network]);
+		if (this.#bCatchingUp) // we handle events out of order while catching up
+			return;
+		// claims and challenges postponed in memory would be lost on restart if last_block moved past them
+		const deferred = transfers.getDeferred(this.network);
+		if (deferred.length === 0)
+			return await this.saveLastBlock(last_block);
+		console.log(`${this.network} will save last block ${last_block} after ${deferred.length} deferred claims/challenges are handled`, deferred);
+		transfers.waitForDeferred(this.network, deferred).then(() => this.saveLastBlock(last_block));
+	}
+
+	async saveLastBlock(last_block) {
+		await db.query("UPDATE last_blocks SET last_block=? WHERE network=? AND last_block<?", [last_block, this.network, last_block]);
 	}
 
 	async getLastBlock() {

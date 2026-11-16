@@ -27,6 +27,39 @@ const MAX_FIRST_CHALLENGING_PERIOD = 10 * 24 * 3600; // seconds
 const bridgesWithSuccessfulFraud = new Set(); // bridge_id, never cleared as the loss is permanent
 const failedFraudulentClaims = new Set(); // `${bridge_id}-${type}-${claim_num}` of fraudulent claims that lost
 
+const deferred = {}; // network => Set of keys of claims/challenges whose handling is postponed in memory only
+let deferredWaiters = [];
+
+function markDeferred(network, key) {
+	(deferred[network] = deferred[network] || new Set()).add(key);
+}
+
+function markResolved(network, key) {
+	if (!deferred[network] || !deferred[network].delete(key))
+		return;
+	deferredWaiters = deferredWaiters.filter(w => {
+		if (w.network !== network)
+			return true;
+		w.keys.delete(key);
+		if (w.keys.size > 0)
+			return true;
+		w.resolve();
+		return false;
+	});
+}
+
+function getDeferred(network) {
+	return Array.from(deferred[network] || []);
+}
+
+// resolves when all the given keys are resolved
+function waitForDeferred(network, keys) {
+	const pending = new Set(keys.filter(key => deferred[network] && deferred[network].has(key)));
+	if (pending.size === 0)
+		return Promise.resolve();
+	return new Promise(resolve => deferredWaiters.push({ network, keys: pending, resolve }));
+}
+
 async function getBridge(bridge_id) {
 	const [bridge] = await db.query("SELECT * FROM bridges WHERE bridge_id=?", [bridge_id]);
 	if (!bridge)
@@ -414,19 +447,24 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	const network = type === 'expatriation' ? bridge.foreign_network : bridge.home_network;
 	const unlock = await mutex.lock(network);
 	console.log(`handling claim ${claim_num} in tx ${claim_txid}`);
+	const deferral_key = `claim:${bridge.bridge_id}:${type}:${claim_num}:${claim_txid}`;
 
 	const [db_claim] = await db.query("SELECT * FROM claims WHERE claim_num=? AND bridge_id=? AND type=?", [claim_num, bridge.bridge_id, type]);
 	if (db_claim) {
-		if (db_claim.claim_txid === claim_txid)
+		if (db_claim.claim_txid === claim_txid) {
+			markResolved(network, deferral_key);
 			return unlock(`duplicate claim ${claim_num} in tx ${claim_txid}`);
+		}
 		else // will crash when inserting later
 			notifications.notifyAdmin(`new claim with the same number ${claim_num} on ${network}, possible reorg`, `new tx ${claim_txid}, existing tx ${db_claim.claim_txid}, bridge ${bridge.bridge_id}`);
 	}
 
 	// make sure the opposite network is up to date and we know all the transfers initiated there
 	const opposite_network = type === 'expatriation' ? bridge.home_network : bridge.foreign_network;
-	if (!networkApi[opposite_network])
+	if (!networkApi[opposite_network]) {
+		markResolved(network, deferral_key);
 		return unlock(`opposite network ${opposite_network} not active, ignoring claim ${claim_txid}`);
+	}
 	await networkApi[opposite_network].waitUntilSynced();
 	if (!bridge.import_aa || !bridge.export_aa) // maybe it became complete now?
 		bridge = await getBridge(bridge.bridge_id);
@@ -486,6 +524,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 		if (txts < Date.now() / 1000 + conf.max_ts_error && (bTooYoung || bCatchingUp)) {
 			// schedule another check
 			const timeout = bTooYoung ? (txts - stable_ts + 60) : 60;
+			markDeferred(network, deferral_key);
 			retryAfterTxOrTimeout(timeout);
 			return unlock(`the claimed transfer ${claim_num} ${bTooYoung ? 'is too young' : 'not found while catching up'}, will check again in ${timeout} s, maybe it appears in the source chain`);
 		}
@@ -529,6 +568,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	if (transfer) {
 		const min_transfer_age = networkApi[opposite_network].getMinTransferAge();
 		if (transfer && txts > Date.now() / 1000 - min_transfer_age) {
+			markDeferred(network, deferral_key);
 			setTimeout(tryAgain, (txts + min_transfer_age + 1) * 1000 - Date.now());
 			return unlock(`claim ${claim_num} in tx ${claim_txid} appears to be ok but it's too young, will delay its handling to avoid reorgs`);
 		}
@@ -545,6 +585,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 
 	// log the claim either way, valid or not valid
 	await db.query("INSERT INTO claims (claim_num, bridge_id, type, amount, reward, sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake) VALUES (?,?,?, ?,?, ?,?,?, ?, ?,?, ?, ?,?)", [claim_num, bridge_id, type, amount.toString(), reward.toString(), safeToString(sender_address), dest_address, claimant_address, data, safeToString(txid), Number.isFinite(txts) ? txts : 0, transfer_id, claim_txid, my_stake]);
+	markResolved(network, deferral_key);
 
 	if (!transfer) { // not valid, attack it
 		eventBus.emit('fraudulent_claim', bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid);
@@ -563,18 +604,23 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 	const network = type === 'expatriation' ? bridge.foreign_network : bridge.home_network;
 	const unlock = await mutex.lock(network);
 	console.log(`handling challenge of claim ${claim_num} with "${stake_on}" in tx ${challenge_txid}`);
+	const deferral_key = `challenge:${bridge.bridge_id}:${type}:${claim_num}:${challenge_txid}`;
 	
 	const [db_challenge] = await db.query("SELECT * FROM challenges WHERE challenge_txid=? AND bridge_id=?", [challenge_txid, bridge.bridge_id]);
-	if (db_challenge)
+	if (db_challenge) {
+		markResolved(network, deferral_key);
 		return unlock(`duplicate challenge on claim ${claim_num} in tx ${challenge_txid}`);
+	}
 	
 	if (!bridge.import_aa || !bridge.export_aa) // maybe it became complete while we were waiting for the lock?
 		bridge = await getBridge(bridge.bridge_id);
 	
 	const { bridge_id, export_aa, import_aa, export_assistant_aa, import_assistant_aa, home_asset, foreign_asset, stake_asset, home_symbol, home_network, foreign_network } = bridge;
 	const bCompleteBridge = import_aa && export_aa;
-	if (!bCompleteBridge)
+	if (!bCompleteBridge) {
+		markResolved(network, deferral_key);
 		return unlock(`skipping challenge of ${home_symbol} @ ${home_network}-${foreign_network} in challenge tx ${challenge_txid} of claim ${claim_num} on bridge ${bridge_id} as the bridge is still incomplete`);
+	}
 	const bridge_aa = type === 'expatriation' ? import_aa : export_aa;
 	if (!bridge_aa)
 		throw Error(`null aa in challenge ${challenge_txid} on claim ${claim_num}`);
@@ -583,6 +629,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 	const claim = await api.getClaim(bridge_aa, claim_num, false, false);
 	console.log(`claim challenged in trigger ${challenge_txid}`, claim);
 	if (!claim) { // no claim at all or it's already finished
+		markResolved(network, deferral_key);
 		eventBus.emit('challenge', bridge, type, claim_num, address, stake_on, stake, challenge_txid);
 		return unlock(`ongoing claim ${claim_num} challenged in ${challenge_txid} not found, will skip`);
 	}
@@ -590,6 +637,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 	const valid_outcome = await getValidOutcome({ claim_num, bridge_id, type }, false);
 	// this can happen if the claim was too young when received and we delayed its processing but someone challenged it in the mean time. Will wait and retry.
 	if (valid_outcome === null) {
+		markDeferred(network, deferral_key);
 		setTimeout(() => {
 			handleChallenge(bridge, type, claim_num, address, stake_on, stake, challenge_txid);
 		}, 60 * 1000);
@@ -605,6 +653,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 //		throw Error(`wrong type in claim ${claim_num}`);
 	
 	await db.query("INSERT INTO challenges (claim_num, bridge_id, type, address, stake_on, stake, challenge_txid) VALUES(?,?, ?,?, ?,?, ?)", [claim_num, bridge_id, type, address, stake_on, stake.toString(), challenge_txid]);
+	markResolved(network, deferral_key);
 	
 	if (stake_on !== claim.current_outcome)
 		return unlock(`the challenge ${challenge_txid} with "${stake_on}" on claim ${claim_num} didn't override the current outcome "${claim.current_outcome}", no need to act`);
@@ -1388,6 +1437,8 @@ Object.assign(module.exports, {
 	getActiveClaimants,
 	getMaxAmounts,
 	forgetUnconfirmedClaim,
+	getDeferred,
+	waitForDeferred,
 	start,
 });
 
