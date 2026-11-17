@@ -66,6 +66,27 @@ function isRateLimitError(errMsg) {
 	);
 }
 
+// deterministic failures that won't go away on retry
+const nonRetryableErrorCodes = ['CALL_EXCEPTION', 'INVALID_ARGUMENT', 'MISSING_ARGUMENT', 'UNEXPECTED_ARGUMENT', 'NUMERIC_FAULT'];
+
+// for idempotent read calls only, never for sending transactions
+async function retryRpc(f, { name = 'rpc call', attempts = 10, retryNull = false } = {}) {
+	for (let attempt = 1; ; attempt++) {
+		try {
+			const res = await f();
+			if (res != null || !retryNull || attempt >= attempts)
+				return res;
+			console.log(`${name} returned nothing, attempt ${attempt}, will retry`);
+		}
+		catch (e) {
+			if (attempt >= attempts || nonRetryableErrorCodes.includes(e && e.code))
+				throw e;
+			console.log(`${name} attempt ${attempt} failed, will retry`, e);
+		}
+		await wait(1000 * attempt);
+	}
+}
+
 // mirrors how Oscript's || stringifies operands in claim_hash: objects (incl. arrays) become "true". Buffers are malformed EVM strings, stored as BLOBs
 function safeToString(value) {
 	if (typeof value === 'string' || Buffer.isBuffer(value))
@@ -80,6 +101,7 @@ exports.wait = wait;
 exports.watchForDeadlock = watchForDeadlock;
 exports.getVersion = getVersion;
 exports.isRateLimitError = isRateLimitError;
+exports.retryRpc = retryRpc;
 exports.safeToString = safeToString;
 
 // old AAs didn't check that amount, reward and txts are integers: they can be objects, whose conversion throws

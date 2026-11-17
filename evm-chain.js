@@ -11,7 +11,7 @@ const string_utils = require("ocore/string_utils.js");
 const notifications = require('./notifications.js');
 const transfers = require('./transfers.js');
 const { fetchExchangeRateInNativeAsset } = require('./prices.js');
-const { wait, watchForDeadlock, getVersion, asyncCallWithTimeout, isRateLimitError } = require('./utils.js');
+const { wait, watchForDeadlock, getVersion, asyncCallWithTimeout, isRateLimitError, retryRpc } = require('./utils.js');
 
 const exportJson = require('./evm/build/contracts/Export.json');
 const importJson = require('./evm/build/contracts/Import.json');
@@ -90,17 +90,8 @@ class EvmChain {
 		return last_block;
 	}
 
-	async getBlockNumber(attempt = 0) {
-		try {
-			return await this.#provider.getBlockNumber();
-		}
-		catch (e) {
-			console.log(`getBlockNumber ${this.network} attempt ${attempt} failed, will try again after waiting`, e);
-			if (attempt >= 10)
-				throw e;
-			await wait(1000 * (attempt + 1));
-			return await this.getBlockNumber(attempt + 1);
-		}
+	async getBlockNumber() {
+		return await retryRpc(() => this.#provider.getBlockNumber(), { name: `getBlockNumber ${this.network}` });
 	}
 
 	async getTopAvailableBlock() {
@@ -148,18 +139,13 @@ class EvmChain {
 	}
 	
 	async getTransaction(txid) {
-		return await this.#provider.getTransaction(txid);
+		return await retryRpc(() => this.#provider.getTransaction(txid), { name: `getTransaction ${this.network} ${txid}` });
 	}
 
-	async getBlockTimestamp(blockHash, bRetrying) {
-		const block = await this.#provider.getBlock(blockHash);
-		if (!block) {
-			if (bRetrying)
-				throw Error(`block ${blockHash} in ${this.network} not found`);
-			console.log(`block ${blockHash} in ${this.network} not found, will retry`);
-			await wait(15000);
-			return await this.getBlockTimestamp(blockHash, true);
-		}
+	async getBlockTimestamp(blockHash) {
+		const block = await retryRpc(() => this.#provider.getBlock(blockHash), { name: `getBlock ${this.network} ${blockHash}`, attempts: 5, retryNull: true });
+		if (!block)
+			throw Error(`block ${blockHash} in ${this.network} not found`);
 		return block.timestamp;
 	}
 
@@ -168,7 +154,7 @@ class EvmChain {
 		if (!currentBlockNumber)
 			throw Error(`no current block number in ${this.network}`);
 		const last_finalized_block_number = Math.max(currentBlockNumber - conf.evm_count_blocks_for_finality, 0);
-		const block = await this.#provider.getBlock(last_finalized_block_number);
+		const block = await retryRpc(() => this.#provider.getBlock(last_finalized_block_number), { name: `getBlock ${this.network} ${last_finalized_block_number}`, attempts: 5, retryNull: true });
 		if (!block)
 			throw Error(`failed to get block ${last_finalized_block_number} on ${this.network}`);
 		return block.timestamp;
@@ -280,29 +266,17 @@ class EvmChain {
 
 	async getClaim(bridge_aa, claim_num, bFinished, bThrowIfNotFound) {
 		const contract = this.#contractsByAddress[bridge_aa];
-		const retryIfRateLimited = async (f) => {
-			for (let attempt = 0; ; attempt++) {
-				try {
-					return await f();
-				}
-				catch (e) {
-					if (attempt >= 10 || !isRateLimitError(JSON.stringify(e) + ' ' + (e && e.message)))
-						throw e;
-					console.log(`${this.network} getClaim ${claim_num} in ${bridge_aa} rate limited, will retry, attempt ${attempt}`);
-					await wait(1000 * (attempt + 1));
-				}
-			}
-		};
+		const retry = f => retryRpc(f, { name: `${this.network} getClaim ${claim_num} in ${bridge_aa}` });
 		let claim;
 		try {
-			claim = await retryIfRateLimited(() => contract['getClaim(uint256)'](claim_num));
+			claim = await retry(() => contract['getClaim(uint256)'](claim_num));
 			claim = claim && claim.amount ? Object.assign({}, claim) : claim; // throws if a string is not valid UTF-8
 		}
 		catch (e) {
 			if (e.code !== ethers.errors.INVALID_ARGUMENT)
 				throw e;
 			console.log(`${this.network} claim ${claim_num} in ${bridge_aa} has malformed strings`, e.message);
-			claim = await retryIfRateLimited(() => this.getClaimWithMalformedStrings(contract, claim_num));
+			claim = await retry(() => this.getClaimWithMalformedStrings(contract, claim_num));
 		}
 		if (!claim || !claim.amount) {
 			if (bThrowIfNotFound)
@@ -314,7 +288,7 @@ class EvmChain {
 
 		// challenging_target was removed to save gas, recalculate it
 		const winning_stake = claim.current_outcome === 'yes' ? claim.yes_stake : claim.no_stake;
-		const settings = await retryIfRateLimited(() => contract.settings());
+		const settings = await retry(() => contract.settings());
 		claim.challenging_target = winning_stake.mul(settings.counterstake_coef100).div(100);
 
 		return claim;
@@ -730,7 +704,12 @@ class EvmChain {
 		const bridge = await transfers.getBridgeByAddress(event.address, true);
 		const type = getType(event.address, bridge);
 		// several challenges can be sent from one tx but challenges are identified by txid, add -2, -3, ... to the 2nd, 3rd, ... challenge in the tx
-		const receipt = await this.#provider.getTransactionReceipt(event.transactionHash);
+		// the RPC node serving the receipt request can lag behind the one that served the event
+		const receipt = await retryRpc(() => this.#provider.getTransactionReceipt(event.transactionHash), { name: `getTransactionReceipt ${this.network} ${event.transactionHash}`, attempts: 5, retryNull: true });
+		if (!receipt) {
+			unlock();
+			throw Error(`no receipt for tx ${event.transactionHash}`);
+		}
 		const prev_count = receipt.logs.filter(log => log.address === event.address && log.topics[0] === event.topics[0] && log.logIndex < event.logIndex).length;
 		const challenge_txid = prev_count === 0 ? event.transactionHash : event.transactionHash + '-' + (prev_count + 1);
 		await transfers.handleChallenge(bridge, type, claim_num, author_address, outcome ? 'yes' : 'no', stake, challenge_txid);
