@@ -87,7 +87,9 @@ class Obyte {
 			return false;
 		try {
 			const objData = JSON.parse(data); // throws if invalid JSON
-			string_utils.getJsonSourceString(objData); // check if it throws (null, Infinity, {}, [])
+			// check if it throws (null, Infinity, {}, []); the canonical form can be much longer than the raw one (1e20), and the claim must fit in a state var
+			if (string_utils.getJsonSourceString(objData).length > 400)
+				return false;
 			return true;
 		}
 		catch (e) {
