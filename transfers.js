@@ -15,7 +15,7 @@ const Ethereum = require('./ethereum.js');
 const BSC = require('./bsc.js');
 const Polygon = require('./polygon.js');
 const Kava = require('./kava.js');
-const { wait, asyncCallWithTimeout, safeToString } = require('./utils.js');
+const { wait, asyncCallWithTimeout, safeToString, toNumberOrNaN } = require('./utils.js');
 
 const networkApi = {};
 let maxAmounts;
@@ -441,6 +441,14 @@ async function attackClaim(bridge, type, claim_num, claim_txid) {
 
 async function handleNewClaim(bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid, bMalformed) {
 
+	const raw_txts = txts; // old AAs accepted non-numeric txts
+	txts = toNumberOrNaN(raw_txts);
+	const raw_amount = amount, raw_reward = reward; // Obyte passes strings, EVM passes BigNumbers
+	if (typeof amount === 'string')
+		amount = toNumberOrNaN(amount);
+	if (typeof reward === 'string')
+		reward = toNumberOrNaN(reward);
+
 	if (!conf.bWatchdog)
 		return console.log(`will skip claim ${claim_txid} as watchdog function is off`);
 
@@ -487,7 +495,7 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	// in case we need to delay handling of the claim
 	const tryAgain = () => {
 		console.log(`retrying handling of claim ${claim_num}`);
-		handleNewClaim(bridge, type, claim_num, sender_address, dest_address, claimant_address, data, amount, reward, stake, txid, txts, claim_txid, bMalformed);
+		handleNewClaim(bridge, type, claim_num, sender_address, dest_address, claimant_address, data, raw_amount, raw_reward, stake, txid, raw_txts, claim_txid, bMalformed);
 	};
 
 	// sender_address and dest_address are case-sensitive! For Ethereum, use mixed case checksummed addresses only
@@ -583,8 +591,12 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 
 	const my_stake = (networkApi[network].isMyAddress(claimant_address) || claimant_address === assistant_aa) ? stake.toString() : '0';
 
+	// the prefix stops SQLite's INT affinity from converting the raw value to a number, so claims differing only by raw txts don't collide in the unique index
+	const txts_to_store = conf.storage === 'sqlite' && typeof raw_txts !== 'number' ? 'raw:' + safeToString(raw_txts) : (Number.isFinite(txts) ? txts : 0);
+
+	// raw amount and reward: old AAs treat "3e-324" and "4e-324" as different claims although both convert to the same number
 	// log the claim either way, valid or not valid
-	await db.query("INSERT INTO claims (claim_num, bridge_id, type, amount, reward, sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake) VALUES (?,?,?, ?,?, ?,?,?, ?, ?,?, ?, ?,?)", [claim_num, bridge_id, type, amount.toString(), reward.toString(), safeToString(sender_address), dest_address, claimant_address, data, safeToString(txid), Number.isFinite(txts) ? txts : 0, transfer_id, claim_txid, my_stake]);
+	await db.query("INSERT INTO claims (claim_num, bridge_id, type, amount, reward, sender_address, dest_address, claimant_address, data, txid, txts, transfer_id, claim_txid, my_stake) VALUES (?,?,?, ?,?, ?,?,?, ?, ?,?, ?, ?,?)", [claim_num, bridge_id, type, raw_amount.toString(), raw_reward.toString(), safeToString(sender_address), dest_address, claimant_address, data, safeToString(txid), txts_to_store, transfer_id, claim_txid, my_stake]);
 	markResolved(network, deferral_key);
 
 	if (!transfer) { // not valid, attack it

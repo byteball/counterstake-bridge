@@ -510,7 +510,7 @@ class Obyte {
 			if (!['number', 'string'].includes(typeof trigger.data.txts))
 				isWrapped = true; // wrapped in an array in v1 AAs
 			const data = trigger.data.data ? string_utils.getJsonSourceString(trigger.data.data) : '';
-			await transfers.handleNewClaim(bridge, type, new_claim_num, trigger.data.sender_address, dest_address, claimant_address, data, amount, reward, stake, trigger.data.txid, toNumberOrNaN(trigger.data.txts), trigger_unit, isWrapped);
+			await transfers.handleNewClaim(bridge, type, new_claim_num, trigger.data.sender_address, dest_address, claimant_address, data, trigger.data.amount, trigger.data.reward || 0, stake, trigger.data.txid, trigger.data.txts, trigger_unit, isWrapped);
 		}
 		// challenge
 		else if (message.startsWith('current outcome')) {
