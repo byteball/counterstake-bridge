@@ -509,7 +509,10 @@ class Obyte {
 			}
 			if (!['number', 'string'].includes(typeof trigger.data.txts))
 				isWrapped = true; // wrapped in an array in v1 AAs
-			const data = trigger.data.data ? string_utils.getJsonSourceString(trigger.data.data) : '';
+			let claimed_data = trigger.data.data;
+			if (typeof claimed_data === 'string' && string_utils.toNumber(claimed_data) !== null)
+				claimed_data = +claimed_data; // Oscript converts numeric strings
+			const data = claimed_data ? string_utils.getJsonSourceString(claimed_data) : '';
 			await transfers.handleNewClaim(bridge, type, new_claim_num, trigger.data.sender_address, dest_address, claimant_address, data, trigger.data.amount, trigger.data.reward || 0, stake, trigger.data.txid, trigger.data.txts, trigger_unit, isWrapped);
 		}
 		// challenge
@@ -518,7 +521,7 @@ class Obyte {
 				console.log(`got challenge ${trigger_unit} for "${trigger.data.stake_on}" that didn't change the outcome`);
 			else if (message.startsWith('current outcome became'))
 				console.log(`got challenge ${trigger_unit} for "${trigger.data.stake_on}" that changed the outcome`);
-			const claim_num = trigger.data.claim_num;
+			const claim_num = +trigger.data.claim_num; // Oscript converts "01", "1.0" to 1
 			if (!trigger.data.stake_on || !claim_num)
 				throw Error(`no trigger data in challenge ${trigger_unit}`);
 			const type = (aa_address === export_aa) ? 'repatriation' : 'expatriation';
@@ -532,7 +535,7 @@ class Obyte {
 		}
 		// first withdrawal
 		else if (message.startsWith('finished claim ')) {
-			const claim_num = trigger.data.claim_num;
+			const claim_num = +trigger.data.claim_num; // Oscript converts "01", "1.0" to 1
 			if (!trigger.data.withdraw || !claim_num)
 				throw Error(`no trigger data in withdrawal ${trigger_unit}`);
 			const type = (aa_address === export_aa) ? 'repatriation' : 'expatriation';
