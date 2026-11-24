@@ -1,5 +1,7 @@
 "use strict";
 const mutex = require('ocore/mutex.js');
+const string_utils = require('ocore/string_utils.js');
+const { createDecimal } = require('ocore/formula/common.js');
 
 let watchedKeys = {};
 
@@ -105,11 +107,10 @@ exports.retryRpc = retryRpc;
 exports.safeToString = safeToString;
 
 // old AAs didn't check that amount, reward and txts are integers: they can be objects, whose conversion throws
+// converts like Oscript does when reading a scalar from trigger.data: numeric strings become numbers rounded to 15 significant digits
 function toNumberOrNaN(value) {
-	if (typeof value === 'number')
-		return value;
-	if (typeof value === 'string' && value.trim() !== '')
-		return Number(value);
+	if (typeof value === 'number' || typeof value === 'string' && string_utils.toNumber(value) !== null)
+		return createDecimal(value).toNumber();
 	return NaN;
 }
 
