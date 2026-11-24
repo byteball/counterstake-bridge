@@ -611,6 +611,10 @@ class EvmChain {
 		contract.on('NewClaim', this.onNewClaim.bind(this));
 		contract.on('NewChallenge', this.onNewChallenge.bind(this));
 		contract.on('FinishedClaim', this.onFinishedClaim.bind(this));
+		this.addDecodeErrorHandler(contract);
+	}
+
+	addDecodeErrorHandler(contract) {
 		contract.on('error', (error, event) => {
 			this.onEventDecodeError(contract, error, event).catch(e => {
 				console.log(`handling of event decode error on ${this.network} contract ${contract.address} failed`, e);
@@ -873,11 +877,12 @@ class EvmChain {
 			const contract = new ethers.Contract(factory_contract_address, factoryJson.abi, this.#provider);
 			contract.on('NewExport', onNewExport);
 			contract.on('NewImport', onNewImport);
+			this.addDecodeErrorHandler(contract); // anyone can create a bridge with non-UTF-8 strings, such events are skipped
 
 			const processPastEventsOnContract = async (from_block, to_block) => {
 				console.log('factories processPastEventsOnContract', this.network, from_block, to_block);
-				await processPastEvents(contract, contract.filters.NewExport(), from_block, to_block, null, onNewExport);
-				await processPastEvents(contract, contract.filters.NewImport(), from_block, to_block, null, onNewImport);
+				await processPastEvents(contract, contract.filters.NewExport(), from_block, to_block, this, onNewExport);
+				await processPastEvents(contract, contract.filters.NewImport(), from_block, to_block, this, onNewImport);
 			};
 		
 			// get factory events that are beyond the block range
@@ -944,11 +949,12 @@ class EvmChain {
 			const contract = new ethers.Contract(assistant_factory_contract_address, assistantFactoryJson.abi, this.#provider);
 			contract.on('NewExportAssistant', onNewExportAssistant);
 			contract.on('NewImportAssistant', onNewImportAssistant);
+			this.addDecodeErrorHandler(contract);
 
 			const processPastEventsOnContract = async (from_block, to_block) => {
 				console.log('assistants processPastEventsOnContract', this.network, from_block, to_block);
-				await processPastEvents(contract, contract.filters.NewExportAssistant(), from_block, to_block, null, onNewExportAssistant);
-				await processPastEvents(contract, contract.filters.NewImportAssistant(), from_block, to_block, null, onNewImportAssistant);
+				await processPastEvents(contract, contract.filters.NewExportAssistant(), from_block, to_block, this, onNewExportAssistant);
+				await processPastEvents(contract, contract.filters.NewImportAssistant(), from_block, to_block, this, onNewImportAssistant);
 			};
 
 			// get factory events that are beyond the block range
