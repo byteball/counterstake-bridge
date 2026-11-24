@@ -87,6 +87,9 @@ class Obyte {
 			return false;
 		try {
 			const objData = JSON.parse(data); // throws if invalid JSON
+			// scalars don't survive the round trip through Oscript: numeric strings become numbers, "0" and "false" become no data
+			if (typeof objData !== 'object' || objData === null)
+				return false;
 			// check if it throws (null, Infinity, {}, []); the canonical form can be much longer than the raw one (1e20), and the claim must fit in a state var
 			if (string_utils.getJsonSourceString(objData).length > 400)
 				return false;
