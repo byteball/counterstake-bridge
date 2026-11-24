@@ -643,6 +643,7 @@ async function handleChallenge(bridge, type, claim_num, address, stake_on, stake
 	if (!claim) { // no claim at all or it's already finished
 		markResolved(network, deferral_key);
 		eventBus.emit('challenge', bridge, type, claim_num, address, stake_on, stake, challenge_txid);
+		notifications.notifyAdmin(`challenged claim ${claim_num} not found, challenge tx ${challenge_txid}`, `network ${network}, bridge ${bridge_id}, AA ${bridge_aa}\nSkipping`);
 		return unlock(`ongoing claim ${claim_num} challenged in ${challenge_txid} not found, will skip`);
 	}
 
