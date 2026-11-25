@@ -17,7 +17,7 @@ const Polygon = require('./polygon.js');
 const Kava = require('./kava.js');
 const { wait, asyncCallWithTimeout, safeToString, toNumberOrNaN } = require('./utils.js');
 
-const networkApi = {};
+const networkApi = Object.create(null);
 let maxAmounts;
 let bCatchingUp = true;
 let bCatchingUpOrHandlingPostponedEvents = true;
