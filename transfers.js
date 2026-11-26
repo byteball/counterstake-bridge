@@ -182,6 +182,9 @@ async function handleTransfer(transfer) {
 	// Obyte amounts are JS numbers capped at MAX_CAP, BigNumber.toNumber() would throw on larger values
 	if (dst_network === 'Obyte' && (dst_amount.gt(constants.MAX_CAP) || dst_reward.abs().gt(constants.MAX_CAP)))
 		return markAsBad(`transfer ${txid} on bridge ${bridge_id} dst amount ${dst_amount.toString()} or reward ${dst_reward.toString()} exceeds MAX_CAP, will not claim`);
+	// Oscript rounds numbers to 15 significant digits, such amounts can't be claimed exactly
+	if (dst_network === 'Obyte' && (toNumberOrNaN(dst_amount.toNumber()) !== dst_amount.toNumber() || toNumberOrNaN(dst_reward.toNumber()) !== dst_reward.toNumber()))
+		return markAsBad(`transfer ${txid} on bridge ${bridge_id} dst amount ${dst_amount.toString()} or reward ${dst_reward.toString()} has excessive precision for Oscript, will not claim`);
 	const fDstAmount = parseFloat(dst_amount.toString()) / 10 ** dst_asset_decimals;
 	const fDstReward = parseFloat(dst_reward.toString()) / 10 ** dst_asset_decimals;
 	const src_api = networkApi[src_network];
@@ -444,9 +447,9 @@ async function handleNewClaim(bridge, type, claim_num, sender_address, dest_addr
 	const raw_txts = txts; // old AAs accepted non-numeric txts
 	txts = toNumberOrNaN(raw_txts);
 	const raw_amount = amount, raw_reward = reward; // Obyte passes strings, EVM passes BigNumbers
-	if (typeof amount === 'string')
+	if (typeof amount === 'string' || typeof amount === 'number') // numbers too: Oscript rounds them to 15 significant digits
 		amount = toNumberOrNaN(amount);
-	if (typeof reward === 'string')
+	if (typeof reward === 'string' || typeof reward === 'number')
 		reward = toNumberOrNaN(reward);
 
 	if (!conf.bWatchdog)
